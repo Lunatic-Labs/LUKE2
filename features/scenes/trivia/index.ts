@@ -1,0 +1,1 @@
+export { TriviaScene } from "./TriviaScene";
