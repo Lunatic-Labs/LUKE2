@@ -24,3 +24,28 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* L.U.K.E. palette, taken from the Processing build: the purple fill
+   rgb(51, 30, 84) and gold stroke rgb(244, 170, 0) used by BottomBar.pde. */
+:root {
+  --luke-purple: #331e54;
+  --luke-gold: #f4aa00;
+}
+
+/* IdleScene's prompt drifted up and down a few pixels per frame in
+   IdleScene.Draw(); as a keyframe it needs no draw loop. */
+@keyframes luke-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(2.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[luke-float_3s_ease-in-out_infinite\] {
+    animation: none;
+  }
+}

@@ -1,0 +1,1 @@
+export { BoardScene } from "./BoardScene";
