@@ -203,11 +203,11 @@ export function DirectoryScene({ handle }: SceneComponentProps) {
   }
 
   return (
-    <SceneFrame className="bg-[var(--luke-purple)] text-white">
-      <div className="flex items-center justify-between border-b border-white/15 px-5 py-3">
+    <SceneFrame className="bg-white text-black">
+      <div className="flex items-center justify-between border-b border-black/15 px-5 py-3">
         <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-[var(--luke-gold)]">Our Faculty and Staff</p>
-          <h1 className="text-2xl font-semibold">Directory</h1>
+          <p className="text-xs uppercase tracking-[0.2em] text-black">Our Faculty and Staff</p>
+          <h1 className="text-2xl font-semibold text-black">Directory</h1>
         </div>
         <div className="relative">
           <label className="sr-only" htmlFor="staff-category">
@@ -217,7 +217,7 @@ export function DirectoryScene({ handle }: SceneComponentProps) {
             id="staff-category"
             value={selectedCategory}
             onChange={(event) => changeCategory(event.target.value)}
-            className="rounded-full border border-[var(--luke-gold)] bg-white px-3 py-2 text-sm font-medium text-[var(--luke-purple)] outline-none"
+            className="rounded-full border border-black bg-white px-3 py-2 text-sm font-medium text-black outline-none"
           >
             {categories.map((category) => (
               <option key={category} value={category}>
@@ -229,9 +229,9 @@ export function DirectoryScene({ handle }: SceneComponentProps) {
       </div>
 
       {activePerson ? (
-        <div className="grid flex-1 gap-6 overflow-hidden p-5 md:grid-cols-[220px_1fr]">
-          <div className="flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-4">
-            <div className="flex h-40 w-40 items-center justify-center rounded-full border-4 border-[var(--luke-gold)] bg-[var(--luke-purple)] text-4xl font-bold text-[var(--luke-gold)] shadow-lg">
+        <div className="flex flex-1 flex-col gap-4 overflow-hidden p-5">
+          <div className="flex items-center justify-center rounded-2xl border border-black/10 bg-white p-4">
+            <div className="flex h-40 w-40 items-center justify-center rounded-full border-4 border-black bg-white text-4xl font-bold text-black shadow-lg">
               {activePerson.name
                 .split(" ")
                 .slice(0, 2)
@@ -241,32 +241,30 @@ export function DirectoryScene({ handle }: SceneComponentProps) {
             </div>
           </div>
 
-          <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm uppercase tracking-[0.18em] text-[var(--luke-gold)]">{activePerson.category}</p>
-                <h2 className="mt-2 text-3xl font-semibold text-white">{activePerson.name}</h2>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => shiftPerson(-1)}
-                  className="rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-sm font-medium text-white"
-                >
-                  Prev
-                </button>
-                <button
-                  type="button"
-                  onClick={() => shiftPerson(1)}
-                  className="rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-sm font-medium text-white"
-                >
-                  Next
-                </button>
-              </div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-black/10 bg-white p-4">
+            <div className="mb-3">
+              <p className="text-sm uppercase tracking-[0.18em] text-black">{activePerson.category}</p>
+              <h2 className="mt-2 text-3xl font-semibold text-black">{activePerson.name}</h2>
             </div>
 
-            <p className="mt-5 flex-1 overflow-y-auto pr-2 text-base leading-7 text-zinc-100">{activePerson.bio}</p>
+            <p className="flex-1 overflow-y-auto pr-2 text-base leading-7 text-black">{activePerson.bio}</p>
+          </div>
+
+          <div className="mt-auto flex justify-center gap-3 pb-1">
+            <button
+              type="button"
+              onClick={() => shiftPerson(-1)}
+              className="rounded-full border border-black bg-white px-5 py-2 text-sm font-medium text-black"
+            >
+              Prev
+            </button>
+            <button
+              type="button"
+              onClick={() => shiftPerson(1)}
+              className="rounded-full border border-black bg-white px-5 py-2 text-sm font-medium text-black"
+            >
+              Next
+            </button>
           </div>
         </div>
       ) : (
