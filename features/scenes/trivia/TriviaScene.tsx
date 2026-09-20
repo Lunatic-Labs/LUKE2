@@ -123,7 +123,7 @@ export function TriviaScene({ handle }: SceneComponentProps) {
 
       {phase === "start" && (
         <PromptScreen
-          prompt="Care for some trivia? Tap a button to play!"
+          prompt="Care for some trivia? Tap the button to play!"
           buttonLabel="Tap to Play"
           onSelect={startRound}
         />
@@ -186,14 +186,17 @@ function PromptScreen({
   onSelect: () => void;
 }) {
   return (
-    <div className="flex flex-1 flex-col">
-      <p className="flex-1 px-6 py-8 text-center text-xl leading-8 whitespace-pre-line text-[var(--luke-purple)]">
+    <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6 py-8">
+      <p className="text-center text-xl leading-8 whitespace-pre-line text-[var(--luke-purple)]">
         {prompt}
       </p>
-      <AnswerGrid
-        responses={[buttonLabel, buttonLabel, buttonLabel, buttonLabel]}
-        onSelect={onSelect}
-      />
+      <button
+        type="button"
+        onClick={onSelect}
+        className="rounded-lg bg-[var(--luke-purple)] px-10 py-6 text-center text-lg font-semibold text-[var(--luke-gold)]"
+      >
+        {buttonLabel}
+      </button>
     </div>
   );
 }
@@ -220,6 +223,10 @@ function QuestionScreen({
  * did: top-left and bottom-right are purple-on-gold, top-right and
  * bottom-left are gold-on-purple. `onSelect` receives the button's index in
  * `responses`, matching `Click()`'s quadrant-to-answer-index mapping.
+ *
+ * Only question screens use this. Upstream drew four identical "Tap to Play" /
+ * "Tap to Continue" buttons on the other screens because every quadrant had to
+ * be clickable; here `PromptScreen` shows a single centered button instead.
  */
 function AnswerGrid({
   responses,
