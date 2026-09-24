@@ -19,6 +19,8 @@ docker compose up --build                       # production image
 
 `RAPIDAPI_KEY` is expected in `.env.local` (see `.env.local.example`) for any feature that calls the RapidAPI news endpoints — not currently wired into any route in this boilerplate state.
 
+`CAMERA_DIR` (optional) sets where `app/api/photos` saves camera-scene photos; it defaults to `data/camera-pics` relative to the working directory, which is gitignored and mounted as the `camera-pics` volume in `docker-compose.yml`. The camera needs a secure context (https or localhost) for `getUserMedia`.
+
 ## Architecture
 
 This is a Next.js (App Router) + React 19 + TypeScript (strict) + Tailwind v4 app hosting **L.U.K.E.** (Lipscomb University Kiosk Experience), ported from the Processing/Java sketch at https://github.com/Lunatic-Labs/Kiosk (`src/luke_java/`). The shell architecture is ported; most individual scenes are registered placeholders awaiting implementation.

@@ -8,6 +8,10 @@
 - `globals.css` — Tailwind entry plus the L.U.K.E. palette tokens
   (`--luke-purple`, `--luke-gold`) and the idle-prompt keyframes.
 
+- `api/photos/route.ts` — accepts a JPEG from the camera scene and saves it via
+  `@/features/scenes/camera/photo-store` into `CAMERA_DIR` (default
+  `data/camera-pics`, the Processing build's `CameraDir`).
+
 Business logic does not belong here. When scenes need data from disk (video
 playlists, gallery contents, professor records), add route handlers under this
 directory and keep the parsing in the owning feature.

@@ -49,3 +49,13 @@ body {
     animation: none;
   }
 }
+
+/* Camera shutter flash, shown while a capture is being saved. */
+@keyframes luke-flash {
+  from {
+    opacity: 0.9;
+  }
+  to {
+    opacity: 0;
+  }
+}

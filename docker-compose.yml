@@ -5,3 +5,9 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+    volumes:
+      # Photos taken by the camera scene; the gallery reads from here.
+      - camera-pics:/app/data/camera-pics
+
+volumes:
+  camera-pics:

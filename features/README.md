@@ -16,9 +16,12 @@ The shell, ported from the L.U.K.E. Processing sketch's `DisplayManager.pde`:
 
 ## `scenes/`
 
-One folder per screen. `idle/` and `map/` are built; the rest are registered
+One folder per screen. `idle/`, `map/` and `camera/` are built; the rest are registered
 placeholders that render `<ScenePlaceholder />` and name the Processing source
 they should be ported from.
+
+`camera/photo-store.ts` is server-only (it writes to disk for `app/api/photos`);
+keep it out of the `camera/index.ts` barrel so client bundles never pull it in.
 
 To implement a scene, replace its component body and drop `placeholder: true`
 from its entry in `features/kiosk/registry.ts`.
