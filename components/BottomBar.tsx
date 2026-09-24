@@ -4,10 +4,10 @@
  * Carousel navigation bar.
  *
  * Ported from `src/luke_java/BottomBar.pde`: a purple bar pinned to the bottom
- * of the screen, gold-outlined arrow zones on the outer 20% at each end, and
- * the active scene's name centred between them. The Processing version drew
- * the arrows with `line()` calls scaled from a 360px-wide reference; here they
- * are SVG so they stay crisp at kiosk resolutions.
+ * of the screen with previous/next controls. The Processing version drew
+ * gold-outlined arrow zones and printed the scene name between them; the
+ * redesign uses two lavender keys and keeps the scene name for screen readers
+ * only. Arrows are SVG so they stay crisp at kiosk resolutions.
  */
 
 export interface BottomBarProps {
@@ -22,20 +22,13 @@ export function BottomBar({ sceneName, onPrevious, onNext, height }: BottomBarPr
   return (
     <nav
       aria-label="Scene navigation"
-      className="flex w-full shrink-0 items-stretch bg-[var(--luke-purple)] text-[var(--luke-gold)] select-none"
+      className="flex w-full shrink-0 items-center justify-between bg-[var(--luke-purple)] px-[20%] select-none"
       style={{ height }}
     >
       <ArrowButton direction="previous" label="Previous scene" onClick={onPrevious} />
-
-      <div className="flex min-w-0 flex-1 items-center justify-center px-2">
-        <span
-          className="truncate text-center font-semibold"
-          style={{ fontSize: "clamp(1rem, 4.5vw, 2.25rem)" }}
-        >
-          {sceneName}
-        </span>
-      </div>
-
+      <span className="sr-only" aria-live="polite">
+        {sceneName}
+      </span>
       <ArrowButton direction="next" label="Next scene" onClick={onNext} />
     </nav>
   );
@@ -55,21 +48,22 @@ function ArrowButton({
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="flex w-1/5 items-center justify-center border border-[var(--luke-gold)] transition-colors active:bg-white/10"
+      className="flex aspect-[4/3] h-[72%] items-center justify-center rounded-[22%] bg-[var(--luke-lavender)] text-[var(--luke-purple)] transition-[filter] active:brightness-90"
     >
       <svg
         viewBox="0 0 40 40"
-        className="h-1/2 w-1/2"
+        className="h-3/5 w-3/5"
         fill="none"
         stroke="currentColor"
-        strokeWidth={3}
+        strokeWidth={7}
         strokeLinecap="round"
+        strokeLinejoin="round"
         aria-hidden="true"
       >
         {direction === "previous" ? (
-          <polyline points="25,6 11,20 25,34" />
+          <polyline points="25,8 13,20 25,32" />
         ) : (
-          <polyline points="15,6 29,20 15,34" />
+          <polyline points="15,8 27,20 15,32" />
         )}
       </svg>
     </button>

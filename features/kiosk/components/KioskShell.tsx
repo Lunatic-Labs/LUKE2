@@ -1,7 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BottomBar } from "@/components/BottomBar";
+import { KioskHeader } from "@/components/KioskHeader";
 import { useCarousel } from "@/hooks/useCarousel";
 import { useIdleTimer } from "@/hooks/useIdleTimer";
 import { bottomBarHeight, DEFAULT_OPTIONS, type KioskOptions } from "../options";
@@ -140,22 +142,36 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
 
   return (
     <div
-      className="flex h-dvh w-full flex-col overflow-hidden bg-white"
+      className="flex h-dvh w-full flex-col overflow-hidden bg-[var(--luke-lavender)]"
       // Upstream `DisplayManager.Click()` saw every tap before delegating, so
       // any interaction anywhere reset the idle clock. Same here.
       onPointerDown={sessionActive ? reportActivity : beginSession}
     >
-      <main className="min-h-0 flex-1">
-        <SceneErrorBoundary
-          // Remount on scene change so a recovered boundary does not stay tripped.
-          key={scene.id}
-          onError={(error) => {
-            tracker.recordError(scene.name, error);
-            endSession();
-          }}
-        >
-          <Component bounds={{ width: options.screenWidth, height: options.screenHeight }} handle={handle} />
-        </SceneErrorBoundary>
+      <KioskHeader />
+
+      <main className="relative min-h-0 flex-1">
+        {/* Backdrop only: its solid base meets the bottom bar so the skyline
+            appears to rise out of it. Scenes paint over it and get the taps. */}
+        <Image
+          src="/images/nashville-skyline.png"
+          alt=""
+          width={482}
+          height={119}
+          priority
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-auto w-full"
+        />
+        <div className="relative h-full">
+          <SceneErrorBoundary
+            // Remount on scene change so a recovered boundary does not stay tripped.
+            key={scene.id}
+            onError={(error) => {
+              tracker.recordError(scene.name, error);
+              endSession();
+            }}
+          >
+            <Component bounds={{ width: options.screenWidth, height: options.screenHeight }} handle={handle} />
+          </SceneErrorBoundary>
+        </div>
       </main>
 
       {sessionActive && (

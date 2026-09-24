@@ -13,7 +13,7 @@
  */
 export function IdleScene() {
   return (
-    <div className="flex h-full w-full flex-col items-center justify-start gap-6 bg-white px-6 pt-[10%] text-center text-[var(--luke-purple)]">
+    <div className="flex h-full w-full flex-col items-center justify-start gap-6 px-6 pt-[10%] text-center text-[var(--luke-purple)]">
       <h1 className="text-[clamp(1.75rem,9vw,4rem)] font-semibold leading-tight">
         Hi, I&apos;m L.U.K.E.!
       </h1>
