@@ -96,8 +96,8 @@ The old "Hi, I'm L.U.K.E.!" text and its floating animation are gone, since the 
 The purple branding bar at the top of the kiosk:
 
 - **Shield:** the Lipscomb shield via `next/image` with `priority`, because it is above the fold on first paint. Height is `clamp(2.5rem, 8dvh, 6rem)`, so it scales with the screen without getting too small or too large.
-- **Chevron:** a lilac down-chevron under the shield. It is `aria-hidden` and does nothing for now; a comment marks it as the future menu toggle. It is controlled by the `showMenuToggle` prop (default `true`), and the shell hides it on the welcome screen to match the mockup.
-- **Title:** "Lipscomb University Kiosk Experience" in lilac. Its size is `clamp(0.875rem, 4.3vw, 2rem)`, so it fits on one line at the kiosk's width. When the chevron shows, bottom padding lines the title up with the shield rather than the shield-plus-chevron group. Without the chevron the padding is dropped, so the title centres beside the shield.
+- **Chevron:** a lilac down-chevron under the shield. It is `aria-hidden` and does nothing for now; a comment marks it as the future menu toggle. It is controlled by the `showMenuToggle` prop (default `true`), and the shell hides it on the welcome screen to match the mockup. It is hidden with `invisible` rather than removed, so it still takes up its space: the header stays the same height and the title stays in the same place on every screen.
+- **Title:** "Lipscomb University Kiosk Experience" in lilac. Its size is `clamp(0.875rem, 4.3vw, 2rem)`, so it fits on one line at the kiosk's width. Bottom padding lines the title up with the shield rather than the shield-plus-chevron group.
 
 **Why a separate component:** it is layout chrome shared by every scene, like `BottomBar`, so it belongs in `components/` rather than in a feature.
 

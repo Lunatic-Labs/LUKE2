@@ -21,25 +21,23 @@ export function KioskHeader({
           priority
           className="h-[clamp(2.5rem,8dvh,6rem)] w-auto"
         />
-        {/* Decorative for now; becomes a menu toggle once there is a menu. */}
-        {showMenuToggle && (
-          <svg
-            viewBox="0 0 24 12"
-            className="mt-1 w-[clamp(1.25rem,4dvh,3rem)] text-[var(--luke-lilac)]"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <polyline points="2,2 12,10 22,2" />
-          </svg>
-        )}
+        {/* Decorative for now; becomes a menu toggle once there is a menu.
+            Hidden with `invisible` rather than removed, so the header keeps
+            its height and the title its position on every scene. */}
+        <svg
+          viewBox="0 0 24 12"
+          className={`mt-1 w-[clamp(1.25rem,4dvh,3rem)] text-[var(--luke-lilac)] ${showMenuToggle ? "" : "invisible"}`}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <polyline points="2,2 12,10 22,2" />
+        </svg>
       </div>
-      <p
-        className={`min-w-0 ${showMenuToggle ? "pb-[clamp(1rem,4dvh,3rem)]" : ""} text-[clamp(0.875rem,4.3vw,2rem)] leading-tight text-[var(--luke-lilac)]`}
-      >
+      <p className="min-w-0 pb-[clamp(1rem,4dvh,3rem)] text-[clamp(0.875rem,4.3vw,2rem)] leading-tight text-[var(--luke-lilac)]">
         Lipscomb University Kiosk Experience
       </p>
     </header>
