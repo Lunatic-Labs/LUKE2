@@ -15,9 +15,11 @@ describe("DirectoryScene", () => {
     expect(screen.getByText("Our Faculty and Staff")).toBeInTheDocument();
     expect(screen.getByText("Amy Algood")).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText(/Filter by category/i), {
-      target: { value: "Computing" },
-    });
+    const categoryFilter = screen.getByRole("button", { name: /Filter by category/i });
+    fireEvent.click(categoryFilter);
+    expect(categoryFilter).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Computing", exact: true }));
+    expect(categoryFilter).toHaveAttribute("aria-expanded", "false");
 
     expect(screen.getByText("Amy Algood")).toBeInTheDocument();
     expect(screen.getByText("1 / 6")).toBeInTheDocument();
@@ -29,14 +31,16 @@ describe("DirectoryScene", () => {
   it("shows Jacob Dyer under both engineering categories", () => {
     render(<DirectoryScene bounds={{ width: 1200, height: 800 }} handle={handle} />);
 
-    const categoryFilter = screen.getByLabelText(/Filter by category/i);
-    expect(screen.queryByRole("option", { name: "Electrical & Computer Engineering" })).not.toBeInTheDocument();
+    const categoryFilter = screen.getByRole("button", { name: /Filter by category/i });
+    expect(screen.queryByRole("button", { name: "Electrical & Computer Engineering" })).not.toBeInTheDocument();
 
-    fireEvent.change(categoryFilter, { target: { value: "Electrical Engineering" } });
+    fireEvent.click(categoryFilter);
+    fireEvent.click(screen.getByRole("button", { name: "Electrical Engineering", exact: true }));
     expect(screen.getByText("Jacob Dyer")).toBeInTheDocument();
     expect(screen.getByText("1 / 1")).toBeInTheDocument();
 
-    fireEvent.change(categoryFilter, { target: { value: "Computer Engineering" } });
+    fireEvent.click(categoryFilter);
+    fireEvent.click(screen.getByRole("button", { name: "Computer Engineering", exact: true }));
     expect(screen.getByText("Jacob Dyer")).toBeInTheDocument();
     expect(screen.getByText("1 / 1")).toBeInTheDocument();
   });

@@ -252,12 +252,17 @@ const STAFF_RECORDS: StaffRecord[] = [
 const categories = [
   "All Staff",
   ...Array.from(
-    new Set(STAFF_RECORDS.flatMap((person) => (Array.isArray(person.category) ? person.category : [person.category]))),
+    new Set(
+      STAFF_RECORDS.flatMap((person) => (Array.isArray(person.category) ? person.category : [person.category])).filter(
+        (category) => category.length > 0,
+      ),
+    ),
   ),
 ];
 
 export function DirectoryScene({ handle }: SceneComponentProps) {
   const [selectedCategory, setSelectedCategory] = useState("All Staff");
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [failedImage, setFailedImage] = useState<string | null>(null);
 
@@ -366,22 +371,51 @@ export function DirectoryScene({ handle }: SceneComponentProps) {
                 Next
               </button>
             </div>
-            <div className="justify-self-end">
-              <label className="sr-only" htmlFor="staff-category">
-                Filter by category
-              </label>
-              <select
-                id="staff-category"
-                value={selectedCategory}
-                onChange={(event) => changeCategory(event.target.value)}
-                className="rounded-md border border-[#2B0A54]/40 bg-white px-5 py-2 text-sm font-medium text-[#2B0A54] outline-none transition-colors hover:border-[#AD8C45] hover:bg-[#AD8C45]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#AD8C45]"
+            <div className="relative h-10 w-56 justify-self-end">
+              <div
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") setIsCategoryOpen(false);
+                }}
+                className={`absolute bottom-0 right-0 z-20 flex w-full flex-col overflow-hidden rounded-xl border border-[#2B0A54]/40 bg-white shadow-md transition-[max-height] duration-300 ease-in-out ${isCategoryOpen ? "max-h-80" : "max-h-10"}`}
               >
-                {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
+                <div
+                  id="staff-category-options"
+                  role="group"
+                  aria-label="Categories"
+                  aria-hidden={!isCategoryOpen}
+                  className={`overflow-y-auto transition-[max-height,opacity] duration-300 ease-in-out ${isCategoryOpen ? "max-h-64 opacity-100" : "pointer-events-none max-h-0 opacity-0"}`}
+                >
+                  {categories.map((category) => (
+                    <button
+                      key={category}
+                      type="button"
+                      tabIndex={isCategoryOpen ? 0 : -1}
+                      aria-pressed={selectedCategory === category}
+                      onClick={() => {
+                        changeCategory(category);
+                        setIsCategoryOpen(false);
+                      }}
+                      className="block w-full px-4 py-2 text-left text-sm font-medium text-[#2B0A54] transition-colors hover:bg-[#AD8C45]/10 focus-visible:bg-[#AD8C45]/10 focus-visible:outline-none"
+                    >
+                      {category}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  aria-label={`Filter by category: ${selectedCategory}`}
+                  aria-expanded={isCategoryOpen}
+                  aria-controls="staff-category-options"
+                  onClick={() => setIsCategoryOpen((open) => !open)}
+                  className="flex w-full items-center justify-between border-t border-[#2B0A54]/15 bg-white px-4 py-2 text-sm font-medium text-[#2B0A54] transition-colors hover:bg-[#AD8C45]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#AD8C45]"
+                >
+                  <span>{selectedCategory}</span>
+                  <span
+                    aria-hidden="true"
+                    className={`ml-3 h-2 w-2 rotate-45 border-r-2 border-t-2 border-current transition-transform duration-300 ${isCategoryOpen ? "rotate-[135deg]" : ""}`}
+                  />
+                </button>
+              </div>
             </div>
           </div>
         </div>
