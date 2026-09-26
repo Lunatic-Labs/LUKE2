@@ -96,10 +96,21 @@ The old "Hi, I'm L.U.K.E.!" text and its floating animation are gone, since the 
 The purple branding bar at the top of the kiosk:
 
 - **Shield:** the Lipscomb shield via `next/image` with `priority`, because it is above the fold on first paint. Height is `clamp(2.5rem, 8dvh, 6rem)`, so it scales with the screen without getting too small or too large.
-- **Chevron:** a lilac down-chevron under the shield. It is `aria-hidden` and does nothing for now; a comment marks it as the future menu toggle. It is controlled by the `showMenuToggle` prop (default `true`), and the shell hides it on the welcome screen to match the mockup. It is hidden with `invisible` rather than removed, so it still takes up its space: the header stays the same height and the title stays in the same place on every screen.
+- **Chevron:** a lilac down-chevron under the shield. It is a button that opens and closes `NavMenu`, and it rotates 180° (with a short transition) to point up while the menu is open. It carries `aria-expanded` and an "Open menu"/"Close menu" label. Its visibility is controlled by the `showMenuToggle` prop (default `true`), and the shell hides it on the welcome screen to match the mockup. It is hidden with `invisible` rather than removed, so it still takes up its space: the header stays the same height and the title stays in the same place on every screen.
 - **Title:** "Lipscomb University Kiosk Experience" in lilac. Its size is `clamp(0.875rem, 4.3vw, 2rem)`, so it fits on one line at the kiosk's width. Bottom padding lines the title up with the shield rather than the shield-plus-chevron group.
 
 **Why a separate component:** it is layout chrome shared by every scene, like `BottomBar`, so it belongs in `components/` rather than in a feature.
+
+### `components/NavMenu.tsx`
+
+The drop-down scene menu, matching the navbar mockup: a lavender panel hanging from the top-left of the scene area, 48% of the width, with a purple border on its right and bottom edges and a rounded bottom-right corner. It sits above the scene (`z-20`).
+
+- **State:** `KioskShell` owns `menuOpen`, passes the toggle to the header, and renders the panel only during a session. Ending a session closes it, so the next visitor starts with it shut.
+- **Buttons:** one pill per page (`rounded-full`, 2px purple border, bold purple text), full panel width. Text size matches the header title (`clamp(0.875rem, 4.3vw, 2rem)`), and gaps and padding scale with screen height. The panel's height comes from its buttons.
+- **Order and labels:** set by `MENU_ITEMS` in `features/kiosk/registry.ts`, which follows the mockup (Faculty, Video, Map, Selfie, Gallery, Drawing, Quizzes, Feedback) rather than carousel order. The labels are short versions of the scene names, e.g. "Selfie" for the camera scene and "Faculty" for the directory. A test checks that the menu lists every scene exactly once.
+- **Choosing a page:** jumps straight to that scene, resets the idle clock, and closes the menu. The page on screen is marked with `aria-current="page"`; it has no visual highlight, since the mockup doesn't show one.
+- **Generic component:** `NavMenu` takes a list of `{ id, label }` items and an `onSelect` callback and knows nothing about scenes, so it stays in `components/`.
+- **Not a `<nav>`:** the bottom bar is the page's only `navigation` landmark, and the shell tests rely on that.
 
 ### `public/images/lipscomb-shield.png`
 
@@ -122,5 +133,5 @@ The campus entrance photo used behind the welcome screen, at 768×432.
 ## Verification
 
 - `npm run lint` and `tsc --noEmit`: clean.
-- **Jest:** the original restyle's 27 tests passed through an equivalent JS config, because `npm test` needs `ts-node` to read `jest.config.ts` and it isn't installed. The tests have not been re-run since the bar height and welcome-screen changes. That problem predates these changes; fix it with `npm i -D ts-node`.
+- **Jest:** all 32 tests pass, including tests for opening, closing and choosing from the menu. They were run through an equivalent JS config, because `npm test` needs `ts-node` to read `jest.config.ts` and it isn't installed. That problem predates these changes; fix it with `npm i -D ts-node`.
 - **Screenshots:** the original restyle was screenshotted at 395×688 (the mockup's size) and compared against the mockup. The welcome-screen redesign and the larger navigation buttons have not been visually checked yet.

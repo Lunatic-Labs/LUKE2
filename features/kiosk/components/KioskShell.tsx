@@ -4,10 +4,11 @@ import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BottomBar } from "@/components/BottomBar";
 import { KioskHeader } from "@/components/KioskHeader";
+import { NavMenu } from "@/components/NavMenu";
 import { useCarousel } from "@/hooks/useCarousel";
 import { useIdleTimer } from "@/hooks/useIdleTimer";
 import { bottomBarHeight, DEFAULT_OPTIONS, type KioskOptions } from "../options";
-import { IDLE_SCENE, SCENES } from "../registry";
+import { IDLE_SCENE, MENU_ITEMS, SCENES } from "../registry";
 import { SessionTracker, type SessionSink } from "../session-log";
 import type { SceneHandle } from "../types";
 import { SceneErrorBoundary } from "./SceneErrorBoundary";
@@ -62,9 +63,14 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
   // reset function is reached through a ref filled in just after the hook runs.
   const resetIdleRef = useRef<(() => void) | null>(null);
 
+  const [menuOpen, setMenuOpen] = useState(false);
+  const toggleMenu = useCallback(() => setMenuOpen((open) => !open), []);
+
   const endSession = useCallback(() => {
     tracker.end();
     setSessionActive(false);
+    // The next visitor should not find the previous one's menu left open.
+    setMenuOpen(false);
     setDriftOrigin(null);
     goTo(0);
   }, [goTo, tracker]);
@@ -127,6 +133,15 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
     previous();
   }, [previous, reportActivity]);
 
+  const goToScene = useCallback(
+    (sceneId: string) => {
+      reportActivity();
+      goTo(SCENES.findIndex((scene) => scene.id === sceneId));
+      setMenuOpen(false);
+    },
+    [goTo, reportActivity],
+  );
+
   const handle: SceneHandle = useMemo(
     () => ({
       reportActivity,
@@ -147,7 +162,7 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
       // any interaction anywhere reset the idle clock. Same here.
       onPointerDown={sessionActive ? reportActivity : beginSession}
     >
-      <KioskHeader showMenuToggle={sessionActive} />
+      <KioskHeader showMenuToggle={sessionActive} menuOpen={menuOpen} onToggleMenu={toggleMenu} />
 
       <main className="relative min-h-0 flex-1">
         {/* Backdrop only: its solid base meets the bottom bar so the skyline
@@ -172,6 +187,12 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
             <Component bounds={{ width: options.screenWidth, height: options.screenHeight }} handle={handle} />
           </SceneErrorBoundary>
         </div>
+        <NavMenu
+          open={sessionActive && menuOpen}
+          items={MENU_ITEMS.map(({ sceneId, label }) => ({ id: sceneId, label }))}
+          currentId={scene.id}
+          onSelect={goToScene}
+        />
       </main>
 
       {sessionActive ? (
