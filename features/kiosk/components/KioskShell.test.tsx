@@ -29,7 +29,7 @@ describe("KioskShell", () => {
   it("starts on the idle scene with no navigation bar", () => {
     render(<KioskShell sessionSink={sink} />);
 
-    expect(screen.getByText("Hi, I'm L.U.K.E.!")).toBeInTheDocument();
+    expect(screen.getByText("WELCOME!")).toBeInTheDocument();
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
   });
 
@@ -79,7 +79,7 @@ describe("KioskShell", () => {
     // Eight scenes, each drifting after sceneIdleSeconds.
     advanceSeconds(DEFAULT_OPTIONS.sceneIdleSeconds * 8);
 
-    expect(screen.getByText("Hi, I'm L.U.K.E.!")).toBeInTheDocument();
+    expect(screen.getByText("WELCOME!")).toBeInTheDocument();
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
   });
 

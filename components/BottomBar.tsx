@@ -48,11 +48,11 @@ function ArrowButton({
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="flex aspect-[4/3] h-[72%] items-center justify-center rounded-[22%] bg-[var(--luke-lavender)] text-[var(--luke-purple)] transition-[filter] active:brightness-90"
+      className="flex aspect-[4/3] h-[85%] items-center justify-center rounded-[22%] bg-[var(--luke-lavender)] text-[var(--luke-purple)] transition-[filter] active:brightness-90"
     >
       <svg
         viewBox="0 0 40 40"
-        className="h-3/5 w-3/5"
+        className="h-3/4 w-3/4"
         fill="none"
         stroke="currentColor"
         strokeWidth={7}

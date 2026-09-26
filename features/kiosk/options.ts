@@ -33,13 +33,14 @@ export const DEFAULT_OPTIONS: KioskOptions = {
 };
 
 /**
- * Bottom bar occupies 1/9 of screen height.
+ * Bottom bar occupies 1/6 of screen height.
  *
- * Options.pde computed this as `height - height * 0.9` rather than exposing it
- * as a setting, "to minimize # of required options". Kept as a derived value
- * for the same reason.
+ * Options.pde computed this as `height - height * 0.9` (1/9) rather than
+ * exposing it as a setting, "to minimize # of required options". Kept as a
+ * derived value for the same reason; raised to 1/6 so the redesigned
+ * navigation keys are large enough to hit comfortably.
  */
-export const BOTTOM_BAR_HEIGHT_RATIO = 1 / 9;
+export const BOTTOM_BAR_HEIGHT_RATIO = 1 / 6;
 
 export function bottomBarHeight(screenHeight: number): number {
   return Math.round(screenHeight * BOTTOM_BAR_HEIGHT_RATIO);

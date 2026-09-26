@@ -147,7 +147,7 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
       // any interaction anywhere reset the idle clock. Same here.
       onPointerDown={sessionActive ? reportActivity : beginSession}
     >
-      <KioskHeader />
+      <KioskHeader showMenuToggle={sessionActive} />
 
       <main className="relative min-h-0 flex-1">
         {/* Backdrop only: its solid base meets the bottom bar so the skyline
@@ -174,13 +174,17 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
         </div>
       </main>
 
-      {sessionActive && (
+      {sessionActive ? (
         <BottomBar
           sceneName={scene.name}
           onNext={goNext}
           onPrevious={goPrevious}
           height={barHeight}
         />
+      ) : (
+        // The attract screen has no controls, but keeps the bar's purple strip
+        // so the layout does not jump when a session starts.
+        <div aria-hidden="true" className="w-full shrink-0 bg-[var(--luke-purple)]" style={{ height: barHeight }} />
       )}
     </div>
   );

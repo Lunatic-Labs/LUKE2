@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 /**
  * Attract screen.
  *
@@ -8,23 +10,40 @@
  * whenever a session timed out or the carousel wrapped around untouched.
  * Any tap starts a session.
  *
- * The Processing version bounced the prompt by nudging `textY` a few pixels per
- * frame; a CSS keyframe animation does the same job here without a draw loop.
+ * The redesign replaces the Processing version's bouncing text with a static
+ * welcome over a lilac-washed photo of the campus entrance. The shell's
+ * skyline backdrop sits underneath scenes, so this scene paints its own copy
+ * on top of the photo.
  */
 export function IdleScene() {
   return (
-    <div className="flex h-full w-full flex-col items-center justify-start gap-6 px-6 pt-[10%] text-center text-[var(--luke-purple)]">
-      <h1 className="text-[clamp(1.75rem,9vw,4rem)] font-semibold leading-tight">
-        Hi, I&apos;m L.U.K.E.!
-      </h1>
-      <p className="text-[clamp(1.25rem,6vw,2.5rem)] leading-snug">
-        The Lipscomb University
-        <br />
-        Kiosk Experience!
-      </p>
-      <p className="mt-[8%] animate-[luke-float_3s_ease-in-out_infinite] text-[clamp(1.25rem,6vw,2.5rem)]">
-        Touch anywhere to begin!
-      </p>
+    <div className="relative h-full w-full overflow-hidden">
+      <Image
+        src="/images/lipscomb-entrance.png"
+        alt=""
+        fill
+        priority
+        sizes="100vw"
+        className="object-cover"
+      />
+      {/* Tint: lilac over the whole photo, deepening at the very bottom. */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#8f7eb3_87%,#3e364d_100%)] opacity-50" />
+      {/* Extra lilac behind the heading, fading out to reveal the photo. */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#8f7eb3_23%,rgb(255_255_255/0)_39%)] opacity-25" />
+      <Image
+        src="/images/nashville-skyline.png"
+        alt=""
+        width={482}
+        height={119}
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-auto w-full"
+      />
+
+      <div className="relative flex flex-col items-center pt-[18%] text-center text-[var(--luke-purple)]">
+        <h1 className="text-[clamp(2.5rem,15vw,7rem)] leading-none font-extrabold tracking-tight">
+          WELCOME!
+        </h1>
+        <p className="mt-2 text-[clamp(1rem,5vw,2.25rem)] font-bold">tap to start</p>
+      </div>
     </div>
   );
 }
