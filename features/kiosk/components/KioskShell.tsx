@@ -123,14 +123,17 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
     resetIdleRef.current?.();
   }, [goTo, tracker]);
 
+  // Stepping the carousel closes the menu, like choosing a page from it does.
   const goNext = useCallback(() => {
     reportActivity();
     next();
+    setMenuOpen(false);
   }, [next, reportActivity]);
 
   const goPrevious = useCallback(() => {
     reportActivity();
     previous();
+    setMenuOpen(false);
   }, [previous, reportActivity]);
 
   const goToScene = useCallback(

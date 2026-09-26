@@ -36,10 +36,12 @@ export function KioskHeader({ showMenuToggle = true, menuOpen = false, onToggleM
           onClick={onToggleMenu}
           className={`mt-1 text-[var(--luke-lilac)] ${showMenuToggle ? "" : "invisible"}`}
         >
-          {/* Points down when closed; flips to point up when open. */}
+          {/* Points down when closed; flips to point up when open. Mirrored
+              vertically rather than rotated, so it flattens to a line midway
+              (v, -, ^) instead of turning sideways (v, >, ^). */}
           <svg
             viewBox="0 0 24 12"
-            className={`w-[clamp(1.25rem,4dvh,3rem)] transition-transform duration-200 ${menuOpen ? "rotate-180" : ""}`}
+            className={`w-[clamp(1.25rem,4dvh,3rem)] transition-transform duration-200 ${menuOpen ? "-scale-y-100" : ""}`}
             fill="none"
             stroke="currentColor"
             strokeWidth={2}

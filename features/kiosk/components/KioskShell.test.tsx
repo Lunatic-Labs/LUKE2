@@ -76,6 +76,19 @@ describe("KioskShell", () => {
     expect(container.querySelector("#kiosk-nav-menu")).not.toBeInTheDocument();
   });
 
+  it("closes the menu when the bottom bar's arrows are used", () => {
+    const { container } = render(<KioskShell sessionSink={sink} />);
+    touchScreen();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next scene" }));
+    expect(container.querySelector("#kiosk-nav-menu")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
+    fireEvent.click(screen.getByRole("button", { name: "Previous scene" }));
+    expect(container.querySelector("#kiosk-nav-menu")).not.toBeInTheDocument();
+  });
+
   it("marks the page on screen in the menu", () => {
     render(<KioskShell sessionSink={sink} />);
     touchScreen();

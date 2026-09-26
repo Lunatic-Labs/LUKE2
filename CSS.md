@@ -48,6 +48,10 @@ The welcome screen's gradients also use `#3E364D`, a dark purple-grey. It appear
 - **Skyline:** an image absolutely positioned at the bottom of `<main>`. It is decorative: `alt=""` and `pointer-events-none`.
 - **Scene wrapper:** the scene is wrapped in a `relative h-full` div.
 - **Welcome-screen bar:** when no session is active, a plain purple strip the same height as the bottom bar is rendered in its place. It has no buttons and is `aria-hidden`.
+- **Menu state:** a `menuOpen` state and a `toggleMenu` callback, passed to the header as `menuOpen` and `onToggleMenu`.
+- **Menu panel:** `<NavMenu>` is rendered inside `<main>`, after the scene wrapper, with `open={sessionActive && menuOpen}`. Its items come from `MENU_ITEMS`, and the scene on screen is passed as `currentId`.
+- **Choosing from the menu:** a new `goToScene(sceneId)` resets the idle clock, jumps to that scene's carousel index and closes the menu.
+- **Closing the menu:** `goNext` and `goPrevious` (the bottom bar's arrows, and a scene's `nextScene`/`previousScene`) close it, and so does `endSession`.
 
 **Why:**
 - The skyline sits at the bottom of `<main>`, directly above the bottom bar. Its flat base is the same purple as the bar, so the city appears to rise out of it.
@@ -55,6 +59,9 @@ The welcome screen's gradients also use `#3E364D`, a dark purple-grey. It appear
 - `pointer-events-none` lets taps on the skyline reach the scene and the shell's idle-timer handler.
 - The header is outside the `sessionActive` check, so the branding also shows on the welcome screen.
 - The purple strip keeps the welcome screen's layout identical to the other pages, so nothing jumps when a session starts. It is a plain `div` rather than a `<nav>`, so tests that check the welcome screen has no navigation still hold.
+- The shell owns the menu state, not the header, because the shell is what changes scenes and ends sessions, and both need to close the menu.
+- The menu can't appear on the welcome screen, for two reasons: `endSession` resets `menuOpen`, and the panel only renders while `sessionActive` is true. The next visitor always starts with it shut.
+- **Known behaviour:** the automatic advance after `sceneIdleSeconds` calls `goTo` directly rather than `goNext`, so it does not close the menu. If the menu is left open, the scene changes underneath it.
 
 ### `components/SceneFrame.tsx`
 
@@ -79,9 +86,32 @@ The old "Hi, I'm L.U.K.E.!" text and its floating animation are gone, since the 
 - The shell draws its skyline underneath scenes, so the opaque photo would hide it. Drawing a second copy inside the scene puts it back on top.
 - The `luke-float` keyframes in `globals.css` are no longer used by anything. They were left in place in case another scene wants the effect.
 
+### `features/kiosk/registry.ts`
+
+- **Added** `MENU_ITEMS`: the menu's entries, top to bottom, as `{ sceneId, label }` pairs.
+
+**Why:** the menu follows the mockup's order (Faculty, Video, Map, Selfie, Gallery, Drawing, Quizzes, Feedback), not carousel order, and uses shorter labels than the scene names. Keeping it next to `SCENES` means reordering or renaming a button is a one-line change in the same file that registers the scenes.
+
+| Button   | Scene id    | Scene name           |
+| -------- | ----------- | -------------------- |
+| Faculty  | `directory` | L.U.K.E. Directory   |
+| Video    | `video`     | Video Player         |
+| Map      | `map`       | You Are Here         |
+| Selfie   | `camera`    | Take a Picture!      |
+| Gallery  | `gallery`   | Browse the Gallery   |
+| Drawing  | `board`     | Draw                 |
+| Quizzes  | `trivia`    | Test Your Knowledge  |
+| Feedback | `feedback`  | Leave Some Feedback? |
+
 ### `features/kiosk/components/KioskShell.test.tsx`
 
 - Two assertions now look for "WELCOME!" instead of "Hi, I'm L.U.K.E.!".
+- **Added** five menu tests:
+  - the chevron opens and closes the menu, and flips `aria-expanded`;
+  - choosing "Map" jumps to that scene and closes the menu;
+  - the bottom bar's next and previous arrows close the menu;
+  - the scene on screen is marked `aria-current="page"` in the menu;
+  - the menu is closed when a new session starts after the previous one timed out.
 
 ### `features/kiosk/options.test.ts`
 
@@ -96,7 +126,7 @@ The old "Hi, I'm L.U.K.E.!" text and its floating animation are gone, since the 
 The purple branding bar at the top of the kiosk:
 
 - **Shield:** the Lipscomb shield via `next/image` with `priority`, because it is above the fold on first paint. Height is `clamp(2.5rem, 8dvh, 6rem)`, so it scales with the screen without getting too small or too large.
-- **Chevron:** a lilac down-chevron under the shield. It is a button that opens and closes `NavMenu`, and it rotates 180° (with a short transition) to point up while the menu is open. It carries `aria-expanded` and an "Open menu"/"Close menu" label. Its visibility is controlled by the `showMenuToggle` prop (default `true`), and the shell hides it on the welcome screen to match the mockup. It is hidden with `invisible` rather than removed, so it still takes up its space: the header stays the same height and the title stays in the same place on every screen.
+- **Chevron:** a lilac down-chevron under the shield. It is a button that opens and closes `NavMenu`, and it flips vertically (`-scale-y-100`, with a 200ms transition) to point up while the menu is open. Mirroring rather than rotating means it flattens to a line halfway through the animation instead of turning sideways. It carries `aria-expanded` and an "Open menu"/"Close menu" label. Its visibility is controlled by the `showMenuToggle` prop (default `true`), and the shell hides it on the welcome screen to match the mockup. It is hidden with `invisible` rather than removed, so it still takes up its space: the header stays the same height and the title stays in the same place on every screen.
 - **Title:** "Lipscomb University Kiosk Experience" in lilac. Its size is `clamp(0.875rem, 4.3vw, 2rem)`, so it fits on one line at the kiosk's width. Bottom padding lines the title up with the shield rather than the shield-plus-chevron group.
 
 **Why a separate component:** it is layout chrome shared by every scene, like `BottomBar`, so it belongs in `components/` rather than in a feature.
@@ -108,9 +138,13 @@ The drop-down scene menu, matching the navbar mockup: a lavender panel hanging f
 - **State:** `KioskShell` owns `menuOpen`, passes the toggle to the header, and renders the panel only during a session. Ending a session closes it, so the next visitor starts with it shut.
 - **Buttons:** one pill per page (`rounded-full`, 2px purple border, bold purple text), full panel width. Text size matches the header title (`clamp(0.875rem, 4.3vw, 2rem)`), and gaps and padding scale with screen height. The panel's height comes from its buttons.
 - **Order and labels:** set by `MENU_ITEMS` in `features/kiosk/registry.ts`, which follows the mockup (Faculty, Video, Map, Selfie, Gallery, Drawing, Quizzes, Feedback) rather than carousel order. The labels are short versions of the scene names, e.g. "Selfie" for the camera scene and "Faculty" for the directory. A test checks that the menu lists every scene exactly once.
-- **Choosing a page:** jumps straight to that scene, resets the idle clock, and closes the menu. The page on screen is marked with `aria-current="page"`; it has no visual highlight, since the mockup doesn't show one.
+- **Choosing a page:** jumps straight to that scene, resets the idle clock, and closes the menu. The bottom bar's arrows and the end of a session also close it; the automatic scene advance does not. The page on screen is marked with `aria-current="page"`; it has no visual highlight, since the mockup doesn't show one.
 - **Generic component:** `NavMenu` takes a list of `{ id, label }` items and an `onSelect` callback and knows nothing about scenes, so it stays in `components/`.
 - **Not a `<nav>`:** the bottom bar is the page's only `navigation` landmark, and the shell tests rely on that.
+
+### `features/kiosk/registry.test.ts`
+
+Checks that `MENU_ITEMS` lists every carousel scene exactly once, so adding or removing a scene without updating the menu fails the tests.
 
 ### `public/images/lipscomb-shield.png`
 
@@ -133,5 +167,5 @@ The campus entrance photo used behind the welcome screen, at 768×432.
 ## Verification
 
 - `npm run lint` and `tsc --noEmit`: clean.
-- **Jest:** all 32 tests pass, including tests for opening, closing and choosing from the menu. They were run through an equivalent JS config, because `npm test` needs `ts-node` to read `jest.config.ts` and it isn't installed. That problem predates these changes; fix it with `npm i -D ts-node`.
-- **Screenshots:** the original restyle was screenshotted at 395×688 (the mockup's size) and compared against the mockup. The welcome-screen redesign and the larger navigation buttons have not been visually checked yet.
+- **Jest:** all 33 tests pass, including tests for opening, closing and choosing from the menu. They were run through an equivalent JS config, because `npm test` needs `ts-node` to read `jest.config.ts` and it isn't installed. That problem predates these changes; fix it with `npm i -D ts-node`.
+- **Screenshots:** the original restyle was screenshotted at 395×688 (the mockup's size) and compared against the mockup. Since then, a manual check in the running app confirmed the buttons look right and the header chevron flips when the menu opens and closes. The welcome-screen redesign has not been visually checked yet.
