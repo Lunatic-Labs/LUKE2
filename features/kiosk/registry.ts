@@ -35,8 +35,8 @@ export const IDLE_SCENE: SceneDefinition = {
 export const SCENES: SceneDefinition[] = [
   { id: "video", name: "Video Player", Component: VideoScene, placeholder: true },
   { id: "map", name: "You Are Here", Component: MapScene },
-  { id: "camera", name: "Take a Picture!", Component: CameraScene, placeholder: true },
-  { id: "gallery", name: "Browse the Gallery", Component: GalleryScene },
+  { id: "camera", name: "Take a Picture!", Component: CameraScene},
+  { id: "gallery", name: "Browse the Gallery", Component: GalleryScene},
   { id: "board", name: "Draw", Component: BoardScene, placeholder: true },
   { id: "trivia", name: "Test Your Knowledge", Component: TriviaScene, placeholder: true },
   { id: "feedback", name: "Leave Some Feedback?", Component: FeedbackScene },
