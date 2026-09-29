@@ -15,7 +15,7 @@ export interface SceneFrameProps {
 
 export function SceneFrame({ children, className = "" }: SceneFrameProps) {
   return (
-    <section className={`flex h-full w-full flex-col overflow-hidden bg-white ${className}`}>
+    <section className={`flex h-full w-full flex-col overflow-hidden ${className}`}>
       {children}
     </section>
   );

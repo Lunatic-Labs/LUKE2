@@ -39,8 +39,8 @@ describe("parseOptions", () => {
 });
 
 describe("bottomBarHeight", () => {
-  it("is one ninth of screen height, as Options.pde derived it", () => {
-    expect(bottomBarHeight(640)).toBe(71);
-    expect(bottomBarHeight(1080)).toBe(120);
+  it("is one sixth of screen height", () => {
+    expect(bottomBarHeight(640)).toBe(107);
+    expect(bottomBarHeight(1080)).toBe(180);
   });
 });
