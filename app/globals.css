@@ -25,10 +25,13 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* L.U.K.E. palette, taken from the Processing build: the purple fill
-   rgb(51, 30, 84) and gold stroke rgb(244, 170, 0) used by BottomBar.pde. */
+/* L.U.K.E. palette. Purple is the header/bottom bar and skyline fill,
+   lavender the scene background, lilac the muted header text and controls.
+   Gold is the shield from the Processing build's BottomBar.pde stroke. */
 :root {
-  --luke-purple: #331e54;
+  --luke-purple: #302052;
+  --luke-lavender: #c9c3d5;
+  --luke-lilac: #8f7eb3;
   --luke-gold: #f4aa00;
 }
 
