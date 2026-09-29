@@ -1,4 +1,4 @@
-FROM node:20-alpine AS base
+FROM node:24-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -29,6 +29,9 @@ COPY --from=builder /app/public ./public
 
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Photos from the camera scene (app/api/photos). Mount a volume here to keep them.
+RUN mkdir -p data/camera-pics && chown -R nextjs:nodejs data
 
 USER nextjs
 
