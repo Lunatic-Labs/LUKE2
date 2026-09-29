@@ -18,7 +18,7 @@ describe("DirectoryScene", () => {
     const categoryFilter = screen.getByRole("button", { name: /Filter by category/i });
     fireEvent.click(categoryFilter);
     expect(categoryFilter).toHaveAttribute("aria-expanded", "true");
-    fireEvent.click(screen.getByRole("button", { name: "Computing", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Computing" }));
     expect(categoryFilter).toHaveAttribute("aria-expanded", "false");
 
     expect(screen.getByText("Amy Algood")).toBeInTheDocument();
@@ -35,12 +35,12 @@ describe("DirectoryScene", () => {
     expect(screen.queryByRole("button", { name: "Electrical & Computer Engineering" })).not.toBeInTheDocument();
 
     fireEvent.click(categoryFilter);
-    fireEvent.click(screen.getByRole("button", { name: "Electrical Engineering", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Electrical Engineering" }));
     expect(screen.getByText("Jacob Dyer")).toBeInTheDocument();
     expect(screen.getByText("1 / 1")).toBeInTheDocument();
 
     fireEvent.click(categoryFilter);
-    fireEvent.click(screen.getByRole("button", { name: "Computer Engineering", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Computer Engineering" }));
     expect(screen.getByText("Jacob Dyer")).toBeInTheDocument();
     expect(screen.getByText("1 / 1")).toBeInTheDocument();
   });
