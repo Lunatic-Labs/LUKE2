@@ -74,10 +74,11 @@ export function GalleryScene({ handle }: SceneComponentProps) {
               items, so an `aspect-square` cell stays square regardless of
               how many rows the gallery ends up with. */}
           <div className="flex flex-wrap gap-1">
-            {images.map((src) => (
+            {images.map((src, index) => (
               <button
                 key={src}
                 type="button"
+                aria-label={`Enlarge gallery photo ${index + 1}`}
                 onClick={() => openImage(src)}
                 className="relative aspect-square w-[calc((100%-0.5rem)/3)] overflow-hidden"
               >
