@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev                       # dev server on :3000
+npm run dev                       # dev server on 127.0.0.1:3000 (localhost only)
 npm run build                     # next build (output: "standalone")
 npm run lint                      # eslint
 npm test                          # jest

@@ -2,7 +2,31 @@
 
 Port of `src/luke_java/CameraScene.pde` from the
 [Processing kiosk](https://github.com/Lunatic-Labs/Kiosk). This page covers
-every file involved, in the order a photo passes through them.
+every file involved, in the order a photo passes through them, and then how
+the photo ends up in the gallery scene.
+
+## A photo's trip, start to finish
+
+```
+CameraScene ──captureFrame──▶ JPEG ──uploadPhoto──▶ POST /api/photos
+                                                         │
+                                                  photo-store.savePhoto
+                                                         │
+                                                         ▼
+                                              CAMERA_DIR/screen-….jpg
+                                                         │
+GalleryScene ◀── <Image src="/api/photos/screen-….jpg"> ◀── GET /api/photos/[name]
+      ▲                                                  │
+      └──── GET /api/gallery (lists public/gallery + CAMERA_DIR)
+```
+
+1. The visitor taps, the countdown runs, and `CameraScene` grabs a frame.
+2. The frame is sent to `POST /api/photos`, which saves it in `CAMERA_DIR`.
+3. The next time anyone opens the gallery scene, it asks `GET /api/gallery`
+   for its picture list. That list now includes the new photo.
+4. The gallery loads the photo from `GET /api/photos/<file name>`.
+
+Photos are kept forever. Nothing deletes them automatically.
 
 ## Files in this folder
 
@@ -62,6 +86,20 @@ Writes photos to disk. **Server-only.**
   JPEG starts with.
 - `savePhoto()` creates the folder if needed and writes the file. It refuses to
   overwrite an existing file.
+- `isPhotoFileName()` accepts only names that `photoFileName()` could have
+  made. It also accepts older photos saved before the UUID was added. Anything
+  else, like `../package.json` or `notes.txt`, is rejected. This is what keeps
+  the serving route from reading files outside the photo folder.
+- `listPhotos()` returns the saved photo names, oldest first. It returns an
+  empty list if the folder is missing or can't be read.
+- `readPhoto()` returns one photo's bytes, or `null` if the name is invalid or
+  the file is gone.
+
+`cameraDir()` carries a `/* turbopackIgnore: true */` comment. The folder is
+picked when the server runs, not when it's built. Without the comment,
+`next build` can't tell which files the call needs, so it copies the whole
+repo into `.next/standalone`, including `.env.local` and any photos in
+`data/`.
 
 Never export this module from [index.ts](index.ts). If it were, the browser
 code would pull in Node's file-system code and the build would break.
@@ -78,8 +116,39 @@ upload before saving it:
 - not a JPEG → **415**
 - otherwise it saves the photo and replies **201** with the file name.
 
+The size limit is checked while the upload is still arriving, so an upload
+that doesn't say its size up front still gets cut off at 10 MB.
+
 It doesn't write files itself; it hands that to `photo-store.ts`. That follows
 the rule in `app/README.md` that `app/` handles routing only.
+
+### [app/api/photos/[name]/route.ts](../../../app/api/photos/[name]/route.ts)
+
+Sends one saved photo back to the browser (`GET /api/photos/<file name>`) as
+`image/jpeg`. Photos are kept in `CAMERA_DIR`, outside `public/`, so Next
+won't serve them on its own; this route is the only way to view them. Invalid
+names and missing files get **404**. A photo never changes after it's saved,
+so the browser is told it can cache it for a year.
+
+### [app/api/gallery/route.ts](../../../app/api/gallery/route.ts)
+
+Builds the gallery's picture list (`GET /api/gallery`). It combines:
+
+- the pictures shipped in `public/gallery/`, as `/gallery/<name>` URLs
+- every saved camera photo, as `/api/photos/<name>` URLs
+
+The list is built when requested, not when the app is built. That's why a new
+photo shows up without a rebuild or restart.
+
+### [features/scenes/gallery/GalleryScene.tsx](../gallery/GalleryScene.tsx)
+
+The gallery scene. It loads the list once each time it appears, shuffles it,
+and shows a 3-column grid; tapping a picture enlarges it. It doesn't treat
+camera photos differently from the built-in pictures. They're just URLs that
+point at `/api/photos/…`.
+
+A photo taken while the gallery is already open won't appear until the
+visitor leaves and returns to it.
 
 ### [features/kiosk/registry.ts](../../kiosk/registry.ts)
 
@@ -99,6 +168,9 @@ photos fails inside Docker.
 
 ### [docker-compose.yml](../../../docker-compose.yml)
 
+Publishes the app on `127.0.0.1:3000` only (see
+[Who can reach the photo routes](#who-can-reach-the-photo-routes)).
+
 Mounts the `camera-pics` volume at `/app/data/camera-pics`, so photos are kept
 when the container is rebuilt or restarted. The volume shows up in Docker as
 `luke2_camera-pics`. On Windows with Docker Desktop, its contents can be viewed
@@ -110,6 +182,13 @@ in File Explorer at:
 
 Treat that folder as view-only. To get copies instead, run
 `docker compose cp web:/app/data/camera-pics ./photos` from the repo root.
+
+### [docker-compose.dev.yml](../../../docker-compose.dev.yml) and [package.json](../../../package.json)
+
+`npm run dev` and `npm start` listen on `127.0.0.1` only. Inside the dev
+container, the server has to listen on every interface or Docker can't
+forward the port. So the dev compose file runs `next dev -H 0.0.0.0` itself
+and publishes the port on the host's `127.0.0.1` only.
 
 ### [.gitignore](../../../.gitignore)
 
@@ -147,7 +226,40 @@ real photos.
 
 Sends fake uploads to the route and checks the result: a valid JPEG gets saved
 (201), an empty upload is rejected (400), and a non-JPEG is rejected (415)
-without writing anything.
+without writing anything. It also checks that oversized uploads get 413, both
+when the size is sent up front and when it isn't (the route must stop reading
+an endless upload).
+
+### [app/api/photos/[name]/route.test.ts](../../../app/api/photos/[name]/route.test.ts)
+
+Checks that a saved photo comes back as a JPEG, that a missing photo is a 404,
+and that other files (`notes.txt`, `../package.json`) are never served.
+
+### [app/api/gallery/route.test.ts](../../../app/api/gallery/route.test.ts)
+
+Checks that the list includes the built-in `public/gallery` pictures and,
+after a photo is saved, that photo's `/api/photos/…` URL.
+
+### [GalleryScene.test.tsx](../gallery/GalleryScene.test.tsx)
+
+Covers the gallery side: the loading message, one grid cell per picture once
+the list arrives, and enlarging a picture on tap and closing it on a second
+tap.
+
+## Who can reach the photo routes
+
+`/api/photos` (upload and viewing) and `/api/gallery` have **no login**. They
+rely on the server being reachable only from the kiosk machine itself:
+
+- `docker compose up` publishes on `127.0.0.1:3000`.
+- `docker compose -f docker-compose.dev.yml up` publishes on `127.0.0.1:3000`.
+- `npm run dev` / `npm start` listen on `127.0.0.1`.
+
+If any of these listened on every network interface, anyone on the same
+network could download every visitor's photo or keep uploading until the disk
+filled. Since photos are never deleted, keeping the server private is the only
+thing preventing that. Don't change these bindings to `0.0.0.0` or remove
+`127.0.0.1:` from a port mapping unless you add authentication first.
 
 ## Differences from the Processing version
 
