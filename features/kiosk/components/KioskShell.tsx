@@ -1,11 +1,14 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BottomBar } from "@/components/BottomBar";
+import { KioskHeader } from "@/components/KioskHeader";
+import { NavMenu } from "@/components/NavMenu";
 import { useCarousel } from "@/hooks/useCarousel";
 import { useIdleTimer } from "@/hooks/useIdleTimer";
 import { bottomBarHeight, DEFAULT_OPTIONS, type KioskOptions } from "../options";
-import { IDLE_SCENE, SCENES } from "../registry";
+import { IDLE_SCENE, MENU_ITEMS, SCENES } from "../registry";
 import { SessionTracker, type SessionSink } from "../session-log";
 import type { SceneHandle } from "../types";
 import { SceneErrorBoundary } from "./SceneErrorBoundary";
@@ -60,9 +63,14 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
   // reset function is reached through a ref filled in just after the hook runs.
   const resetIdleRef = useRef<(() => void) | null>(null);
 
+  const [menuOpen, setMenuOpen] = useState(false);
+  const toggleMenu = useCallback(() => setMenuOpen((open) => !open), []);
+
   const endSession = useCallback(() => {
     tracker.end();
     setSessionActive(false);
+    // The next visitor should not find the previous one's menu left open.
+    setMenuOpen(false);
     setDriftOrigin(null);
     goTo(0);
   }, [goTo, tracker]);
@@ -115,15 +123,27 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
     resetIdleRef.current?.();
   }, [goTo, tracker]);
 
+  // Stepping the carousel closes the menu, like choosing a page from it does.
   const goNext = useCallback(() => {
     reportActivity();
     next();
+    setMenuOpen(false);
   }, [next, reportActivity]);
 
   const goPrevious = useCallback(() => {
     reportActivity();
     previous();
+    setMenuOpen(false);
   }, [previous, reportActivity]);
+
+  const goToScene = useCallback(
+    (sceneId: string) => {
+      reportActivity();
+      goTo(SCENES.findIndex((scene) => scene.id === sceneId));
+      setMenuOpen(false);
+    },
+    [goTo, reportActivity],
+  );
 
   const handle: SceneHandle = useMemo(
     () => ({
@@ -140,31 +160,55 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
 
   return (
     <div
-      className="flex h-dvh w-full flex-col overflow-hidden bg-white"
+      className="flex h-dvh w-full flex-col overflow-hidden bg-[var(--luke-lavender)]"
       // Upstream `DisplayManager.Click()` saw every tap before delegating, so
       // any interaction anywhere reset the idle clock. Same here.
       onPointerDown={sessionActive ? reportActivity : beginSession}
     >
-      <main className="min-h-0 flex-1">
-        <SceneErrorBoundary
-          // Remount on scene change so a recovered boundary does not stay tripped.
-          key={scene.id}
-          onError={(error) => {
-            tracker.recordError(scene.name, error);
-            endSession();
-          }}
-        >
-          <Component bounds={{ width: options.screenWidth, height: options.screenHeight }} handle={handle} />
-        </SceneErrorBoundary>
+      <KioskHeader showMenuToggle={sessionActive} menuOpen={menuOpen} onToggleMenu={toggleMenu} />
+
+      <main className="relative min-h-0 flex-1">
+        {/* Backdrop only: its solid base meets the bottom bar so the skyline
+            appears to rise out of it. Scenes paint over it and get the taps. */}
+        <Image
+          src="/images/nashville-skyline.png"
+          alt=""
+          width={482}
+          height={119}
+          priority
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-auto w-full"
+        />
+        <div className="relative h-full">
+          <SceneErrorBoundary
+            // Remount on scene change so a recovered boundary does not stay tripped.
+            key={scene.id}
+            onError={(error) => {
+              tracker.recordError(scene.name, error);
+              endSession();
+            }}
+          >
+            <Component bounds={{ width: options.screenWidth, height: options.screenHeight }} handle={handle} />
+          </SceneErrorBoundary>
+        </div>
+        <NavMenu
+          open={sessionActive && menuOpen}
+          items={MENU_ITEMS.map(({ sceneId, label }) => ({ id: sceneId, label }))}
+          currentId={scene.id}
+          onSelect={goToScene}
+        />
       </main>
 
-      {sessionActive && (
+      {sessionActive ? (
         <BottomBar
           sceneName={scene.name}
           onNext={goNext}
           onPrevious={goPrevious}
           height={barHeight}
         />
+      ) : (
+        // The attract screen has no controls, but keeps the bar's purple strip
+        // so the layout does not jump when a session starts.
+        <div aria-hidden="true" className="w-full shrink-0 bg-[var(--luke-purple)]" style={{ height: barHeight }} />
       )}
     </div>
   );
