@@ -39,6 +39,6 @@ export const SCENES: SceneDefinition[] = [
   { id: "gallery", name: "Browse the Gallery", Component: GalleryScene, placeholder: true },
   { id: "board", name: "Draw", Component: BoardScene },
   { id: "trivia", name: "Test Your Knowledge", Component: TriviaScene, placeholder: true },
-  { id: "feedback", name: "Leave Some Feedback?", Component: FeedbackScene, placeholder: true },
+  { id: "feedback", name: "Leave Some Feedback?", Component: FeedbackScene },
   { id: "directory", name: "L.U.K.E. Directory", Component: DirectoryScene, placeholder: true },
 ];
