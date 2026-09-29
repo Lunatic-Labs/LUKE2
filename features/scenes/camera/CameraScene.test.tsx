@@ -27,10 +27,13 @@ function fakeStream() {
   return { stream: { getTracks: () => [track] } as unknown as MediaStream, track };
 }
 
-async function renderScene() {
+/** Render and let getUserMedia settle; by default the video then delivers its first frame. */
+async function renderScene({ frameArrives = true } = {}) {
   const result = render(<CameraScene bounds={{ width: 360, height: 640 }} handle={handle} />);
-  // Let the getUserMedia promise settle.
   await act(async () => {});
+  // The "Camera unavailable" screen has no video to fire on.
+  const video = result.container.querySelector("video");
+  if (frameArrives && video) fireEvent.loadedData(video);
   return result;
 }
 
@@ -61,6 +64,18 @@ describe("CameraScene", () => {
     mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
     await renderScene();
 
+    expect(screen.getByText("Touch to take a picture!")).toBeInTheDocument();
+  });
+
+  it("waits for the first video frame before accepting a tap", async () => {
+    mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+    const { container } = await renderScene({ frameArrives: false });
+
+    expect(screen.queryByText("Touch to take a picture!")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Take a picture" }));
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+
+    fireEvent.loadedData(container.querySelector("video")!);
     expect(screen.getByText("Touch to take a picture!")).toBeInTheDocument();
   });
 

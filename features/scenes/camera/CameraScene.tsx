@@ -44,8 +44,15 @@ export function CameraScene({ handle }: SceneComponentProps) {
 
   // Open the camera for as long as the scene is on screen.
   useEffect(() => {
+    const video = videoRef.current;
     let stream: MediaStream | null = null;
     let cancelled = false;
+
+    // getUserMedia resolving only means the camera is open. Until the video has
+    // a frame, videoWidth is 0 and captureFrame would fail, so a tap has to wait.
+    const markReady = () => {
+      if (!cancelled) setStatus("ready");
+    };
 
     openCamera().then(
       (opened) => {
@@ -54,8 +61,10 @@ export function CameraScene({ handle }: SceneComponentProps) {
           return;
         }
         stream = opened;
-        if (videoRef.current) videoRef.current.srcObject = opened;
-        setStatus("ready");
+        if (!video) return;
+        video.srcObject = opened;
+        if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) markReady();
+        else video.addEventListener("loadeddata", markReady, { once: true });
       },
       (error: unknown) => {
         if (cancelled) return;
@@ -67,6 +76,7 @@ export function CameraScene({ handle }: SceneComponentProps) {
 
     return () => {
       cancelled = true;
+      video?.removeEventListener("loadeddata", markReady);
       if (stream) stopStream(stream);
     };
   }, []);

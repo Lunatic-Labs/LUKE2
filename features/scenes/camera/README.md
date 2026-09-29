@@ -14,7 +14,7 @@ The screen always shows one of six states:
 
 | State         | What's on screen                                          |
 | ------------- | --------------------------------------------------------- |
-| `starting`    | Waiting for the browser to open the webcam                |
+| `starting`    | Waiting for the webcam to open and send its first frame   |
 | `ready`       | Live preview plus "Touch to take a picture!"              |
 | `countdown`   | Gold "Ready", then "Set", then "Pose!", one per second    |
 | `saving`      | White flash while the photo is captured and sent          |
