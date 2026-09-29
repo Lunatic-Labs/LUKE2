@@ -13,6 +13,23 @@ import {
   type CampusBuilding,
 } from "./buildings";
 
+/**
+ * "You Are Here" campus map.
+ *
+ * Ported from `src/luke_java/MapScene.pde` + `MapButtons.pde`: the real
+ * `LUJustMap.jpg` map, tapping selects the nearest building within a combined
+ * offset threshold (`findNearestBuilding`, not a precise hit), the
+ * `markerTransparent.png` pin fixed at the kiosk's own location (Fields
+ * Engineering Center, where the kiosk is physically installed), and a Key
+ * toggle that swaps to the legend. See `buildings.ts` for why the building
+ * coordinates were re-measured from the image rather than ported from
+ * `MapButtons.pde` directly, and why the Key screen is a tappable list here
+ * rather than hit-regions over `LUKey.jpg`, as upstream drew it.
+ *
+ * `MapAIScene.pde` (an AI-directions variant) is dead code upstream — every
+ * call site in `MapScene.pde` that would reach it is commented out — so it
+ * has no counterpart here, same as `TriviaGameManager.pde`'s `Game` class.
+ */
 export function MapScene({ handle }: SceneComponentProps) {
   const [selected, setSelected] = useState<CampusBuilding | null>(null);
   const [showKey, setShowKey] = useState(false);
