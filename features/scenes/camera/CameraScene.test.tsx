@@ -70,13 +70,14 @@ describe("CameraScene", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Take a picture" }));
     expect(handle.reportActivity).toHaveBeenCalled();
-    expect(screen.getByText("Ready")).toBeInTheDocument();
+    // Each word is announced on its own, not the growing on-screen stack.
+    expect(screen.getByRole("status")).toHaveTextContent(/^Ready$/);
     expect(screen.queryByText("Set")).not.toBeInTheDocument();
 
     await advance(COUNTDOWN_STEP_MS);
-    expect(screen.getByText("Set")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/^Set$/);
     await advance(COUNTDOWN_STEP_MS);
-    expect(screen.getByText("Pose!")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/^Pose!$/);
     expect(captureFrame).not.toHaveBeenCalled();
 
     await advance(COUNTDOWN_STEP_MS);
@@ -86,6 +87,7 @@ describe("CameraScene", () => {
 
     await advance(COOLDOWN_MS);
     expect(screen.getByText("Touch to take a picture!")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
   });
 
   it("ignores taps while a picture is in progress", async () => {
@@ -97,7 +99,7 @@ describe("CameraScene", () => {
     await advance(COUNTDOWN_STEP_MS);
     fireEvent.click(target);
 
-    expect(screen.getByText("Set")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/^Set$/);
     await advance(COUNTDOWN_STEP_MS, 2);
     expect(captureFrame).toHaveBeenCalledTimes(1);
   });
@@ -126,6 +128,7 @@ describe("CameraScene", () => {
     await renderScene();
 
     expect(screen.getByText("Camera unavailable")).toBeInTheDocument();
+    expect(screen.getByText(/https or on localhost/)).toBeInTheDocument();
   });
 
   it("stops the camera when the scene leaves the screen", async () => {

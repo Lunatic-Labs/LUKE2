@@ -54,8 +54,10 @@ Writes photos to disk. **Server-only.**
 - `cameraDir()` returns where photos go: `CAMERA_DIR` if set, otherwise
   `data/camera-pics` (the old `CameraDir` from `options.txt`).
 - `photoFileName()` builds the name, like
-  `screen-2026-09-24T20-55-57-190Z.jpg`. Upstream numbered files by frame
-  count, which restarted at zero every launch and overwrote earlier photos.
+  `screen-2026-09-24T20-55-57-190Z-<uuid>.jpg`. Upstream numbered files by
+  frame count, which restarted at zero every launch and overwrote earlier
+  photos. The random UUID keeps two photos saved in the same millisecond from
+  getting the same name.
 - `isJpeg()` checks the first 3 bytes of the file (`FF D8 FF`), which every
   JPEG starts with.
 - `savePhoto()` creates the folder if needed and writes the file. It refuses to

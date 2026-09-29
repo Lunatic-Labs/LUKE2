@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -22,12 +23,14 @@ export function cameraDir(): string {
 }
 
 /**
- * `screen-<timestamp>.jpg`. Upstream numbered files by `frameCount`, which
+ * `screen-<timestamp>-<id>.jpg`. Upstream numbered files by `frameCount`, which
  * restarted at zero every launch and overwrote the previous run's photos; a
  * timestamp keeps them unique across restarts and still sorts chronologically.
+ * The timestamp is only millisecond-precise, so the random id keeps two uploads
+ * in the same millisecond from landing on the same name.
  */
-export function photoFileName(takenAt: Date): string {
-  return `screen-${takenAt.toISOString().replace(/[:.]/g, "-")}.jpg`;
+export function photoFileName(takenAt: Date, id: string = randomUUID()): string {
+  return `screen-${takenAt.toISOString().replace(/[:.]/g, "-")}-${id}.jpg`;
 }
 
 /** JPEG files open with the SOI marker followed by another marker: FF D8 FF. */
@@ -40,9 +43,10 @@ export async function savePhoto(
   bytes: Uint8Array,
   dir: string = cameraDir(),
   takenAt: Date = new Date(),
+  id: string = randomUUID(),
 ): Promise<string> {
   await mkdir(dir, { recursive: true });
-  const fileName = photoFileName(takenAt);
+  const fileName = photoFileName(takenAt, id);
   await writeFile(path.join(dir, fileName), bytes, { flag: "wx" });
   return fileName;
 }

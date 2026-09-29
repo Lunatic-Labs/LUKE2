@@ -123,8 +123,16 @@ export function CameraScene({ handle }: SceneComponentProps) {
     );
   }
 
+  // What screen readers hear. The region stays mounted so each change is
+  // announced, and it sits outside the button because a button's children
+  // can be treated as presentational and never read.
+  const announcement = status === "countdown" ? COUNTDOWN[step] : status === "done" ? message : "";
+
   return (
     <SceneFrame className="bg-black">
+      <p role="status" aria-atomic="true" className="sr-only">
+        {announcement}
+      </p>
       <div
         onClick={handleTap}
         role="button"
@@ -150,7 +158,10 @@ export function CameraScene({ handle }: SceneComponentProps) {
         )}
 
         {status === "countdown" && (
-          <div className="absolute inset-x-0 top-[33%] flex flex-col items-center gap-2 font-serif text-6xl font-bold text-[var(--luke-gold)] [-webkit-text-stroke:4px_black] [paint-order:stroke_fill]">
+          <div
+            aria-hidden="true"
+            className="absolute inset-x-0 top-[33%] flex flex-col items-center gap-2 font-serif text-6xl font-bold text-[var(--luke-gold)] [-webkit-text-stroke:4px_black] [paint-order:stroke_fill]"
+          >
             {COUNTDOWN.slice(0, step + 1).map((word) => (
               <span key={word}>{word}</span>
             ))}
@@ -163,7 +174,7 @@ export function CameraScene({ handle }: SceneComponentProps) {
 
         {status === "done" && (
           <p
-            role="status"
+            aria-hidden="true"
             className="absolute inset-x-0 bottom-[12%] px-4 text-center font-serif text-4xl text-white [-webkit-text-stroke:6px_black] [paint-order:stroke_fill]"
           >
             {message}
@@ -177,7 +188,11 @@ export function CameraScene({ handle }: SceneComponentProps) {
 /** Rejects rather than throws, so callers only ever handle a failed promise. */
 async function openCamera(): Promise<MediaStream> {
   if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error("getUserMedia is unavailable; the page must be served over https or localhost");
+    // Named so describeCameraError can tell the visitor why, not just that it failed.
+    throw Object.assign(
+      new Error("getUserMedia is unavailable; the page must be served over https or localhost"),
+      { name: "InsecureContextError" },
+    );
   }
   return navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
 }
@@ -189,6 +204,7 @@ function stopStream(stream: MediaStream) {
 function describeCameraError(error: unknown): string {
   // getUserMedia rejects with a DOMException, which is not always an Error subclass.
   const name = typeof error === "object" && error !== null && "name" in error ? String(error.name) : "";
+  if (name === "InsecureContextError") return "The camera only works when this page is opened over https or on localhost.";
   if (name === "NotAllowedError") return "Camera access was blocked. Allow it in the browser to take pictures.";
   if (name === "NotFoundError" || name === "OverconstrainedError") return "No camera is connected to this kiosk.";
   if (name === "NotReadableError") return "The camera is in use by another program.";

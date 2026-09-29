@@ -20,8 +20,14 @@ describe("photo-store", () => {
     delete process.env.CAMERA_DIR;
   });
 
-  it("names files by timestamp with no characters Windows rejects", () => {
-    expect(photoFileName(new Date("2026-09-24T15:30:05.123Z"))).toBe("screen-2026-09-24T15-30-05-123Z.jpg");
+  it("names files by timestamp and id with no characters Windows rejects", () => {
+    expect(photoFileName(new Date("2026-09-24T15:30:05.123Z"), "abc")).toBe("screen-2026-09-24T15-30-05-123Z-abc.jpg");
+  });
+
+  it("gives photos taken in the same millisecond different names", () => {
+    const takenAt = new Date("2026-09-24T15:30:05.123Z");
+    expect(photoFileName(takenAt)).toMatch(/^screen-2026-09-24T15-30-05-123Z-[0-9a-f-]{36}\.jpg$/);
+    expect(photoFileName(takenAt)).not.toBe(photoFileName(takenAt));
   });
 
   it("recognises JPEGs by their SOI marker", () => {
@@ -40,17 +46,25 @@ describe("photo-store", () => {
     const target = path.join(dir, "nested");
     const takenAt = new Date("2026-09-24T15:30:05.123Z");
 
-    const fileName = await savePhoto(JPEG, target, takenAt);
+    const fileName = await savePhoto(JPEG, target, takenAt, "abc");
 
-    expect(fileName).toBe(photoFileName(takenAt));
+    expect(fileName).toBe(photoFileName(takenAt, "abc"));
     expect(new Uint8Array(await readFile(path.join(target, fileName)))).toEqual(JPEG);
+  });
+
+  it("saves concurrent uploads from the same millisecond as separate files", async () => {
+    const takenAt = new Date();
+    const names = await Promise.all([savePhoto(JPEG, dir, takenAt), savePhoto(JPEG, dir, takenAt)]);
+
+    expect(names[0]).not.toBe(names[1]);
+    expect((await readdir(dir)).sort()).toEqual([...names].sort());
   });
 
   it("refuses to overwrite an existing photo", async () => {
     const takenAt = new Date();
-    await savePhoto(JPEG, dir, takenAt);
+    await savePhoto(JPEG, dir, takenAt, "abc");
 
-    await expect(savePhoto(JPEG, dir, takenAt)).rejects.toThrow();
+    await expect(savePhoto(JPEG, dir, takenAt, "abc")).rejects.toThrow();
     expect(await readdir(dir)).toHaveLength(1);
   });
 });
