@@ -23,7 +23,7 @@ export async function GET() {
   const images = entries
     .filter((name) => IMAGE_EXTENSIONS.has(path.extname(name).toLowerCase()))
     .sort()
-    .map((name) => `/gallery/${name}`);
+    .map((name) => `/gallery/${encodeURIComponent(name)}`);
 
   return NextResponse.json({ images });
 }
