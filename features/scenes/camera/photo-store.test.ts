@@ -1,10 +1,10 @@
 /**
  * @jest-environment node
  */
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { cameraDir, isJpeg, photoFileName, savePhoto } from "./photo-store";
+import { cameraDir, isJpeg, isPhotoFileName, listPhotos, photoFileName, readPhoto, savePhoto } from "./photo-store";
 
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
 
@@ -66,5 +66,31 @@ describe("photo-store", () => {
 
     await expect(savePhoto(JPEG, dir, takenAt, "abc")).rejects.toThrow();
     expect(await readdir(dir)).toHaveLength(1);
+  });
+
+  it("accepts only names photoFileName produces", () => {
+    expect(isPhotoFileName(photoFileName(new Date()))).toBe(true);
+    expect(isPhotoFileName("screen-2026-09-24T20-59-33-269Z.jpg")).toBe(true);
+    expect(isPhotoFileName("../secret.jpg")).toBe(false);
+    expect(isPhotoFileName("screen-1-a/../../x.jpg")).toBe(false);
+    expect(isPhotoFileName("notes.txt")).toBe(false);
+  });
+
+  it("lists saved photos oldest first, ignoring other files", async () => {
+    const later = await savePhoto(JPEG, dir, new Date("2026-09-25T00:00:00.000Z"), "b");
+    const earlier = await savePhoto(JPEG, dir, new Date("2026-09-24T00:00:00.000Z"), "a");
+    await writeFile(path.join(dir, "notes.txt"), "x");
+
+    expect(await listPhotos(dir)).toEqual([earlier, later]);
+    expect(await listPhotos(path.join(dir, "missing"))).toEqual([]);
+  });
+
+  it("reads a saved photo and refuses anything else", async () => {
+    const name = await savePhoto(JPEG, dir);
+    await writeFile(path.join(dir, "notes.txt"), "x");
+
+    expect(new Uint8Array((await readPhoto(name, dir))!)).toEqual(JPEG);
+    expect(await readPhoto("notes.txt", dir)).toBeNull();
+    expect(await readPhoto(photoFileName(new Date()), dir)).toBeNull();
   });
 });

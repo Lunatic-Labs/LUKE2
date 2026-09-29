@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 /**
@@ -49,4 +49,35 @@ export async function savePhoto(
   const fileName = photoFileName(takenAt, id);
   await writeFile(path.join(dir, fileName), bytes, { flag: "wx" });
   return fileName;
+}
+
+/**
+ * Only names `photoFileName` produces. The serving route turns a URL segment
+ * into a path, so anything else (`..`, separators, other files) is rejected.
+ * The id is optional: photos saved before it was added are named
+ * `screen-<timestamp>.jpg` and still belong in the gallery.
+ */
+const PHOTO_NAME = /^screen-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z(-[0-9a-f-]+)?\.jpg$/;
+
+export function isPhotoFileName(name: string): boolean {
+  return PHOTO_NAME.test(name);
+}
+
+/** Saved photo names, oldest first. An unreadable or missing folder is empty. */
+export async function listPhotos(dir: string = cameraDir()): Promise<string[]> {
+  try {
+    return (await readdir(dir)).filter(isPhotoFileName).sort();
+  } catch {
+    return [];
+  }
+}
+
+/** A saved photo's bytes, or null if the name is invalid or the file is gone. */
+export async function readPhoto(name: string, dir: string = cameraDir()): Promise<Uint8Array | null> {
+  if (!isPhotoFileName(name)) return null;
+  try {
+    return await readFile(path.join(dir, name));
+  } catch {
+    return null;
+  }
 }

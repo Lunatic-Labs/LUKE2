@@ -10,8 +10,9 @@ import { captureFrame, uploadPhoto } from "./capture";
  *
  * Ported from `src/luke_java/CameraScene.pde`. A live preview fills the scene
  * under an outlined "Touch to take a picture!" prompt; a tap runs the gold
- * Ready / Set / Pose! countdown, saves the frame to the photo directory the
- * gallery reads, and holds for a second before the next picture.
+ * Ready / Set / Pose! countdown, saves the frame to the photo directory (which
+ * `/api/gallery` lists alongside `public/gallery`), and holds for a second
+ * before the next picture.
  *
  * Processing's `Capture` becomes `getUserMedia`, which only works in a secure
  * context (https or localhost) and after the browser's permission prompt. The
