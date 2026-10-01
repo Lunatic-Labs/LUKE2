@@ -33,13 +33,12 @@ export function FeedbackScene() {
           className="mt-2 w-1/4 max-w-[160px] shrink-0 object-contain"
         />
 
-        <div className="mt-4 min-h-0 w-5/6 max-w-md shrink rounded-[2rem] border border-[#AD8C45]/50 bg-white p-1.2">
-          <img
-            src="/feedback/feedbackQR.png"
-            alt="QR code linking to the team's feedback form"
-            className="block min-h-0 w-full object-contain"
-          />
-        </div>
+        <img
+          src="/feedback/feedbackQR.png"
+          alt="QR code linking to the team's feedback form"
+          className="block min-h-0 w-full object-contain"
+        />
+      
       </div>
     </SceneFrame>
   );
