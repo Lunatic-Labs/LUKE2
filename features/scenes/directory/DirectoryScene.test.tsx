@@ -18,7 +18,7 @@ describe("DirectoryScene", () => {
     const categoryFilter = screen.getByRole("button", { name: /Filter by category/i });
     fireEvent.click(categoryFilter);
     expect(categoryFilter).toHaveAttribute("aria-expanded", "true");
-    fireEvent.click(screen.getByRole("button", { name: "Computing" }));
+    fireEvent.click(screen.getByRole("button", { name: "School of Computing" }));
     expect(categoryFilter).toHaveAttribute("aria-expanded", "false");
 
     expect(screen.getByText("Amy Algood")).toBeInTheDocument();
