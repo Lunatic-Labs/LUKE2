@@ -81,12 +81,17 @@ export const CAMPUS_BUILDINGS: CampusBuilding[] = [
 ];
 
 /**
- * Where the kiosk itself stands, matching `mapMarX`/`mapMarY` in
- * `MapScene.Init()` (`x_max/3.4`, `y_max/16.84210526`) — coordinates that land
- * on Fields Engineering Center, where the physical kiosk is installed. Drawn
- * with `markerTransparent.png` regardless of what building is selected.
+ * Where the kiosk itself stands. `MapScene.Init()` set this independently of
+ * the building list (`mapMarX`/`mapMarY` = `x_max/3.4`, `y_max/16.84210526`)
+ * but landed on Fields Engineering Center, where the physical kiosk is
+ * installed — so it's derived from that building's own (now-measured)
+ * position here instead of carrying a second, separately-tunable coordinate
+ * that can drift out of sync with it. Drawn with `markerTransparent.png`
+ * regardless of what building is selected.
  */
-export const KIOSK_LOCATION = { x: 1 / 3.4, y: 1 / 16.84210526 };
+export const KIOSK_LOCATION = CAMPUS_BUILDINGS.find(
+  (building) => building.id === "fields-engineering-center",
+)!;
 
 /**
  * Nearest marker to a tap, or null if nothing is close enough.
