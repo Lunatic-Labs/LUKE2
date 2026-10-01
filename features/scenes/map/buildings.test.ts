@@ -1,9 +1,33 @@
+import fs from "fs";
+import path from "path";
 import {
   CAMPUS_BUILDINGS,
   findNearestBuilding,
   fitToAspectRatio,
   KIOSK_LOCATION,
+  MAP_ASPECT_RATIO,
 } from "./buildings";
+
+const MAP_ASSETS = path.join(__dirname, "../../../public/map");
+
+/**
+ * Pixel size of a baseline or progressive JPEG, read from its SOF segment so
+ * the test needs no image library.
+ */
+function jpegSize(file: string): { width: number; height: number } {
+  const data = fs.readFileSync(file);
+  let offset = 2; // skip the SOI marker
+  while (offset < data.length) {
+    const marker = data[offset + 1];
+    const length = data.readUInt16BE(offset + 2);
+    // SOF0-SOF15, excluding DHT (C4), JPG (C8) and DAC (CC).
+    if (marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker)) {
+      return { height: data.readUInt16BE(offset + 5), width: data.readUInt16BE(offset + 7) };
+    }
+    offset += 2 + length;
+  }
+  throw new Error(`No SOF segment found in ${file}`);
+}
 
 describe("findNearestBuilding", () => {
   const buildings = [
@@ -38,6 +62,14 @@ describe("findNearestBuilding", () => {
     expect(findNearestBuilding(buildings, 0.5, 0.5, 0.7)).not.toBeNull();
   });
 
+  it("accepts a tap exactly on the threshold", () => {
+    // The comparison is `<=`, so a tap at exactly the threshold still counts.
+    // 0.125 is used because it is exact in binary floating point (0.1 is not).
+    const onlyBuilding = [{ id: "a", name: "A", x: 0.5, y: 0.5 }];
+    expect(findNearestBuilding(onlyBuilding, 0.5, 0.625, 0.125)?.id).toBe("a");
+    expect(findNearestBuilding(onlyBuilding, 0.5, 0.75, 0.125)).toBeNull();
+  });
+
   it("returns null for an empty marker set", () => {
     expect(findNearestBuilding([], 0.5, 0.5)).toBeNull();
   });
@@ -48,6 +80,22 @@ describe("findNearestBuilding", () => {
     expect(CAMPUS_BUILDINGS).toHaveLength(50);
   });
 
+  it("gives every building a unique, non-empty name", () => {
+    // The Key screen lists buildings by name, so two identical labels would
+    // be indistinguishable there.
+    const names = CAMPUS_BUILDINGS.map((building) => building.name.trim());
+    expect(names.every((name) => name.length > 0)).toBe(true);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("selects each building when its own marker is tapped", () => {
+    // Fails if two buildings share coordinates: the second one could never be
+    // selected from the map, only from the Key screen.
+    for (const building of CAMPUS_BUILDINGS) {
+      expect(findNearestBuilding(CAMPUS_BUILDINGS, building.x, building.y)?.id).toBe(building.id);
+    }
+  });
+
   it("keeps every marker's coordinates within the map image", () => {
     for (const building of CAMPUS_BUILDINGS) {
       expect(building.x).toBeGreaterThanOrEqual(0);
@@ -55,6 +103,23 @@ describe("findNearestBuilding", () => {
       expect(building.y).toBeGreaterThanOrEqual(0);
       expect(building.y).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+describe("map assets", () => {
+  it.each(["LUJustMap.jpg", "markerTransparent.png"])(
+    "ships %s where MapScene loads it from",
+    (file) => {
+      expect(fs.existsSync(path.join(MAP_ASSETS, file))).toBe(true);
+    },
+  );
+
+  it("matches MAP_ASPECT_RATIO to the real map image", () => {
+    // Building coordinates are fractions of this image, and MapScene sizes the
+    // map box from MAP_ASPECT_RATIO. If the image is swapped for one of a
+    // different shape, every marker drifts off its building.
+    const { width, height } = jpegSize(path.join(MAP_ASSETS, "LUJustMap.jpg"));
+    expect(width / height).toBeCloseTo(MAP_ASPECT_RATIO, 4);
   });
 });
 
