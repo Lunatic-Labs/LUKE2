@@ -32,9 +32,8 @@ describe("DirectoryScene", () => {
     render(<DirectoryScene bounds={{ width: 1200, height: 800 }} handle={handle} />);
 
     const categoryFilter = screen.getByRole("button", { name: /Filter by category/i });
-    expect(screen.queryByRole("button", { name: "Electrical & Computer Engineering" })).not.toBeInTheDocument();
-
     fireEvent.click(categoryFilter);
+    expect(screen.queryByRole("button", { name: "Electrical & Computer Engineering" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Electrical Engineering" }));
     expect(screen.getByText("Jacob Dyer")).toBeInTheDocument();
     expect(screen.getByText("1 / 3")).toBeInTheDocument();
