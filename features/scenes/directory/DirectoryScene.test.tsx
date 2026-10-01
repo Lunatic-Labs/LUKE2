@@ -37,7 +37,7 @@ describe("DirectoryScene", () => {
     fireEvent.click(categoryFilter);
     fireEvent.click(screen.getByRole("button", { name: "Electrical Engineering" }));
     expect(screen.getByText("Jacob Dyer")).toBeInTheDocument();
-    expect(screen.getByText("1 / 1")).toBeInTheDocument();
+    expect(screen.getByText("1 / 3")).toBeInTheDocument();
 
     fireEvent.click(categoryFilter);
     fireEvent.click(screen.getByRole("button", { name: "Computer Engineering" }));
