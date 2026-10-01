@@ -13,7 +13,7 @@ describe("DirectoryScene", () => {
     render(<DirectoryScene bounds={{ width: 1200, height: 800 }} handle={handle} />);
 
     expect(screen.getByText("Our Faculty and Staff")).toBeInTheDocument();
-    expect(screen.getByText("Amy Algood")).toBeInTheDocument();
+    expect(screen.getByText("David Elrod II")).toBeInTheDocument();
 
     const categoryFilter = screen.getByRole("button", { name: /Filter by category/i });
     fireEvent.click(categoryFilter);
