@@ -1,4 +1,9 @@
-import { CAMPUS_BUILDINGS, findNearestBuilding, fitToAspectRatio } from "./buildings";
+import {
+  CAMPUS_BUILDINGS,
+  findNearestBuilding,
+  fitToAspectRatio,
+  KIOSK_LOCATION,
+} from "./buildings";
 
 describe("findNearestBuilding", () => {
   const buildings = [
@@ -50,6 +55,34 @@ describe("findNearestBuilding", () => {
       expect(building.y).toBeGreaterThanOrEqual(0);
       expect(building.y).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+describe("KIOSK_LOCATION", () => {
+  it("is found in the building list", () => {
+    // KIOSK_LOCATION is looked up by id with a non-null assertion (`!`), so
+    // renaming "fields-engineering-center" would silently make it undefined
+    // and crash MapScene on render instead of failing to compile.
+    expect(KIOSK_LOCATION).toBeDefined();
+  });
+
+  it("sits on Fields Engineering Center, where the kiosk is installed", () => {
+    expect(KIOSK_LOCATION.id).toBe("fields-engineering-center");
+    expect(KIOSK_LOCATION.name).toBe("Fields Engineering Center");
+  });
+
+  it("shares that building's coordinates rather than keeping a separate copy", () => {
+    // Re-measuring the building must move the "You are here" pin with it.
+    const fields = CAMPUS_BUILDINGS.find(
+      (building) => building.id === "fields-engineering-center",
+    );
+    expect(KIOSK_LOCATION).toBe(fields);
+  });
+
+  it("selects Fields Engineering Center when the kiosk's own pin is tapped", () => {
+    expect(findNearestBuilding(CAMPUS_BUILDINGS, KIOSK_LOCATION.x, KIOSK_LOCATION.y)?.id).toBe(
+      "fields-engineering-center",
+    );
   });
 });
 
