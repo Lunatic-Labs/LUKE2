@@ -400,7 +400,10 @@ export function DirectoryScene({ handle }: SceneComponentProps) {
                   aria-label={`Filter by category: ${selectedCategory}`}
                   aria-expanded={isCategoryOpen}
                   aria-controls="staff-category-options"
-                  onClick={() => setIsCategoryOpen((open) => !open)}
+                  onClick={() => {
+                    handle.reportActivity();
+                    setIsCategoryOpen((open) => !open);
+                  }}
                   className="flex w-full items-center justify-between border-t border-[#2B0A54]/15 bg-white px-4 py-2 text-sm font-medium text-[#2B0A54] transition-colors hover:bg-[#AD8C45]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#AD8C45]"
                 >
                   <span>{selectedCategory}</span>
