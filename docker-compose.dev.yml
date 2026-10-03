@@ -1,10 +1,15 @@
 services:
   web:
-    image: node:20-alpine
+    image: node:24-alpine
     working_dir: /app
-    command: sh -c "npm install && npm run dev"
+    # `npm run dev` listens on 127.0.0.1 only, which inside a container would
+    # shut out the port mapping below, so listen on every container interface
+    # here and leave the restriction to the host side of the mapping.
+    command: sh -c "npm install && npx next dev -H 0.0.0.0"
     ports:
-      - "3000:3000"
+      # Localhost only: /api/photos (upload and serving) has no auth, so other
+      # machines on the network must not be able to reach it.
+      - "127.0.0.1:3000:3000"
     environment:
       - NODE_ENV=development
     volumes:

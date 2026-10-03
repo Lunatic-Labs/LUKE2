@@ -35,10 +35,26 @@ export const IDLE_SCENE: SceneDefinition = {
 export const SCENES: SceneDefinition[] = [
   { id: "video", name: "Video Player", Component: VideoScene, placeholder: true },
   { id: "map", name: "You Are Here", Component: MapScene },
-  { id: "camera", name: "Take a Picture!", Component: CameraScene, placeholder: true },
-  { id: "gallery", name: "Browse the Gallery", Component: GalleryScene, placeholder: true },
+  { id: "camera", name: "Take a Picture!", Component: CameraScene},
+  { id: "gallery", name: "Browse the Gallery", Component: GalleryScene},
   { id: "board", name: "Draw", Component: BoardScene, placeholder: true },
   { id: "trivia", name: "Test Your Knowledge", Component: TriviaScene, placeholder: true },
-  { id: "feedback", name: "Leave Some Feedback?", Component: FeedbackScene, placeholder: true },
+  { id: "feedback", name: "Leave Some Feedback?", Component: FeedbackScene },
   { id: "directory", name: "L.U.K.E. Directory", Component: DirectoryScene, placeholder: true },
+];
+
+/**
+ * Entries in the header's drop-down menu, top to bottom, following the navbar
+ * mockup rather than carousel order. Labels are shorter than scene names so
+ * they fit the menu's pill buttons.
+ */
+export const MENU_ITEMS: { sceneId: string; label: string }[] = [
+  { sceneId: "directory", label: "Faculty" },
+  { sceneId: "video", label: "Video" },
+  { sceneId: "map", label: "Map" },
+  { sceneId: "camera", label: "Selfie" },
+  { sceneId: "gallery", label: "Gallery" },
+  { sceneId: "board", label: "Drawing" },
+  { sceneId: "trivia", label: "Quizzes" },
+  { sceneId: "feedback", label: "Feedback" },
 ];

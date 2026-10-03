@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev                       # dev server on :3000
+npm run dev                       # dev server on 127.0.0.1:3000 (localhost only)
 npm run build                     # next build (output: "standalone")
 npm run lint                      # eslint
 npm test                          # jest
@@ -18,6 +18,8 @@ docker compose up --build                       # production image
 ```
 
 `RAPIDAPI_KEY` is expected in `.env.local` (see `.env.local.example`) for any feature that calls the RapidAPI news endpoints — not currently wired into any route in this boilerplate state.
+
+`CAMERA_DIR` (optional) sets where `app/api/photos` saves camera-scene photos; it defaults to `data/camera-pics` relative to the working directory, which is gitignored and mounted as the `camera-pics` volume in `docker-compose.yml`. The camera needs a secure context (https or localhost) for `getUserMedia`.
 
 ## Architecture
 
