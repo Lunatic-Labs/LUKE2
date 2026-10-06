@@ -16,20 +16,22 @@ export interface BottomBarProps {
   onNext: () => void;
   /** Height in px, derived from screen height by `bottomBarHeight()`. */
   height: number;
+  /** Greys out both arrows, for screens outside the carousel such as the main menu. */
+  disabled?: boolean;
 }
 
-export function BottomBar({ sceneName, onPrevious, onNext, height }: BottomBarProps) {
+export function BottomBar({ sceneName, onPrevious, onNext, height, disabled = false }: BottomBarProps) {
   return (
     <nav
       aria-label="Scene navigation"
       className="flex w-full shrink-0 items-center justify-between bg-[var(--luke-purple)] px-[20%] select-none"
       style={{ height }}
     >
-      <ArrowButton direction="previous" label="Previous scene" onClick={onPrevious} />
+      <ArrowButton direction="previous" label="Previous scene" onClick={onPrevious} disabled={disabled} />
       <span className="sr-only" aria-live="polite">
         {sceneName}
       </span>
-      <ArrowButton direction="next" label="Next scene" onClick={onNext} />
+      <ArrowButton direction="next" label="Next scene" onClick={onNext} disabled={disabled} />
     </nav>
   );
 }
@@ -38,17 +40,20 @@ function ArrowButton({
   direction,
   label,
   onClick,
+  disabled,
 }: {
   direction: "previous" | "next";
   label: string;
   onClick: () => void;
+  disabled: boolean;
 }) {
   return (
     <button
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="flex aspect-[4/3] h-[85%] items-center justify-center rounded-[22%] bg-[var(--luke-lavender)] text-[var(--luke-purple)] transition-[filter] active:brightness-90"
+      disabled={disabled}
+      className="flex aspect-[4/3] h-[85%] items-center justify-center rounded-[22%] bg-[var(--luke-lavender)] text-[var(--luke-purple)] transition-[filter] active:brightness-90 disabled:opacity-40 disabled:active:brightness-100"
     >
       <svg
         viewBox="0 0 40 40"

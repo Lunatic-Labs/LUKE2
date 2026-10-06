@@ -16,6 +16,12 @@ function touchScreen() {
   fireEvent.pointerDown(screen.getByRole("main"));
 }
 
+/** Leave idle and pick the first carousel page from the main menu. */
+function startSession() {
+  touchScreen();
+  fireEvent.click(screen.getByRole("button", { name: "Video" }));
+}
+
 describe("KioskShell", () => {
   beforeEach(() => {
     jest.useFakeTimers();
@@ -33,17 +39,64 @@ describe("KioskShell", () => {
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
   });
 
-  it("enters the carousel at the first scene on any touch", () => {
+  it("opens the main menu on any touch", () => {
     render(<KioskShell sessionSink={sink} />);
     touchScreen();
 
-    // BuildDisplay() registered Video first, and a tap on idle landed on it.
+    expect(screen.getByRole("navigation")).toHaveTextContent("Main Menu");
+    expect(screen.getByRole("button", { name: "Video" })).toBeInTheDocument();
+  });
+
+  it("disables the bottom bar and hides the header menu on the main menu", () => {
+    render(<KioskShell sessionSink={sink} />);
+    touchScreen();
+
+    expect(screen.getByRole("button", { name: "Previous scene" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Next scene" })).toBeDisabled();
+    // KioskHeader hides the chevron with Tailwind's `invisible`, which jsdom does not apply.
+    expect(screen.getByRole("button", { name: "Open menu" })).toHaveClass("invisible");
+  });
+
+  it("enters the carousel at the page picked from the main menu", () => {
+    render(<KioskShell sessionSink={sink} />);
+    touchScreen();
+
+    fireEvent.click(screen.getByRole("button", { name: "Map" }));
+
+    expect(screen.getByRole("navigation")).toHaveTextContent("You Are Here");
+    expect(screen.getByRole("button", { name: "Next scene" })).toBeEnabled();
+  });
+
+  it("never auto-advances off the main menu", () => {
+    render(<KioskShell sessionSink={sink} />);
+    touchScreen();
+
+    advanceSeconds(DEFAULT_OPTIONS.sceneIdleSeconds);
+    expect(screen.getByRole("navigation")).toHaveTextContent("Main Menu");
+  });
+
+  it("returns to idle from a main menu left untouched", () => {
+    render(<KioskShell sessionSink={sink} />);
+    touchScreen();
+
+    advanceSeconds(DEFAULT_OPTIONS.sessionIdleSeconds);
+    expect(screen.getByText("WELCOME!")).toBeInTheDocument();
+  });
+
+  it("does not wrap the carousel back onto the main menu", () => {
+    render(<KioskShell sessionSink={sink} />);
+    touchScreen();
+    fireEvent.click(screen.getByRole("button", { name: "Feedback" }));
+
+    // Feedback is next-to-last; two steps forward wraps past the carousel's end.
+    fireEvent.click(screen.getByRole("button", { name: "Next scene" }));
+    fireEvent.click(screen.getByRole("button", { name: "Next scene" }));
     expect(screen.getByRole("navigation")).toHaveTextContent("Video Player");
   });
 
   it("advances the carousel from the bottom bar", () => {
     render(<KioskShell sessionSink={sink} />);
-    touchScreen();
+    startSession();
 
     fireEvent.click(screen.getByRole("button", { name: "Next scene" }));
     expect(screen.getByRole("navigation")).toHaveTextContent("You Are Here");
@@ -54,7 +107,7 @@ describe("KioskShell", () => {
 
   it("opens and closes the menu from the header chevron", () => {
     const { container } = render(<KioskShell sessionSink={sink} />);
-    touchScreen();
+    startSession();
 
     fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
     expect(screen.getByRole("button", { name: "Close menu" })).toHaveAttribute("aria-expanded", "true");
@@ -67,7 +120,7 @@ describe("KioskShell", () => {
 
   it("jumps to a page from the menu and closes it", () => {
     const { container } = render(<KioskShell sessionSink={sink} />);
-    touchScreen();
+    startSession();
     fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
 
     fireEvent.click(screen.getByRole("button", { name: "Map" }));
@@ -78,7 +131,7 @@ describe("KioskShell", () => {
 
   it("closes the menu when the bottom bar's arrows are used", () => {
     const { container } = render(<KioskShell sessionSink={sink} />);
-    touchScreen();
+    startSession();
 
     fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
     fireEvent.click(screen.getByRole("button", { name: "Next scene" }));
@@ -91,7 +144,7 @@ describe("KioskShell", () => {
 
   it("marks the page on screen in the menu", () => {
     render(<KioskShell sessionSink={sink} />);
-    touchScreen();
+    startSession();
     fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
 
     expect(screen.getByRole("button", { name: "Video" })).toHaveAttribute("aria-current", "page");
@@ -100,7 +153,7 @@ describe("KioskShell", () => {
 
   it("closes the menu when the session ends", () => {
     const { container } = render(<KioskShell sessionSink={sink} />);
-    touchScreen();
+    startSession();
     fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
 
     advanceSeconds(DEFAULT_OPTIONS.sceneIdleSeconds * 8);
@@ -112,7 +165,7 @@ describe("KioskShell", () => {
 
   it("auto-advances a scene left untouched", () => {
     render(<KioskShell sessionSink={sink} />);
-    touchScreen();
+    startSession();
 
     advanceSeconds(DEFAULT_OPTIONS.sceneIdleSeconds);
     expect(screen.getByRole("navigation")).toHaveTextContent("You Are Here");
@@ -120,7 +173,7 @@ describe("KioskShell", () => {
 
   it("keeps a scene while it is being used", () => {
     render(<KioskShell sessionSink={sink} />);
-    touchScreen();
+    startSession();
 
     // Interaction just before the threshold restarts the countdown.
     advanceSeconds(DEFAULT_OPTIONS.sceneIdleSeconds - 1);
@@ -132,7 +185,7 @@ describe("KioskShell", () => {
 
   it("returns to idle once the carousel wraps back to where it went idle", () => {
     render(<KioskShell sessionSink={sink} />);
-    touchScreen();
+    startSession();
 
     // Eight scenes, each drifting after sceneIdleSeconds.
     advanceSeconds(DEFAULT_OPTIONS.sceneIdleSeconds * 8);
@@ -143,7 +196,7 @@ describe("KioskShell", () => {
 
   it("logs the session once it ends", () => {
     render(<KioskShell sessionSink={sink} />);
-    touchScreen();
+    startSession();
 
     advanceSeconds(DEFAULT_OPTIONS.sceneIdleSeconds * 8);
     expect(sink.writeSession).toHaveBeenCalledTimes(1);
@@ -151,7 +204,7 @@ describe("KioskShell", () => {
 
   it("credits attended time to the scene in view", () => {
     render(<KioskShell sessionSink={sink} />);
-    touchScreen();
+    startSession();
 
     advanceSeconds(5);
     advanceSeconds(DEFAULT_OPTIONS.sceneIdleSeconds * 8);
