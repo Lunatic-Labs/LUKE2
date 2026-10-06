@@ -61,7 +61,6 @@ The welcome screen's gradients also use `#3E364D`, a dark purple-grey. It appear
 - The purple strip keeps the welcome screen's layout identical to the other pages, so nothing jumps when a session starts. It is a plain `div` rather than a `<nav>`, so tests that check the welcome screen has no navigation still hold.
 - The shell owns the menu state, not the header, because the shell is what changes scenes and ends sessions, and both need to close the menu.
 - The menu can't appear on the welcome screen, for two reasons: `endSession` resets `menuOpen`, and the panel only renders while `sessionActive` is true. The next visitor always starts with it shut.
-- **Known behaviour:** the automatic advance after `sceneIdleSeconds` calls `goTo` directly rather than `goNext`, so it does not close the menu. If the menu is left open, the scene changes underneath it.
 
 ### `components/SceneFrame.tsx`
 
@@ -138,7 +137,7 @@ The drop-down scene menu, matching the navbar mockup: a lavender panel hanging f
 - **State:** `KioskShell` owns `menuOpen`, passes the toggle to the header, and renders the panel only during a session. Ending a session closes it, so the next visitor starts with it shut.
 - **Buttons:** one pill per page (`rounded-full`, 2px purple border, bold purple text), full panel width. Text size matches the header title (`clamp(0.875rem, 4.3vw, 2rem)`), and gaps and padding scale with screen height. The panel's height comes from its buttons.
 - **Order and labels:** set by `MENU_ITEMS` in `features/kiosk/registry.ts`, which follows the mockup (Faculty, Video, Map, Selfie, Gallery, Drawing, Quizzes, Feedback) rather than carousel order. The labels are short versions of the scene names, e.g. "Selfie" for the camera scene and "Faculty" for the directory. A test checks that the menu lists every scene exactly once.
-- **Choosing a page:** jumps straight to that scene, resets the idle clock, and closes the menu. The bottom bar's arrows and the end of a session also close it; the automatic scene advance does not. The page on screen is marked with `aria-current="page"`; it has no visual highlight, since the mockup doesn't show one.
+- **Choosing a page:** jumps straight to that scene, resets the idle clock, and closes the menu. The bottom bar's arrows and the end of a session also close it. The page on screen is marked with `aria-current="page"`; it has no visual highlight, since the mockup doesn't show one.
 - **Generic component:** `NavMenu` takes a list of `{ id, label }` items and an `onSelect` callback and knows nothing about scenes, so it stays in `components/`.
 - **Not a `<nav>`:** the bottom bar is the page's only `navigation` landmark, and the shell tests rely on that.
 

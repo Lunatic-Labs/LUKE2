@@ -103,39 +103,38 @@ describe("KioskShell", () => {
     touchScreen();
     fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
 
-    advanceSeconds(DEFAULT_OPTIONS.sceneIdleSeconds * 8);
+    advanceSeconds(DEFAULT_OPTIONS.sessionIdleSeconds);
     expect(screen.getByText("WELCOME!")).toBeInTheDocument();
     touchScreen();
 
     expect(container.querySelector("#kiosk-nav-menu")).not.toBeInTheDocument();
   });
 
-  it("auto-advances a scene left untouched", () => {
+  it("never advances a scene on its own", () => {
     render(<KioskShell sessionSink={sink} />);
     touchScreen();
 
-    advanceSeconds(DEFAULT_OPTIONS.sceneIdleSeconds);
-    expect(screen.getByRole("navigation")).toHaveTextContent("You Are Here");
+    advanceSeconds(DEFAULT_OPTIONS.sessionIdleSeconds - 1);
+    expect(screen.getByRole("navigation")).toHaveTextContent("Video Player");
   });
 
-  it("keeps a scene while it is being used", () => {
+  it("keeps the session while it is being used", () => {
     render(<KioskShell sessionSink={sink} />);
     touchScreen();
 
     // Interaction just before the threshold restarts the countdown.
-    advanceSeconds(DEFAULT_OPTIONS.sceneIdleSeconds - 1);
+    advanceSeconds(DEFAULT_OPTIONS.sessionIdleSeconds - 1);
     touchScreen();
-    advanceSeconds(DEFAULT_OPTIONS.sceneIdleSeconds - 1);
+    advanceSeconds(DEFAULT_OPTIONS.sessionIdleSeconds - 1);
 
     expect(screen.getByRole("navigation")).toHaveTextContent("Video Player");
   });
 
-  it("returns to idle once the carousel wraps back to where it went idle", () => {
+  it("returns to idle once the session times out", () => {
     render(<KioskShell sessionSink={sink} />);
     touchScreen();
 
-    // Eight scenes, each drifting after sceneIdleSeconds.
-    advanceSeconds(DEFAULT_OPTIONS.sceneIdleSeconds * 8);
+    advanceSeconds(DEFAULT_OPTIONS.sessionIdleSeconds);
 
     expect(screen.getByText("WELCOME!")).toBeInTheDocument();
     expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
@@ -145,7 +144,7 @@ describe("KioskShell", () => {
     render(<KioskShell sessionSink={sink} />);
     touchScreen();
 
-    advanceSeconds(DEFAULT_OPTIONS.sceneIdleSeconds * 8);
+    advanceSeconds(DEFAULT_OPTIONS.sessionIdleSeconds);
     expect(sink.writeSession).toHaveBeenCalledTimes(1);
   });
 
@@ -153,8 +152,7 @@ describe("KioskShell", () => {
     render(<KioskShell sessionSink={sink} />);
     touchScreen();
 
-    advanceSeconds(5);
-    advanceSeconds(DEFAULT_OPTIONS.sceneIdleSeconds * 8);
+    advanceSeconds(DEFAULT_OPTIONS.sessionIdleSeconds);
 
     const record = (sink.writeSession as jest.Mock).mock.calls[0][0];
     expect(record.sceneSeconds.video).toBeGreaterThan(0);

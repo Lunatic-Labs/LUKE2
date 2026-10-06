@@ -19,13 +19,9 @@ import { SceneErrorBoundary } from "./SceneErrorBoundary";
  * It owns the same three responsibilities the Processing class did:
  *
  *  1. Hold the scene carousel and the idle scene held apart from it.
- *  2. Run the idle clock. A scene untouched for `sceneIdleSeconds` advances the
- *     carousel; once the carousel wraps back to where it first went idle — or a
- *     single scene sits for `sessionIdleSeconds` — the session ends and the
- *     idle screen returns.
- *  3. Track per-scene dwell time for the session log, counting only attended
- *     time (upstream: `idleSceneIndex == -1`), never time the carousel drifted
- *     through unwatched.
+ *  2. Run the idle clock. The carousel never advances on its own; a session
+ *     untouched for `sessionIdleSeconds` ends and the idle screen returns.
+ *  3. Track per-scene dwell time for the session log.
  */
 export interface KioskShellProps {
   options?: KioskOptions;
@@ -37,22 +33,13 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
   const [sessionActive, setSessionActive] = useState(false);
   const { index, next, previous, goTo } = useCarousel({ length: SCENES.length });
 
-  /**
-   * Carousel position where the visitor first stopped interacting, or null
-   * while a session is being actively used. Upstream's `idleSceneIndex`, whose
-   * -1 sentinel becomes null here.
-   */
-  const [driftOrigin, setDriftOrigin] = useState<number | null>(null);
-
   // Read inside the timer tick, which must see the current values without
   // restarting the interval on every render. Synced in an effect because React
   // forbids writing refs during render.
   const indexRef = useRef(index);
-  const driftOriginRef = useRef(driftOrigin);
   const sessionActiveRef = useRef(sessionActive);
   useEffect(() => {
     indexRef.current = index;
-    driftOriginRef.current = driftOrigin;
     sessionActiveRef.current = sessionActive;
   });
 
@@ -71,7 +58,6 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
     setSessionActive(false);
     // The next visitor should not find the previous one's menu left open.
     setMenuOpen(false);
-    setDriftOrigin(null);
     goTo(0);
   }, [goTo, tracker]);
 
@@ -83,24 +69,7 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
         return;
       }
 
-      if (elapsed >= options.sceneIdleSeconds) {
-        const origin = driftOriginRef.current ?? indexRef.current;
-        const upcoming = (indexRef.current + 1) % SCENES.length;
-
-        // Wrapped the whole carousel untouched — nobody is here.
-        if (upcoming === origin) {
-          endSession();
-          return;
-        }
-
-        setDriftOrigin(origin);
-        goTo(upcoming);
-        resetIdleRef.current?.();
-        return;
-      }
-
-      // Only attended seconds count toward the log.
-      if (driftOriginRef.current === null && sessionActiveRef.current) {
+      if (sessionActiveRef.current) {
         tracker.record(SCENES[indexRef.current].id);
       }
     },
@@ -111,14 +80,12 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
   });
 
   const reportActivity = useCallback(() => {
-    setDriftOrigin(null);
     resetIdleRef.current?.();
   }, []);
 
   const beginSession = useCallback(() => {
     tracker.begin();
     setSessionActive(true);
-    setDriftOrigin(null);
     goTo(0);
     resetIdleRef.current?.();
   }, [goTo, tracker]);

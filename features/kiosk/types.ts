@@ -20,7 +20,7 @@ export interface SceneHandle {
   /**
    * Reset the idle countdown. The Processing build got this for free because
    * `DisplayManager.Click()` saw every tap; here a scene reports its own
-   * interaction so auto-advance does not fire mid-use.
+   * interaction so the session does not time out mid-use.
    */
   reportActivity: () => void;
   /** Advance the carousel (`DisplayManager.NextScene(false)`). */
