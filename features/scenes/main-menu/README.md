@@ -15,7 +15,7 @@ Rules the menu follows:
 | The navbar can't navigate to it | `main-menu` isn't in `MENU_ITEMS`. The header's chevron is also hidden while the menu is on screen. |
 | The carousel never cycles to it | It's held outside `SCENES` (like `IDLE_SCENE`), so the arrows and auto-advance can't reach it. |
 | No arrows on the bottom bar | The shell renders the plain purple strip used by the welcome screen instead of `BottomBar`, so there are no arrows on screen. |
-| No accidental taps | Its buttons ignore taps for `MENU_INPUT_DELAY_MS` (2s) after it appears, so a quick double-tap on the welcome screen can't land on a page. They look the same during the delay. |
+| No accidental taps | Its buttons ignore taps for `MENU_INPUT_DELAY_MS` (0.5s) after it appears, so a quick double-tap on the welcome screen can't land on a page. They look the same during the delay. |
 | Idle behaviour | The menu never auto-advances after `sceneIdleSeconds` (30s). After `sessionIdleSeconds` (60s) untouched, the session ends and the welcome screen returns. |
 | Session log | Time spent on the menu is recorded under the id `main-menu`. |
 
@@ -50,7 +50,7 @@ Rules the menu follows:
 - `features/kiosk/components/KioskShell.test.tsx`: existing tests start sessions through a new `startSession()` helper, which taps the welcome screen, waits out the menu's input delay (`openMainMenu()`), and then picks "Video" from the menu. New tests cover:
   - a tap on the welcome screen opens the main menu
   - on the menu, there are no bottom bar arrows and the header chevron is hidden
-  - taps on the menu are ignored until its 2s input delay has passed
+  - taps on the menu are ignored until its 0.5s input delay has passed
   - picking a page enters the carousel at that page
   - the menu doesn't auto-advance after 30s
   - the menu returns to the welcome screen after 60s untouched

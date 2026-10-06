@@ -10,7 +10,7 @@ import type { SceneComponentProps } from "@/features/kiosk/types";
  * attract screen twice in quick succession would otherwise land on whichever
  * page happened to sit under their finger.
  */
-export const MENU_INPUT_DELAY_MS = 2000;
+export const MENU_INPUT_DELAY_MS = 500;
 
 /**
  * Main menu, shown once per session straight after the attract screen.
