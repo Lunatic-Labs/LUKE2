@@ -34,6 +34,7 @@ Rules the menu follows:
 - `features/scenes/idle/IdleScene.tsx`: renders `CampusBackdrop` in place of its inline copy. It looks the same as before.
 - `components/README.md`: lists `CampusBackdrop`.
 - `CSS.md`: navbar notes updated for the "Camera" label and the move of `MENU_ITEMS` into `menu-items.ts`.
+- `components/NavMenu.tsx` and `app/globals.css`: the header drop-down's panel is now grey (new `--luke-grey` token, `#d9d9d9`). Its buttons got an explicit lavender fill so they stay lavender.
 - `features/kiosk/registry.ts`: adds `MAIN_MENU_SCENE` beside `IDLE_SCENE` and re-exports `MENU_ITEMS` from `menu-items.ts`, so existing imports still work.
 - `features/kiosk/index.ts`: exports `MAIN_MENU_SCENE`.
 - `features/kiosk/types.ts`: `SceneHandle` gains `goToScene(sceneId)`, so any scene can jump to a carousel page.

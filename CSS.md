@@ -133,10 +133,10 @@ The purple branding bar at the top of the kiosk:
 
 ### `components/NavMenu.tsx`
 
-The drop-down scene menu, matching the navbar mockup: a lavender panel hanging from the top-left of the scene area, 48% of the width, with a purple border on its right and bottom edges and a rounded bottom-right corner. It sits above the scene (`z-20`).
+The drop-down scene menu, matching the navbar mockup: a grey panel (`--luke-grey`, `#d9d9d9`) hanging from the top-left of the scene area, 48% of the width, with a purple border on its right and bottom edges and a rounded bottom-right corner. It sits above the scene (`z-20`).
 
 - **State:** `KioskShell` owns `menuOpen`, passes the toggle to the header, and renders the panel only during a session. Ending a session closes it, so the next visitor starts with it shut.
-- **Buttons:** one pill per page (`rounded-full`, 2px purple border, bold purple text), full panel width. Text size matches the header title (`clamp(0.875rem, 4.3vw, 2rem)`), and gaps and padding scale with screen height. The panel's height comes from its buttons.
+- **Buttons:** one pill per page (`rounded-full`, lavender fill, 2px purple border, bold purple text), full panel width. Text size matches the header title (`clamp(0.875rem, 4.3vw, 2rem)`), and gaps and padding scale with screen height. The panel's height comes from its buttons.
 - **Order and labels:** set by `MENU_ITEMS` in `features/kiosk/menu-items.ts` (re-exported from `registry.ts`), which follows the mockup's order rather than carousel order. The labels are short versions of the scene names, e.g. "Faculty" for the directory. The camera page was labelled "Selfie" in the navbar mockup and is now "Camera", to match the main menu. A test checks that the menu lists every scene exactly once.
 - **Choosing a page:** jumps straight to that scene, resets the idle clock, and closes the menu. The bottom bar's arrows and the end of a session also close it; the automatic scene advance does not. The page on screen is marked with `aria-current="page"`; it has no visual highlight, since the mockup doesn't show one.
 - **Generic component:** `NavMenu` takes a list of `{ id, label }` items and an `onSelect` callback and knows nothing about scenes, so it stays in `components/`.
