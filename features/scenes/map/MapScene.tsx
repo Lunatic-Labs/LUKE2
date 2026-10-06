@@ -55,7 +55,7 @@ export function MapScene({ handle }: SceneComponentProps) {
     const observer = new ResizeObserver(measure);
     observer.observe(container);
     return () => observer.disconnect();
-  }, []);
+  }, [showKey]);
 
   function handleMapClick(event: React.MouseEvent<HTMLDivElement>) {
     handle.reportActivity();
