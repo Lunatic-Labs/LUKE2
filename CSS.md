@@ -97,7 +97,7 @@ The old "Hi, I'm L.U.K.E.!" text and its floating animation are gone, since the 
 | Faculty  | `directory` | L.U.K.E. Directory   |
 | Video    | `video`     | Video Player         |
 | Map      | `map`       | You Are Here         |
-| Selfie   | `camera`    | Take a Picture!      |
+| Camera   | `camera`    | Take a Picture!      |
 | Gallery  | `gallery`   | Browse the Gallery   |
 | Drawing  | `board`     | Draw                 |
 | Quizzes  | `trivia`    | Test Your Knowledge  |
@@ -137,7 +137,7 @@ The drop-down scene menu, matching the navbar mockup: a lavender panel hanging f
 
 - **State:** `KioskShell` owns `menuOpen`, passes the toggle to the header, and renders the panel only during a session. Ending a session closes it, so the next visitor starts with it shut.
 - **Buttons:** one pill per page (`rounded-full`, 2px purple border, bold purple text), full panel width. Text size matches the header title (`clamp(0.875rem, 4.3vw, 2rem)`), and gaps and padding scale with screen height. The panel's height comes from its buttons.
-- **Order and labels:** set by `MENU_ITEMS` in `features/kiosk/registry.ts`, which follows the mockup (Faculty, Video, Map, Selfie, Gallery, Drawing, Quizzes, Feedback) rather than carousel order. The labels are short versions of the scene names, e.g. "Selfie" for the camera scene and "Faculty" for the directory. A test checks that the menu lists every scene exactly once.
+- **Order and labels:** set by `MENU_ITEMS` in `features/kiosk/menu-items.ts` (re-exported from `registry.ts`), which follows the mockup's order rather than carousel order. The labels are short versions of the scene names, e.g. "Faculty" for the directory. The camera page was labelled "Selfie" in the navbar mockup and is now "Camera", to match the main menu. A test checks that the menu lists every scene exactly once.
 - **Choosing a page:** jumps straight to that scene, resets the idle clock, and closes the menu. The bottom bar's arrows and the end of a session also close it; the automatic scene advance does not. The page on screen is marked with `aria-current="page"`; it has no visual highlight, since the mockup doesn't show one.
 - **Generic component:** `NavMenu` takes a list of `{ id, label }` items and an `onSelect` callback and knows nothing about scenes, so it stays in `components/`.
 - **Not a `<nav>`:** the bottom bar is the page's only `navigation` landmark, and the shell tests rely on that.

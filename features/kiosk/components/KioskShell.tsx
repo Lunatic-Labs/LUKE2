@@ -214,17 +214,11 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
         />
       </main>
 
-      {sessionActive ? (
-        <BottomBar
-          sceneName={scene.name}
-          onNext={goNext}
-          onPrevious={goPrevious}
-          height={barHeight}
-          disabled={!inCarousel}
-        />
+      {inCarousel ? (
+        <BottomBar sceneName={scene.name} onNext={goNext} onPrevious={goPrevious} height={barHeight} />
       ) : (
-        // The attract screen has no controls, but keeps the bar's purple strip
-        // so the layout does not jump when a session starts.
+        // The attract screen and main menu have no arrows, but keep the bar's
+        // purple strip so the layout does not jump on the way into the carousel.
         <div aria-hidden="true" className="w-full shrink-0 bg-[var(--luke-purple)]" style={{ height: barHeight }} />
       )}
     </div>

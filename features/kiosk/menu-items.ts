@@ -10,7 +10,7 @@ export const MENU_ITEMS: { sceneId: string; label: string }[] = [
   { sceneId: "directory", label: "Faculty" },
   { sceneId: "video", label: "Video" },
   { sceneId: "map", label: "Map" },
-  { sceneId: "camera", label: "Selfie" },
+  { sceneId: "camera", label: "Camera" },
   { sceneId: "gallery", label: "Gallery" },
   { sceneId: "board", label: "Drawing" },
   { sceneId: "trivia", label: "Quizzes" },

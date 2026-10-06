@@ -1,10 +1,10 @@
 # Main menu (temporary change notes)
 
-> Temporary: this file describes the uncommitted main-menu change on branch `L20-17`. Delete it, or fold it into the PR description, before merging.
+> Temporary: this file describes the main-menu change on branch `L20-17`, first committed as `566bedd`. Delete it, or fold it into the PR description, before merging.
 
 ## What changed
 
-Tapping the welcome (idle) screen now opens a **main menu** instead of dropping the visitor onto the first carousel scene (Video). The menu lists every page with the same pill buttons and order as the header's drop-down `NavMenu`. Picking a page enters the carousel at that page.
+Tapping the welcome (idle) screen now opens a **main menu** instead of dropping the visitor onto the first carousel scene (Video). Following the main menu mockup, it shows every page as a 2-column × 4-row grid of rounded buttons over the welcome screen's campus backdrop. The order matches the header's drop-down `NavMenu`: Faculty, Video, Map, Camera, Gallery, Drawing, Quizzes, Feedback. Picking a page enters the carousel at that page. The mockup's icons aren't added yet, so every button has a text label.
 
 Rules the menu follows:
 
@@ -14,7 +14,8 @@ Rules the menu follows:
 | No link to itself or to the welcome screen | Its buttons come from `MENU_ITEMS`, which lists carousel scenes only. |
 | The navbar can't navigate to it | `main-menu` isn't in `MENU_ITEMS`. The header's chevron is also hidden while the menu is on screen. |
 | The carousel never cycles to it | It's held outside `SCENES` (like `IDLE_SCENE`), so the arrows and auto-advance can't reach it. |
-| Bottom bar disabled | `BottomBar` gets `disabled`, which greys out both arrows and makes them unclickable. |
+| No arrows on the bottom bar | The shell renders the plain purple strip used by the welcome screen instead of `BottomBar`, so there are no arrows on screen. |
+| No accidental taps | Its buttons ignore taps for `MENU_INPUT_DELAY_MS` (2s) after it appears, so a quick double-tap on the welcome screen can't land on a page. They look the same during the delay. |
 | Idle behaviour | The menu never auto-advances after `sceneIdleSeconds` (30s). After `sessionIdleSeconds` (60s) untouched, the session ends and the welcome screen returns. |
 | Session log | Time spent on the menu is recorded under the id `main-menu`. |
 
@@ -22,13 +23,17 @@ Rules the menu follows:
 
 ### New
 
-- `features/scenes/main-menu/MainMenuScene.tsx`: the menu screen. The heading ("Where to?") is a placeholder.
+- `features/scenes/main-menu/MainMenuScene.tsx`: the menu screen. Labels come from `MENU_ITEMS`, so the navbar and main menu always match.
+- `components/CampusBackdrop.tsx`: the tinted campus photo and skyline, moved out of `IdleScene` so the main menu can share it.
 - `features/scenes/main-menu/index.ts`: barrel export.
-- `features/kiosk/menu-items.ts`: `MENU_ITEMS`, moved here from `registry.ts`. The menu scene needs it, and importing it from `registry.ts` would be circular because the registry imports the scene. Both menus read this one list.
+- `features/kiosk/menu-items.ts`: `MENU_ITEMS`, moved here from `registry.ts`. The menu scene needs it, and importing it from `registry.ts` would be circular because the registry imports the scene. Both menus read this one list. The camera page's label changed from "Selfie" to "Camera" here, so both menus say "Camera".
 - `features/scenes/main-menu/README.md`: this file.
 
 ### Modified
 
+- `features/scenes/idle/IdleScene.tsx`: renders `CampusBackdrop` in place of its inline copy. It looks the same as before.
+- `components/README.md`: lists `CampusBackdrop`.
+- `CSS.md`: navbar notes updated for the "Camera" label and the move of `MENU_ITEMS` into `menu-items.ts`.
 - `features/kiosk/registry.ts`: adds `MAIN_MENU_SCENE` beside `IDLE_SCENE` and re-exports `MENU_ITEMS` from `menu-items.ts`, so existing imports still work.
 - `features/kiosk/index.ts`: exports `MAIN_MENU_SCENE`.
 - `features/kiosk/types.ts`: `SceneHandle` gains `goToScene(sceneId)`, so any scene can jump to a carousel page.
@@ -37,15 +42,15 @@ Rules the menu follows:
   - `beginSession` turns `onMainMenu` on; `goToScene` and `endSession` turn it off
   - the idle tick skips auto-advance while on the menu
   - the scene on screen is chosen as idle → main menu → carousel
-  - the header chevron, `NavMenu` and the bottom bar arrows only work when `inCarousel` is true
+  - the header chevron, `NavMenu` and `BottomBar` only appear when `inCarousel` is true; otherwise the bottom is a plain purple strip
   - `goToScene` is passed to scenes through the handle
-- `components/BottomBar.tsx`: new optional `disabled` prop, styled with `disabled:opacity-40`.
 
 ### Tests
 
-- `features/kiosk/components/KioskShell.test.tsx`: existing tests start sessions through a new `startSession()` helper, which taps the welcome screen and then picks "Video" from the menu. New tests cover:
+- `features/kiosk/components/KioskShell.test.tsx`: existing tests start sessions through a new `startSession()` helper, which taps the welcome screen, waits out the menu's input delay (`openMainMenu()`), and then picks "Video" from the menu. New tests cover:
   - a tap on the welcome screen opens the main menu
-  - on the menu, the bottom bar is disabled and the header chevron is hidden
+  - on the menu, there are no bottom bar arrows and the header chevron is hidden
+  - taps on the menu are ignored until its 2s input delay has passed
   - picking a page enters the carousel at that page
   - the menu doesn't auto-advance after 30s
   - the menu returns to the welcome screen after 60s untouched

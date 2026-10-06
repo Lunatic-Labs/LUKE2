@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { DEFAULT_OPTIONS } from "../options";
 import type { SessionSink } from "../session-log";
+import { MENU_INPUT_DELAY_MS } from "@/features/scenes/main-menu/MainMenuScene";
 import { KioskShell } from "./KioskShell";
 
 /** Silent sink so tests do not depend on console output. */
@@ -16,9 +17,15 @@ function touchScreen() {
   fireEvent.pointerDown(screen.getByRole("main"));
 }
 
+/** Leave idle and wait out the main menu's input delay. */
+function openMainMenu() {
+  touchScreen();
+  advanceSeconds(MENU_INPUT_DELAY_MS / 1000);
+}
+
 /** Leave idle and pick the first carousel page from the main menu. */
 function startSession() {
-  touchScreen();
+  openMainMenu();
   fireEvent.click(screen.getByRole("button", { name: "Video" }));
 }
 
@@ -43,28 +50,40 @@ describe("KioskShell", () => {
     render(<KioskShell sessionSink={sink} />);
     touchScreen();
 
-    expect(screen.getByRole("navigation")).toHaveTextContent("Main Menu");
+    expect(screen.getByRole("navigation", { name: "Main menu" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Video" })).toBeInTheDocument();
   });
 
-  it("disables the bottom bar and hides the header menu on the main menu", () => {
+  it("shows no bottom bar arrows and hides the header menu on the main menu", () => {
     render(<KioskShell sessionSink={sink} />);
     touchScreen();
 
-    expect(screen.getByRole("button", { name: "Previous scene" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Next scene" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Previous scene" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Next scene" })).not.toBeInTheDocument();
     // KioskHeader hides the chevron with Tailwind's `invisible`, which jsdom does not apply.
     expect(screen.getByRole("button", { name: "Open menu" })).toHaveClass("invisible");
   });
 
-  it("enters the carousel at the page picked from the main menu", () => {
+  it("ignores taps on the main menu until its input delay has passed", () => {
     render(<KioskShell sessionSink={sink} />);
     touchScreen();
 
     fireEvent.click(screen.getByRole("button", { name: "Map" }));
+    expect(screen.getByRole("navigation", { name: "Main menu" })).toBeInTheDocument();
+
+    advanceSeconds(MENU_INPUT_DELAY_MS / 1000);
+    fireEvent.click(screen.getByRole("button", { name: "Map" }));
+    expect(screen.getByRole("navigation")).toHaveTextContent("You Are Here");
+  });
+
+  it("enters the carousel at the page picked from the main menu", () => {
+    render(<KioskShell sessionSink={sink} />);
+    openMainMenu();
+
+    fireEvent.click(screen.getByRole("button", { name: "Map" }));
 
     expect(screen.getByRole("navigation")).toHaveTextContent("You Are Here");
-    expect(screen.getByRole("button", { name: "Next scene" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Next scene" })).toBeInTheDocument();
   });
 
   it("never auto-advances off the main menu", () => {
@@ -72,7 +91,7 @@ describe("KioskShell", () => {
     touchScreen();
 
     advanceSeconds(DEFAULT_OPTIONS.sceneIdleSeconds);
-    expect(screen.getByRole("navigation")).toHaveTextContent("Main Menu");
+    expect(screen.getByRole("navigation", { name: "Main menu" })).toBeInTheDocument();
   });
 
   it("returns to idle from a main menu left untouched", () => {
@@ -85,7 +104,7 @@ describe("KioskShell", () => {
 
   it("does not wrap the carousel back onto the main menu", () => {
     render(<KioskShell sessionSink={sink} />);
-    touchScreen();
+    openMainMenu();
     fireEvent.click(screen.getByRole("button", { name: "Feedback" }));
 
     // Feedback is next-to-last; two steps forward wraps past the carousel's end.
