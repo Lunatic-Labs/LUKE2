@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Image from "next/image";
 import { SceneFrame } from "@/components/SceneFrame";
 import type { SceneComponentProps } from "@/features/kiosk/types";
+import { CreditsView } from "./CreditsView";
 
 interface StaffRecord {
   name: string;
@@ -259,6 +260,7 @@ export function DirectoryScene({ handle }: SceneComponentProps) {
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [failedImage, setFailedImage] = useState<string | null>(null);
+  const [showCredits, setShowCredits] = useState(false);
 
   const visiblePeople = useMemo(() => {
     if (selectedCategory === "All Staff") {
@@ -288,6 +290,14 @@ export function DirectoryScene({ handle }: SceneComponentProps) {
       if (nextIndex >= visiblePeople.length) return 0;
       return nextIndex;
     });
+  }
+
+  if (showCredits) {
+    return (
+      <SceneFrame className="bg-white text-black">
+        <CreditsView onBack={() => setShowCredits(false)} onActivity={() => handle.reportActivity()} />
+      </SceneFrame>
+    );
   }
 
   return (
@@ -342,7 +352,16 @@ export function DirectoryScene({ handle }: SceneComponentProps) {
           </div>
 
           <div className="-mx-3 mt-4 grid flex-none grid-cols-[1fr_auto_1fr] items-center pb-1 sm:-mx-7">
-            <div />
+                        <button
+              type="button"
+              onClick={() => {
+                handle.reportActivity();
+                setShowCredits(true);
+              }}
+              className="justify-self-start rounded-md border border-[#2B0A54]/40 bg-white px-5 py-2 text-sm font-medium text-[#2B0A54] transition-colors hover:border-[#AD8C45] hover:bg-[#AD8C45]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#AD8C45]"
+            >
+              Credits
+            </button>
             <div className="flex items-center justify-center gap-3">
               <button
                 type="button"
