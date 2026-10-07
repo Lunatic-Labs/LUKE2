@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { DEFAULT_OPTIONS } from "../options";
 import type { SessionSink } from "../session-log";
+import { NAV_MENU_ANIMATION_MS } from "@/components/NavMenu";
 import { MENU_INPUT_DELAY_MS } from "@/features/scenes/main-menu/MainMenuScene";
 import { KioskShell } from "./KioskShell";
 
@@ -137,10 +138,28 @@ describe("KioskShell", () => {
     expect(container.querySelector("#kiosk-nav-menu")).toHaveAttribute("data-state", "closed");
   });
 
+  it("ignores taps on the menu until it has finished opening", () => {
+    render(<KioskShell sessionSink={sink} />);
+    startSession();
+    fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Map" }));
+    expect(screen.getByRole("navigation")).toHaveTextContent("Video Player");
+
+    act(() => {
+      jest.advanceTimersByTime(NAV_MENU_ANIMATION_MS);
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Map" }));
+    expect(screen.getByRole("navigation")).toHaveTextContent("You Are Here");
+  });
+
   it("jumps to a page from the menu and closes it", () => {
     const { container } = render(<KioskShell sessionSink={sink} />);
     startSession();
     fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
+    act(() => {
+      jest.advanceTimersByTime(NAV_MENU_ANIMATION_MS);
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "Map" }));
 
