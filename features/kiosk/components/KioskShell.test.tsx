@@ -130,11 +130,11 @@ describe("KioskShell", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
     expect(screen.getByRole("button", { name: "Close menu" })).toHaveAttribute("aria-expanded", "true");
-    expect(container.querySelector("#kiosk-nav-menu")).toBeInTheDocument();
+    expect(container.querySelector("#kiosk-nav-menu")).toHaveAttribute("data-state", "open");
 
     fireEvent.click(screen.getByRole("button", { name: "Close menu" }));
     expect(screen.getByRole("button", { name: "Open menu" })).toHaveAttribute("aria-expanded", "false");
-    expect(container.querySelector("#kiosk-nav-menu")).not.toBeInTheDocument();
+    expect(container.querySelector("#kiosk-nav-menu")).toHaveAttribute("data-state", "closed");
   });
 
   it("jumps to a page from the menu and closes it", () => {
@@ -145,7 +145,7 @@ describe("KioskShell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Map" }));
 
     expect(screen.getByRole("navigation")).toHaveTextContent("You Are Here");
-    expect(container.querySelector("#kiosk-nav-menu")).not.toBeInTheDocument();
+    expect(container.querySelector("#kiosk-nav-menu")).toHaveAttribute("data-state", "closed");
   });
 
   it("closes the menu when the bottom bar's arrows are used", () => {
@@ -154,11 +154,11 @@ describe("KioskShell", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
     fireEvent.click(screen.getByRole("button", { name: "Next scene" }));
-    expect(container.querySelector("#kiosk-nav-menu")).not.toBeInTheDocument();
+    expect(container.querySelector("#kiosk-nav-menu")).toHaveAttribute("data-state", "closed");
 
     fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
     fireEvent.click(screen.getByRole("button", { name: "Previous scene" }));
-    expect(container.querySelector("#kiosk-nav-menu")).not.toBeInTheDocument();
+    expect(container.querySelector("#kiosk-nav-menu")).toHaveAttribute("data-state", "closed");
   });
 
   it("marks the page on screen in the menu", () => {
@@ -179,7 +179,7 @@ describe("KioskShell", () => {
     expect(screen.getByText("WELCOME!")).toBeInTheDocument();
     touchScreen();
 
-    expect(container.querySelector("#kiosk-nav-menu")).not.toBeInTheDocument();
+    expect(container.querySelector("#kiosk-nav-menu")).toHaveAttribute("data-state", "closed");
   });
 
   it("auto-advances a scene left untouched", () => {
