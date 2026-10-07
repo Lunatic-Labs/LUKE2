@@ -3,7 +3,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 
 /**
- * Drop-down scene menu, opened by the chevron under the header's shield.
+ * Drop-down scene menu, opened by the hamburger button under the header's shield.
  *
  * Not in the Processing build, which only had the bottom bar's previous/next
  * arrows. It hangs from the top-left of the scene area as an off-white panel

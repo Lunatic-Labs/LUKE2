@@ -61,7 +61,7 @@ describe("KioskShell", () => {
 
     expect(screen.queryByRole("button", { name: "Previous scene" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Next scene" })).not.toBeInTheDocument();
-    // KioskHeader hides the chevron with Tailwind's `invisible`, which jsdom does not apply.
+    // KioskHeader hides the menu button with Tailwind's `invisible`, which jsdom does not apply.
     expect(screen.getByRole("button", { name: "Open menu" })).toHaveClass("invisible");
   });
 
@@ -125,7 +125,7 @@ describe("KioskShell", () => {
     expect(screen.getByRole("navigation")).toHaveTextContent("Video Player");
   });
 
-  it("opens and closes the menu from the header chevron", () => {
+  it("opens and closes the menu from the header's menu button", () => {
     const { container } = render(<KioskShell sessionSink={sink} />);
     startSession();
 

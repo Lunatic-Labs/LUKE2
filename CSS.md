@@ -8,7 +8,7 @@ This restyle brings the kiosk in line with the design mockup: a purple branded h
 | ------------------ | --------- | ------------------------------------------------- |
 | `--luke-purple`    | `#302052` | Header, bottom bar, skyline, text on lavender      |
 | `--luke-lavender`  | `#C9C3D5` | Content background, navigation buttons             |
-| `--luke-lilac`     | `#8F7EB3` | Header title and chevron, welcome-screen tint      |
+| `--luke-lilac`     | `#8F7EB3` | Header title and menu button, welcome-screen tint  |
 | `--luke-gold`      | `#F4AA00` | Unchanged; the shield and map highlights use it   |
 
 The welcome screen's gradients also use `#3E364D`, a dark purple-grey. It appears only in that one gradient, so it is written inline rather than added as a token.
@@ -107,7 +107,7 @@ The old "Hi, I'm L.U.K.E.!" text and its floating animation are gone, since the 
 
 - Two assertions now look for "WELCOME!" instead of "Hi, I'm L.U.K.E.!".
 - **Added** five menu tests:
-  - the chevron opens and closes the menu, and flips `aria-expanded`;
+  - the menu button opens and closes the menu, and flips `aria-expanded`;
   - choosing "Map" jumps to that scene and closes the menu;
   - the bottom bar's next and previous arrows close the menu;
   - the scene on screen is marked `aria-current="page"` in the menu;
@@ -126,8 +126,8 @@ The old "Hi, I'm L.U.K.E.!" text and its floating animation are gone, since the 
 The purple branding bar at the top of the kiosk:
 
 - **Shield:** the Lipscomb shield via `next/image` with `priority`, because it is above the fold on first paint. Height is `clamp(2.5rem, 8dvh, 6rem)`, so it scales with the screen without getting too small or too large.
-- **Chevron:** a lilac down-chevron under the shield. It is a button that opens and closes `NavMenu`, and it flips vertically (`-scale-y-100`, with a 200ms transition) to point up while the menu is open. Mirroring rather than rotating means it flattens to a line halfway through the animation instead of turning sideways. It carries `aria-expanded` and an "Open menu"/"Close menu" label. Its visibility is controlled by the `showMenuToggle` prop (default `true`), and the shell hides it on the welcome screen to match the mockup. It is hidden with `invisible` rather than removed, so it still takes up its space: the header stays the same height and the title stays in the same place on every screen.
-- **Title:** "Lipscomb University Kiosk Experience" in lilac. Its size is `clamp(0.875rem, 4.3vw, 2rem)`, so it fits on one line at the kiosk's width. Bottom padding lines the title up with the shield rather than the shield-plus-chevron group.
+- **Menu button:** a lilac three-line hamburger icon under the shield (`clamp(1.5625rem, 5dvh, 3.75rem)` wide). It sits in a strip with equal padding above and below that runs from the shield's bottom to the header's bottom (the header has top padding only), so the icon is centred exactly between the two. While the menu is open the icon turns cream (`--luke-cream`, `#f1e7cf`); it is lilac otherwise. It is a button that opens and closes `NavMenu`. It replaced a down-chevron that flipped while the menu was open; the hamburger stays the same open or closed, with no animation of its own. It carries `aria-expanded` and an "Open menu"/"Close menu" label. Its visibility is controlled by the `showMenuToggle` prop (default `true`), and the shell hides it on the welcome screen to match the mockup. It is hidden with `invisible` rather than removed, so it still takes up its space: the header stays the same height and the title stays in the same place on every screen.
+- **Title:** "Lipscomb University Kiosk Experience" in lilac. Its size is `clamp(0.875rem, 4.3vw, 2rem)`, so it fits on one line at the kiosk's width. Bottom padding lines the title up with the shield rather than the shield-plus-menu-button group.
 
 **Why a separate component:** it is layout chrome shared by every scene, like `BottomBar`, so it belongs in `components/` rather than in a feature.
 
