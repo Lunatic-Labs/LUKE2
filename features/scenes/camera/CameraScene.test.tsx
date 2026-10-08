@@ -46,6 +46,11 @@ async function advance(ms: number, times = 1) {
   }
 }
 
+/** The capture button is an icon; "Take picture" is its accessible name. */
+function takePictureButton() {
+  return screen.getByRole("button", { name: "Take picture" });
+}
+
 describe("CameraScene", () => {
   beforeEach(() => {
     jest.useFakeTimers();
@@ -60,31 +65,43 @@ describe("CameraScene", () => {
     jest.restoreAllMocks();
   });
 
-  it("prompts for a picture once the camera is open", async () => {
+  it("enables the capture button once the camera is open", async () => {
     mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
     await renderScene();
 
-    expect(screen.getByText("Touch to take a picture!")).toBeInTheDocument();
+    expect(takePictureButton()).toBeEnabled();
   });
 
   it("waits for the first video frame before accepting a tap", async () => {
     mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
     const { container } = await renderScene({ frameArrives: false });
 
-    expect(screen.queryByText("Touch to take a picture!")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Take a picture" }));
+    expect(takePictureButton()).toBeDisabled();
+    fireEvent.click(takePictureButton());
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
 
     fireEvent.loadedData(container.querySelector("video")!);
-    expect(screen.getByText("Touch to take a picture!")).toBeInTheDocument();
+    expect(takePictureButton()).toBeEnabled();
+  });
+
+  it("does not take a picture when the preview is tapped", async () => {
+    mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+    const { container } = await renderScene();
+
+    fireEvent.click(container.querySelector("video")!);
+    await advance(COUNTDOWN_STEP_MS, 3);
+
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    expect(captureFrame).not.toHaveBeenCalled();
   });
 
   it("counts down, saves the photo, thanks the visitor, then resets", async () => {
     mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
     await renderScene();
 
-    fireEvent.click(screen.getByRole("button", { name: "Take a picture" }));
+    fireEvent.click(takePictureButton());
     expect(handle.reportActivity).toHaveBeenCalled();
+    expect(takePictureButton()).toBeDisabled();
     // Each word is announced on its own, not the growing on-screen stack.
     expect(screen.getByRole("status")).toHaveTextContent(/^Ready$/);
     expect(screen.queryByText("Set")).not.toBeInTheDocument();
@@ -101,7 +118,7 @@ describe("CameraScene", () => {
     expect(THANK_YOU_TEXT).toContain(screen.getByRole("status").textContent);
 
     await advance(COOLDOWN_MS);
-    expect(screen.getByText("Touch to take a picture!")).toBeInTheDocument();
+    expect(takePictureButton()).toBeEnabled();
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
   });
 
@@ -109,7 +126,7 @@ describe("CameraScene", () => {
     mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
     await renderScene();
 
-    const target = screen.getByRole("button", { name: "Take a picture" });
+    const target = takePictureButton();
     fireEvent.click(target);
     await advance(COUNTDOWN_STEP_MS);
     fireEvent.click(target);
@@ -124,7 +141,7 @@ describe("CameraScene", () => {
     (uploadPhoto as jest.Mock).mockRejectedValue(new Error("disk full"));
     await renderScene();
 
-    fireEvent.click(screen.getByRole("button", { name: "Take a picture" }));
+    fireEvent.click(takePictureButton());
     await advance(COUNTDOWN_STEP_MS, 3);
 
     expect(screen.getByRole("status")).toHaveTextContent("didn't save");

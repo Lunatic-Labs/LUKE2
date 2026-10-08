@@ -8,11 +8,14 @@ import { captureFrame, uploadPhoto } from "./capture";
 /**
  * Take a Picture!
  *
- * Ported from `src/luke_java/CameraScene.pde`. A live preview fills the scene
- * under an outlined "Touch to take a picture!" prompt; a tap runs the gold
- * Ready / Set / Pose! countdown, saves the frame to the photo directory (which
- * `/api/gallery` lists alongside `public/gallery`), and holds for a second
- * before the next picture.
+ * Ported from `src/luke_java/CameraScene.pde`. Following the camera mockup, a
+ * live preview with a purple edge and rounded bottom corners fills most of the
+ * scene, above a lavender strip holding a camera-app style capture button.
+ * Upstream took a picture on a tap anywhere; a dedicated button keeps a
+ * visitor who is only touching the screen from setting off the camera. The
+ * button runs the gold Ready / Set / Pose! countdown, saves the frame to the
+ * photo directory (which `/api/gallery` lists alongside `public/gallery`), and
+ * holds for a second before the next picture.
  *
  * Processing's `Capture` becomes `getUserMedia`, which only works in a secure
  * context (https or localhost) and after the browser's permission prompt. The
@@ -117,9 +120,10 @@ export function CameraScene({ handle }: SceneComponentProps) {
     return () => clearTimeout(timer);
   }, [status]);
 
-  function handleTap() {
+  function handleTakePicture() {
     handle.reportActivity();
-    // Upstream's `canTakePicture` guard: one capture at a time.
+    // Upstream's `canTakePicture` guard: one capture at a time. The button is
+    // also disabled outside `ready`; this keeps the rule in one place.
     if (status !== "ready") return;
     setStep(0);
     setStatus("countdown");
@@ -140,20 +144,11 @@ export function CameraScene({ handle }: SceneComponentProps) {
   const announcement = status === "countdown" ? COUNTDOWN[step] : status === "done" ? message : "";
 
   return (
-    <SceneFrame className="bg-black">
+    <SceneFrame className="bg-[var(--luke-lavender)] select-none">
       <p role="status" aria-atomic="true" className="sr-only">
         {announcement}
       </p>
-      <div
-        onClick={handleTap}
-        role="button"
-        tabIndex={0}
-        aria-label="Take a picture"
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") handleTap();
-        }}
-        className="relative h-full w-full cursor-pointer select-none"
-      >
+      <div className="relative min-h-0 flex-1 overflow-hidden rounded-b-2xl border-[3px] border-t-0 border-[var(--luke-purple)] bg-black">
         <video
           ref={videoRef}
           autoPlay
@@ -161,12 +156,6 @@ export function CameraScene({ handle }: SceneComponentProps) {
           playsInline
           className="absolute inset-0 h-full w-full object-cover"
         />
-
-        {status === "ready" && (
-          <p className="absolute inset-x-0 top-[8%] px-4 text-center font-serif text-4xl text-white [-webkit-text-stroke:6px_black] [paint-order:stroke_fill]">
-            Touch to take a picture!
-          </p>
-        )}
 
         {status === "countdown" && (
           <div
@@ -191,6 +180,22 @@ export function CameraScene({ handle }: SceneComponentProps) {
             {message}
           </p>
         )}
+
+      </div>
+
+      {/* Capture button: a purple ring around a purple disc, with a lavender
+          gap between them. The disc shrinks a little while pressed. It stays
+          on screen, dimmed, while it cannot be used, so it never jumps. */}
+      <div className="flex shrink-0 justify-center py-[clamp(0.5rem,2dvh,1.5rem)]">
+        <button
+          type="button"
+          aria-label="Take picture"
+          onClick={handleTakePicture}
+          disabled={status !== "ready"}
+          className="group aspect-square w-[clamp(3rem,14vw,6.5rem)] rounded-full border-[clamp(2px,0.8vw,5px)] border-[var(--luke-purple)] p-[clamp(2px,0.8vw,5px)] transition-opacity disabled:opacity-50"
+        >
+          <span className="block h-full w-full rounded-full bg-[var(--luke-purple)] transition-transform duration-100 group-active:scale-90 group-disabled:scale-100" />
+        </button>
       </div>
     </SceneFrame>
   );

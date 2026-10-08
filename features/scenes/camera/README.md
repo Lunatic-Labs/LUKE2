@@ -20,7 +20,8 @@ GalleryScene ◀── <Image src="/api/photos/screen-….jpg"> ◀── GET /a
       └──── GET /api/gallery (lists public/gallery + CAMERA_DIR)
 ```
 
-1. The visitor taps, the countdown runs, and `CameraScene` grabs a frame.
+1. The visitor taps the capture button, the countdown runs, and
+   `CameraScene` grabs a frame.
 2. The frame is sent to `POST /api/photos`, which saves it in `CAMERA_DIR`.
 3. The next time anyone opens the gallery scene, it asks `GET /api/gallery`
    for its picture list. That list now includes the new photo.
@@ -38,8 +39,8 @@ The screen always shows one of six states:
 
 | State         | What's on screen                                          |
 | ------------- | --------------------------------------------------------- |
-| `starting`    | Waiting for the webcam to open and send its first frame   |
-| `ready`       | Live preview plus "Touch to take a picture!"              |
+| `starting`    | Waiting for the webcam; capture button dimmed             |
+| `ready`       | Live preview; capture button active                       |
 | `countdown`   | Gold "Ready", then "Set", then "Pose!", one per second    |
 | `saving`      | White flash while the photo is captured and sent          |
 | `done`        | A thank-you line (or an error message) for 1 second       |
@@ -53,8 +54,20 @@ It has three effects (blocks of code that run on their own timing):
 - **Cooldown:** after 1 second in `done`, goes back to `ready`. This is
   upstream's `delay(1000)`.
 
-`handleTap()` starts the countdown, but only from `ready`. That's the job the
-old `canTakePicture` flag did.
+The layout follows the camera mockup. The live preview fills most of the
+scene, with a purple edge and rounded bottom corners. Below it, just above the
+bottom bar, a lavender strip holds the **capture button**: a camera-app style
+shutter, drawn as a purple ring around a purple disc with a lavender gap
+between them. The disc shrinks slightly while pressed. Its accessible name is
+"Take picture".
+
+The capture button is the only way to take a picture: tapping the preview
+does nothing, so a visitor touching the screen for another reason can't set
+off the camera. The button stays on screen at all times but is disabled and
+dimmed outside `ready`, so it never jumps around.
+
+`handleTakePicture()` starts the countdown, but only from `ready`. That's the
+job the old `canTakePicture` flag did.
 
 The camera uses `getUserMedia`, which browsers only allow on `https://` pages
 or `localhost`. Opening the kiosk by IP address over plain `http` shows
@@ -208,8 +221,11 @@ Ignores `/data/`, so photos of visitors never get committed by accident.
 
 Uses a fake webcam and fake timers to check:
 
-- the prompt appears once the camera opens
-- the full countdown → capture → thank-you → back-to-ready flow
+- the capture button is disabled until the camera's first frame arrives,
+  then enabled
+- tapping the preview doesn't take a picture
+- the full countdown → capture → thank-you → back-to-ready flow, with the
+  button disabled until it's over
 - taps are ignored mid-countdown
 - a failed save shows an error
 - a blocked camera, or a browser with no camera support, shows
@@ -267,6 +283,7 @@ thing preventing that. Don't change these bindings to `0.0.0.0` or remove
   at once for about a frame.
 - The thank-you lines (`thankYouText[]`) were written but disabled upstream;
   they're shown during the 1-second hold.
-- "Touch to take a picture!" appears right away rather than after 10 seconds.
+- A capture button below the preview replaces upstream's
+  tap-anywhere-to-shoot, and the "Touch to take a picture!" prompt is gone.
 - A generic serif font replaces `ACaslonPro-Regular.otf`, a licensed Adobe font.
 - The preview isn't mirrored, same as the original.
