@@ -44,4 +44,14 @@ describe("DirectoryScene", () => {
     expect(screen.getByText("Jacob Dyer")).toBeInTheDocument();
     expect(screen.getByText("1 / 1")).toBeInTheDocument();
   });
+
+  it("opens the credits and returns to the directory", () => {
+    render(<DirectoryScene bounds={{ width: 1200, height: 800 }} handle={handle} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Credits" }));
+    expect(screen.getByText("About L.U.K.E.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByText("Our Faculty and Staff")).toBeInTheDocument();
+  });
 });
