@@ -40,8 +40,8 @@ The screen always shows one of six states:
 | State         | What's on screen                                          |
 | ------------- | --------------------------------------------------------- |
 | `starting`    | Waiting for the webcam; capture button dimmed             |
-| `ready`       | Live preview; capture button active                       |
-| `countdown`   | Gold "Ready", then "Set", then "Pose!", one per second    |
+| `ready`       | Live preview with "Take A Picture"; capture button active |
+| `countdown`   | Gold "Ready.", "Set.", "Pose!" stacking, one per second   |
 | `saving`      | White flash while the photo is captured and sent          |
 | `done`        | A thank-you line (or an error message) for 1 second       |
 | `unavailable` | "Camera unavailable" with the reason                      |
@@ -50,7 +50,7 @@ It has three effects (blocks of code that run on their own timing):
 
 - **Camera on/off:** opens the webcam when the scene appears and stops it when
   the visitor leaves. This is upstream's `video.start()` / `video.stop()`.
-- **Countdown:** moves through Ready/Set/Pose! and then takes the picture.
+- **Countdown:** moves through Ready./Set./Pose! and then takes the picture.
 - **Cooldown:** after 1 second in `done`, goes back to `ready`. This is
   upstream's `delay(1000)`.
 
@@ -60,6 +60,13 @@ bottom bar, a lavender strip holds the **capture button**: a camera-app style
 shutter, drawn as a purple ring around a purple disc with a lavender gap
 between them. The disc shrinks slightly while pressed. Its accessible name is
 "Take picture".
+
+The text over the preview follows the mockup's frames: heavy sans-serif with a
+thick dark purple outline. "Take A Picture" sits at the top while the camera is
+ready. The gold countdown starts just below the middle and stacks downward
+("Ready.", then "Ready. Set.", then "Ready. Set. Pose!"). The thank-you line,
+picked at random from `THANK_YOU_TEXT`, appears lower down, around two thirds
+of the way down the preview.
 
 The capture button is the only way to take a picture: tapping the preview
 does nothing, so a visitor touching the screen for another reason can't set
@@ -284,6 +291,9 @@ thing preventing that. Don't change these bindings to `0.0.0.0` or remove
 - The thank-you lines (`thankYouText[]`) were written but disabled upstream;
   they're shown during the 1-second hold.
 - A capture button below the preview replaces upstream's
-  tap-anywhere-to-shoot, and the "Touch to take a picture!" prompt is gone.
-- A generic serif font replaces `ACaslonPro-Regular.otf`, a licensed Adobe font.
+  tap-anywhere-to-shoot, and the "Touch to take a picture!" prompt became
+  "Take A Picture".
+- A heavy sans-serif with a purple outline replaces `ACaslonPro-Regular.otf`, a
+  licensed Adobe font, following the camera mockup. The countdown words gained
+  periods ("Ready.", "Set.") to match it.
 - The preview isn't mirrored, same as the original.

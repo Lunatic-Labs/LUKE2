@@ -23,7 +23,7 @@ import { captureFrame, uploadPhoto } from "./capture";
  * `video.start()` / `video.stop()`.
  */
 
-export const COUNTDOWN = ["Ready", "Set", "Pose!"];
+export const COUNTDOWN = ["Ready.", "Set.", "Pose!"];
 export const COUNTDOWN_STEP_MS = 1000;
 /** Upstream's `delay(1000)` after each capture, marked "DONT CHANGE". */
 export const COOLDOWN_MS = 1000;
@@ -39,6 +39,14 @@ export const THANK_YOU_TEXT = [
 ];
 
 type Status = "starting" | "ready" | "countdown" | "saving" | "done" | "unavailable";
+
+/**
+ * Shared look of the text over the preview, from the camera mockup: heavy
+ * sans-serif with a thick dark purple outline. `paint-order` draws the outline
+ * behind the fill, so it thickens the letters outward instead of eating in.
+ */
+const OVERLAY_TEXT =
+  "px-4 text-center font-sans font-extrabold leading-tight [-webkit-text-stroke:6px_var(--luke-purple)] [paint-order:stroke_fill]";
 
 export function CameraScene({ handle }: SceneComponentProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -157,10 +165,17 @@ export function CameraScene({ handle }: SceneComponentProps) {
           className="absolute inset-0 h-full w-full object-cover"
         />
 
+        {status === "ready" && (
+          <p className={`absolute inset-x-0 top-[6%] text-[clamp(1.5rem,8vw,4rem)] text-white ${OVERLAY_TEXT}`}>
+            Take A Picture
+          </p>
+        )}
+
+        {/* Starts just below the middle and stacks downward, one word a second. */}
         {status === "countdown" && (
           <div
             aria-hidden="true"
-            className="absolute inset-x-0 top-[33%] flex flex-col items-center gap-2 font-serif text-6xl font-bold text-[var(--luke-gold)] [-webkit-text-stroke:4px_black] [paint-order:stroke_fill]"
+            className={`absolute inset-x-0 top-[53%] flex flex-col items-center text-[clamp(1.75rem,9vw,4.5rem)] text-[var(--luke-gold)] ${OVERLAY_TEXT}`}
           >
             {COUNTDOWN.slice(0, step + 1).map((word) => (
               <span key={word}>{word}</span>
@@ -175,12 +190,11 @@ export function CameraScene({ handle }: SceneComponentProps) {
         {status === "done" && (
           <p
             aria-hidden="true"
-            className="absolute inset-x-0 bottom-[12%] px-4 text-center font-serif text-4xl text-white [-webkit-text-stroke:6px_black] [paint-order:stroke_fill]"
+            className={`absolute inset-x-0 top-[66%] text-[clamp(1.75rem,9vw,4.5rem)] text-white ${OVERLAY_TEXT}`}
           >
             {message}
           </p>
         )}
-
       </div>
 
       {/* Capture button: a purple ring around a purple disc, with a lavender

@@ -71,6 +71,7 @@ describe("CameraScene", () => {
     await renderScene();
 
     expect(takePictureButton()).toBeEnabled();
+    expect(screen.getByText("Take A Picture")).toBeInTheDocument();
   });
 
   it("waits for the first video frame before accepting a tap", async () => {
@@ -104,11 +105,12 @@ describe("CameraScene", () => {
     expect(handle.reportActivity).toHaveBeenCalled();
     expect(takePictureButton()).toBeDisabled();
     // Each word is announced on its own, not the growing on-screen stack.
-    expect(screen.getByRole("status")).toHaveTextContent(/^Ready$/);
-    expect(screen.queryByText("Set")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/^Ready\.$/);
+    expect(screen.queryByText("Set.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Take A Picture")).not.toBeInTheDocument();
 
     await advance(COUNTDOWN_STEP_MS);
-    expect(screen.getByRole("status")).toHaveTextContent(/^Set$/);
+    expect(screen.getByRole("status")).toHaveTextContent(/^Set\.$/);
     await advance(COUNTDOWN_STEP_MS);
     expect(screen.getByRole("status")).toHaveTextContent(/^Pose!$/);
     expect(captureFrame).not.toHaveBeenCalled();
@@ -117,9 +119,12 @@ describe("CameraScene", () => {
     expect(captureFrame).toHaveBeenCalledTimes(1);
     expect(uploadPhoto).toHaveBeenCalledTimes(1);
     expect(THANK_YOU_TEXT).toContain(screen.getByRole("status").textContent);
+    // Shown on screen too, not only announced.
+    expect(screen.getAllByText(screen.getByRole("status").textContent!)).toHaveLength(2);
 
     await advance(COOLDOWN_MS);
     expect(takePictureButton()).toBeEnabled();
+    expect(screen.getByText("Take A Picture")).toBeInTheDocument();
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
   });
 
@@ -132,7 +137,7 @@ describe("CameraScene", () => {
     await advance(COUNTDOWN_STEP_MS);
     fireEvent.click(target);
 
-    expect(screen.getByRole("status")).toHaveTextContent(/^Set$/);
+    expect(screen.getByRole("status")).toHaveTextContent(/^Set\.$/);
     await advance(COUNTDOWN_STEP_MS, 2);
     expect(captureFrame).toHaveBeenCalledTimes(1);
   });
