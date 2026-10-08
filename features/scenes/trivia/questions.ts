@@ -38,7 +38,7 @@ export const TRIVIA_QUESTIONS: TriviaQuestion[] = [
   { prompt: "Which of the following is approximately equal to 2 to the 16th power?", responses: ["64K", "1M", "32K", "4K"] },
   { prompt: "Which of the following is not considered a branch of engineering?", responses: ["Microplastic Engineering", "Mining Engineering", "Textile Engineering", "Optical Engineering"] },
   { prompt: "What does GPT (as in ChatGPT) stand for?", responses: ["Generative Pre-trained Transformer", "Generative Prompt Translator", "Generalized Phonetic Technology", "Great Peas of Texas"] },
-  { prompt: "Which programming language is commonly used in a Playstation console?", responses: ["C/C++", "Python", "Java", "Rust"] },
+  { prompt: "Which programming language is commonly used in a PlayStation console?", responses: ["C/C++", "Python", "Java", "Rust"] },
   { prompt: "Which team is not in the ASUN Conference?", responses: ["Sewanee", "Lipscomb", "Stetson", "Austin Peay"] },
   { prompt: "What year was Lipscomb University founded?", responses: ["1891", "1918", "1864", "1887"] },
   { prompt: "What was the math. proposition for a machine that can compute any algorithm originally named?", responses: ["The A-machine", "The Turing Machine", "The bombe", "The computer"] },
