@@ -44,7 +44,7 @@ export function MainMenuScene({ handle }: SceneComponentProps) {
             // Disabled without any change in look, so the grid does not flicker
             // when it starts accepting taps.
             disabled={!acceptingInput}
-            className="flex aspect-[4/3] items-center justify-center rounded-[22%] border-[clamp(3px,0.8vw,8px)] border-[var(--luke-purple)] bg-[var(--luke-lavender)] text-[clamp(0.875rem,5vw,2.5rem)] leading-tight text-[var(--luke-purple)] transition-[filter] active:brightness-90"
+            className="flex aspect-[4/3] items-center justify-center rounded-[22%] border-[clamp(3px,0.8vw,8px)] border-[var(--luke-purple)] bg-[var(--luke-lavender)]/75 text-[clamp(0.875rem,5vw,2.5rem)] leading-tight text-[var(--luke-purple)] transition-[filter] active:brightness-90"
           >
             {label}
           </button>
