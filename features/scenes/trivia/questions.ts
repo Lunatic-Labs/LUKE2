@@ -41,7 +41,7 @@ export const TRIVIA_QUESTIONS: TriviaQuestion[] = [
   { prompt: "Which programming language is commonly used in a PlayStation console?", responses: ["C/C++", "Python", "Java", "Rust"] },
   { prompt: "Which team is not in the ASUN Conference?", responses: ["Sewanee", "Lipscomb", "Stetson", "Austin Peay"] },
   { prompt: "What year was Lipscomb University founded?", responses: ["1891", "1918", "1864", "1887"] },
-  { prompt: "What was the math. proposition for a machine that can compute any algorithm originally named?", responses: ["The A-machine", "The Turing Machine", "The bombe", "The computer"] },
+  { prompt: "What was the mathematical model of a machine capable of computing any algorithm originally called?", responses: ["The A-machine", "The Turing Machine", "The bombe", "The computer"] },
   { prompt: "What is the name of Lipscomb University’s mascot?", responses: ["Lou the Bison", "Mr. Bison", "Bison Bill", "Luke Bison"] },
   { prompt: "Current always travels through the path of...?", responses: ["Least resistance", "Most resistance", "Least distance", "Densest wiring"] },
   { prompt: "How many megabytes are in one gigabyte?", responses: ["1000", "10000", "100", "10"] },
