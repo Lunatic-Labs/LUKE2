@@ -26,6 +26,7 @@ interface Point {
 export function BoardScene({ bounds }: SceneComponentProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
+  const activePointerIdRef = useRef<number | null>(null);
   // Upstream `points`: the previous segment endpoint, -1 when not drawing.
   const lastPointRef = useRef<Point | null>(null);
   const [eraseMode, setEraseMode] = useState(false);
@@ -37,10 +38,49 @@ export function BoardScene({ bounds }: SceneComponentProps) {
     const context = canvas.getContext("2d");
     if (!context) return;
 
-    canvas.width = canvas.clientWidth;
-    canvas.height = canvas.clientHeight;
-    context.fillStyle = "white";
-    context.fillRect(0, 0, canvas.width, canvas.height);
+    const resizeCanvas = (preservePixels: boolean) => {
+      const nextWidth = canvas.clientWidth;
+      const nextHeight = canvas.clientHeight;
+      if (nextWidth <= 0 || nextHeight <= 0) return;
+      if (canvas.width === nextWidth && canvas.height === nextHeight) return;
+
+      const previousCanvas =
+        preservePixels && canvas.width > 0 && canvas.height > 0
+          ? (() => {
+              const snapshot = document.createElement("canvas");
+              snapshot.width = canvas.width;
+              snapshot.height = canvas.height;
+              snapshot.getContext("2d")?.drawImage(canvas, 0, 0);
+              return snapshot;
+            })()
+          : null;
+
+      canvas.width = nextWidth;
+      canvas.height = nextHeight;
+      context.fillStyle = "white";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+
+      if (previousCanvas) {
+        context.drawImage(previousCanvas, 0, 0, canvas.width, canvas.height);
+      }
+    };
+
+    resizeCanvas(false);
+
+    const handleResize = () => {
+      drawingRef.current = false;
+      lastPointRef.current = null;
+      activePointerIdRef.current = null;
+      resizeCanvas(true);
+    };
+
+    window.addEventListener("resize", handleResize);
+    window.visualViewport?.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.visualViewport?.removeEventListener("resize", handleResize);
+    };
   }, []);
 
   function canvasPoint(event: React.PointerEvent<HTMLCanvasElement>): Point {
@@ -49,12 +89,15 @@ export function BoardScene({ bounds }: SceneComponentProps) {
   }
 
   function handlePointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (activePointerIdRef.current !== null) return;
+    activePointerIdRef.current = event.pointerId;
     event.currentTarget.setPointerCapture(event.pointerId);
     drawingRef.current = true;
     lastPointRef.current = canvasPoint(event);
   }
 
   function handlePointerMove(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (event.pointerId !== activePointerIdRef.current) return;
     if (!drawingRef.current) return;
 
     const context = canvasRef.current?.getContext("2d");
@@ -75,9 +118,14 @@ export function BoardScene({ bounds }: SceneComponentProps) {
   }
 
   // `ClickRelease()` reset the point chain so strokes don't reconnect.
-  function endStroke() {
+  function endStroke(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (event.pointerId !== activePointerIdRef.current) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
     drawingRef.current = false;
     lastPointRef.current = null;
+    activePointerIdRef.current = null;
   }
 
   return (
