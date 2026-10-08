@@ -17,7 +17,7 @@ export const CREDITS_PAGES: CreditsPage[] = [
     kind: "about",
     title: "About L.U.K.E.",
     body:
-      "The Lipscomb University Kiosk Experience (L.U.K.E.) is developed using Processing 4, a software that runs on Java. L.U.K.E. is made to present information to visitors to Lipscomb University or to those who do not know about our campus.",
+      "The Lipscomb University Kiosk Experience (L.U.K.E.) is a web application built with Next.js and React. L.U.K.E. presents information to visitors to Lipscomb University and to those who want to learn more about our campus."
   },
   {
     kind: "team",
