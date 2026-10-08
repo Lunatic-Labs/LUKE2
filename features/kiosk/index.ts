@@ -1,6 +1,6 @@
 export { KioskShell } from "./components/KioskShell";
 export { SceneErrorBoundary } from "./components/SceneErrorBoundary";
-export { IDLE_SCENE, SCENES } from "./registry";
+export { IDLE_SCENE, MAIN_MENU_SCENE, SCENES } from "./registry";
 export {
   BOTTOM_BAR_HEIGHT_RATIO,
   DEFAULT_OPTIONS,

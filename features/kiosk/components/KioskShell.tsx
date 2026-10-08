@@ -8,7 +8,7 @@ import { NavMenu } from "@/components/NavMenu";
 import { useCarousel } from "@/hooks/useCarousel";
 import { useIdleTimer } from "@/hooks/useIdleTimer";
 import { bottomBarHeight, DEFAULT_OPTIONS, type KioskOptions } from "../options";
-import { IDLE_SCENE, MENU_ITEMS, SCENES } from "../registry";
+import { IDLE_SCENE, MAIN_MENU_SCENE, MENU_ITEMS, SCENES } from "../registry";
 import { SessionTracker, type SessionSink } from "../session-log";
 import type { SceneHandle } from "../types";
 import { SceneErrorBoundary } from "./SceneErrorBoundary";
@@ -18,7 +18,9 @@ import { SceneErrorBoundary } from "./SceneErrorBoundary";
  *
  * It owns the same three responsibilities the Processing class did:
  *
- *  1. Hold the scene carousel and the idle scene held apart from it.
+ *  1. Hold the scene carousel, plus the idle scene and main menu held apart
+ *     from it. A tap on idle opens the main menu; picking a page there enters
+ *     the carousel, and the session never returns to the menu.
  *  2. Run the idle clock. A scene untouched for `sceneIdleSeconds` advances the
  *     carousel; once the carousel wraps back to where it first went idle — or a
  *     single scene sits for `sessionIdleSeconds` — the session ends and the
@@ -35,6 +37,8 @@ export interface KioskShellProps {
 
 export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShellProps) {
   const [sessionActive, setSessionActive] = useState(false);
+  /** True from the tap that leaves idle until the visitor picks a page. */
+  const [onMainMenu, setOnMainMenu] = useState(false);
   const { index, next, previous, goTo } = useCarousel({ length: SCENES.length });
 
   /**
@@ -50,10 +54,12 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
   const indexRef = useRef(index);
   const driftOriginRef = useRef(driftOrigin);
   const sessionActiveRef = useRef(sessionActive);
+  const onMainMenuRef = useRef(onMainMenu);
   useEffect(() => {
     indexRef.current = index;
     driftOriginRef.current = driftOrigin;
     sessionActiveRef.current = sessionActive;
+    onMainMenuRef.current = onMainMenu;
   });
 
   const tracker = useMemo(() => new SessionTracker(sessionSink), [sessionSink]);
@@ -69,6 +75,7 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
   const endSession = useCallback(() => {
     tracker.end();
     setSessionActive(false);
+    setOnMainMenu(false);
     // The next visitor should not find the previous one's menu left open.
     setMenuOpen(false);
     setDriftOrigin(null);
@@ -84,6 +91,10 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
       }
 
       if (elapsed >= options.sceneIdleSeconds) {
+        // The main menu is not on the carousel, so there is nothing to drift
+        // to; it waits for the session timeout above instead.
+        if (onMainMenuRef.current) return;
+
         const origin = driftOriginRef.current ?? indexRef.current;
         const upcoming = (indexRef.current + 1) % SCENES.length;
 
@@ -101,7 +112,7 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
 
       // Only attended seconds count toward the log.
       if (driftOriginRef.current === null && sessionActiveRef.current) {
-        tracker.record(SCENES[indexRef.current].id);
+        tracker.record(onMainMenuRef.current ? MAIN_MENU_SCENE.id : SCENES[indexRef.current].id);
       }
     },
   });
@@ -118,6 +129,7 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
   const beginSession = useCallback(() => {
     tracker.begin();
     setSessionActive(true);
+    setOnMainMenu(true);
     setDriftOrigin(null);
     goTo(0);
     resetIdleRef.current?.();
@@ -140,6 +152,7 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
     (sceneId: string) => {
       reportActivity();
       goTo(SCENES.findIndex((scene) => scene.id === sceneId));
+      setOnMainMenu(false);
       setMenuOpen(false);
     },
     [goTo, reportActivity],
@@ -151,12 +164,15 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
       nextScene: goNext,
       previousScene: goPrevious,
       exitCarousel: endSession,
+      goToScene,
     }),
-    [endSession, goNext, goPrevious, reportActivity],
+    [endSession, goNext, goPrevious, goToScene, reportActivity],
   );
 
-  const scene = sessionActive ? SCENES[index] : IDLE_SCENE;
+  const scene = !sessionActive ? IDLE_SCENE : onMainMenu ? MAIN_MENU_SCENE : SCENES[index];
   const { Component } = scene;
+  // The main menu already lists every page, so the header's menu is hidden there.
+  const inCarousel = sessionActive && !onMainMenu;
 
   return (
     <div
@@ -165,7 +181,7 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
       // any interaction anywhere reset the idle clock. Same here.
       onPointerDown={sessionActive ? reportActivity : beginSession}
     >
-      <KioskHeader showMenuToggle={sessionActive} menuOpen={menuOpen} onToggleMenu={toggleMenu} />
+      <KioskHeader showMenuToggle={inCarousel} menuOpen={menuOpen} onToggleMenu={toggleMenu} />
 
       <main className="relative min-h-0 flex-1">
         {/* Backdrop only: its solid base meets the bottom bar so the skyline
@@ -191,23 +207,18 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
           </SceneErrorBoundary>
         </div>
         <NavMenu
-          open={sessionActive && menuOpen}
+          open={inCarousel && menuOpen}
           items={MENU_ITEMS.map(({ sceneId, label }) => ({ id: sceneId, label }))}
           currentId={scene.id}
           onSelect={goToScene}
         />
       </main>
 
-      {sessionActive ? (
-        <BottomBar
-          sceneName={scene.name}
-          onNext={goNext}
-          onPrevious={goPrevious}
-          height={barHeight}
-        />
+      {inCarousel ? (
+        <BottomBar sceneName={scene.name} onNext={goNext} onPrevious={goPrevious} height={barHeight} />
       ) : (
-        // The attract screen has no controls, but keeps the bar's purple strip
-        // so the layout does not jump when a session starts.
+        // The attract screen and main menu have no arrows, but keep the bar's
+        // purple strip so the layout does not jump on the way into the carousel.
         <div aria-hidden="true" className="w-full shrink-0 bg-[var(--luke-purple)]" style={{ height: barHeight }} />
       )}
     </div>

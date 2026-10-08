@@ -12,6 +12,7 @@
  */
 
 import { IdleScene } from "@/features/scenes/idle";
+import { MainMenuScene } from "@/features/scenes/main-menu";
 import { MapScene } from "@/features/scenes/map";
 import { VideoScene } from "@/features/scenes/video";
 import { CameraScene } from "@/features/scenes/camera";
@@ -32,6 +33,17 @@ export const IDLE_SCENE: SceneDefinition = {
   Component: IdleScene,
 };
 
+/**
+ * Where a session lands after the attract screen. Also held outside the
+ * carousel: auto-advance never drifts onto it, the bottom bar cannot reach it,
+ * and it is left out of `MENU_ITEMS`, so a visitor sees it once per session.
+ */
+export const MAIN_MENU_SCENE: SceneDefinition = {
+  id: "main-menu",
+  name: "Main Menu",
+  Component: MainMenuScene,
+};
+
 export const SCENES: SceneDefinition[] = [
   { id: "video", name: "Video Player", Component: VideoScene, placeholder: true },
   { id: "map", name: "You Are Here", Component: MapScene },
@@ -43,18 +55,4 @@ export const SCENES: SceneDefinition[] = [
   { id: "directory", name: "L.U.K.E. Directory", Component: DirectoryScene, placeholder: true },
 ];
 
-/**
- * Entries in the header's drop-down menu, top to bottom, following the navbar
- * mockup rather than carousel order. Labels are shorter than scene names so
- * they fit the menu's pill buttons.
- */
-export const MENU_ITEMS: { sceneId: string; label: string }[] = [
-  { sceneId: "directory", label: "Faculty" },
-  { sceneId: "video", label: "Video" },
-  { sceneId: "map", label: "Map" },
-  { sceneId: "camera", label: "Selfie" },
-  { sceneId: "gallery", label: "Gallery" },
-  { sceneId: "board", label: "Drawing" },
-  { sceneId: "trivia", label: "Quizzes" },
-  { sceneId: "feedback", label: "Feedback" },
-];
+export { MENU_ITEMS } from "./menu-items";
