@@ -1,0 +1,1 @@
+export { MainMenuScene } from "./MainMenuScene";

@@ -27,12 +27,16 @@ body {
 
 /* L.U.K.E. palette. Purple is the header/bottom bar and skyline fill,
    lavender the scene background, lilac the muted header text and controls.
-   Gold is the shield from the Processing build's BottomBar.pde stroke. */
+   Gold is the shield from the Processing build's BottomBar.pde stroke.
+   Off-white is the header drop-down menu's panel, cream the menu button
+   while that menu is open. */
 :root {
   --luke-purple: #302052;
   --luke-lavender: #c9c3d5;
   --luke-lilac: #8f7eb3;
   --luke-gold: #f4aa00;
+  --luke-off-white: #faf9fc;
+  --luke-cream: #f1e7cf;
 }
 
 /* IdleScene's prompt drifted up and down a few pixels per frame in
