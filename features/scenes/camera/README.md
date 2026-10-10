@@ -54,11 +54,11 @@ It has three effects (blocks of code that run on their own timing):
 - **Cooldown:** after 1 second in `done`, goes back to `ready`. This is
   upstream's `delay(1000)`.
 
-The layout follows the camera mockup. The live preview fills most of the
-scene, with a purple edge and rounded bottom corners. Below it, just above the
-bottom bar, a lavender strip holds the **capture button**: a camera-app style
-shutter, drawn as a purple ring around a purple disc with a lavender gap
-between them. The disc shrinks slightly while pressed. Its accessible name is
+The layout follows the camera mockup. The scene is purple, continuing the
+header and bottom bar, and the live preview fills most of it as a card with
+rounded corners and a thin purple margin. Below it, just above the bottom bar,
+sits the **capture button**: a camera-app style shutter, drawn as a lavender
+ring around a lavender disc with a purple gap between them. The disc shrinks slightly while pressed. Its accessible name is
 "Take picture".
 
 The text over the preview follows the mockup's frames: heavy sans-serif with a

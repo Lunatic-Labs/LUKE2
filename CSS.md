@@ -86,6 +86,19 @@ The old "Hi, I'm L.U.K.E.!" text and its floating animation are gone, since the 
 - The shell draws its skyline underneath scenes, so the opaque photo would hide it. Drawing a second copy inside the scene puts it back on top.
 - The `luke-float` keyframes in `globals.css` are no longer used by anything. They were left in place in case another scene wants the effect.
 
+### `features/scenes/camera/CameraScene.tsx`
+
+Restyled to match the camera mockup. Behaviour is unchanged: the capture button is still the only way to take a picture, and the overlay text, countdown and thank-you line are as before.
+
+- **Background:** the scene is `bg-[var(--luke-purple)]` instead of lavender, with `px-[2%] pt-[2%]` padding.
+- **Preview:** a card with rounded corners on all four sides (`rounded-[clamp(0.5rem,1.5dvh,1.25rem)]`). The purple border and bottom-only rounding are gone, since the purple padding now frames it.
+- **Capture button:** the colours are swapped. It is now a lavender ring around a lavender disc (`--luke-lavender`), with the purple background showing through the gap between them. Size, the press-to-shrink effect and the dimmed disabled state are unchanged.
+
+**Why:**
+- In the mockup, the header, the scene and the bottom bar form one continuous purple surface, with the photo as the only light area. A purple scene background gives that look without changing the shell.
+- The scene background is opaque, so it covers the shell's skyline on this page. That matches the mockup, which shows no skyline here.
+- A lavender button reads clearly on purple and matches the lavender arrow buttons in the bottom bar right below it.
+
 ### `features/kiosk/registry.ts`
 
 - **Added** `MENU_ITEMS`: the menu's entries, top to bottom, as `{ sceneId, label }` pairs.

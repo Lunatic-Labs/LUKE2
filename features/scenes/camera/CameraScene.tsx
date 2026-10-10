@@ -9,8 +9,8 @@ import { captureFrame, uploadPhoto } from "./capture";
  * Take a Picture!
  *
  * Ported from `src/luke_java/CameraScene.pde`. Following the camera mockup, a
- * live preview with a purple edge and rounded bottom corners fills most of the
- * scene, above a lavender strip holding a camera-app style capture button.
+ * live preview with rounded corners fills most of the scene, inset on a purple
+ * background, above a camera-app style capture button.
  * Upstream took a picture on a tap anywhere; a dedicated button keeps a
  * visitor who is only touching the screen from setting off the camera. The
  * button runs the gold Ready / Set / Pose! countdown, saves the frame to the
@@ -152,11 +152,11 @@ export function CameraScene({ handle }: SceneComponentProps) {
   const announcement = status === "countdown" ? COUNTDOWN[step] : status === "done" ? message : "";
 
   return (
-    <SceneFrame className="bg-[var(--luke-lavender)] select-none">
+    <SceneFrame className="bg-[var(--luke-purple)] px-[2%] pt-[2%] select-none">
       <p role="status" aria-atomic="true" className="sr-only">
         {announcement}
       </p>
-      <div className="relative min-h-0 flex-1 overflow-hidden rounded-b-2xl border-[3px] border-t-0 border-[var(--luke-purple)] bg-black">
+      <div className="relative min-h-0 flex-1 overflow-hidden rounded-[clamp(0.5rem,1.5dvh,1.25rem)] bg-black">
         <video
           ref={videoRef}
           autoPlay
@@ -197,7 +197,7 @@ export function CameraScene({ handle }: SceneComponentProps) {
         )}
       </div>
 
-      {/* Capture button: a purple ring around a purple disc, with a lavender
+      {/* Capture button: a lavender ring around a lavender disc, with a purple
           gap between them. The disc shrinks a little while pressed. It stays
           on screen, dimmed, while it cannot be used, so it never jumps. */}
       <div className="flex shrink-0 justify-center py-[clamp(0.5rem,2dvh,1.5rem)]">
@@ -206,9 +206,9 @@ export function CameraScene({ handle }: SceneComponentProps) {
           aria-label="Take picture"
           onClick={handleTakePicture}
           disabled={status !== "ready"}
-          className="group aspect-square w-[clamp(3rem,14vw,6.5rem)] rounded-full border-[clamp(2px,0.8vw,5px)] border-[var(--luke-purple)] p-[clamp(2px,0.8vw,5px)] transition-opacity disabled:opacity-50"
+          className="group aspect-square w-[clamp(3rem,14vw,6.5rem)] rounded-full border-[clamp(2px,0.8vw,5px)] border-[var(--luke-lavender)] p-[clamp(2px,0.8vw,5px)] transition-opacity disabled:opacity-50"
         >
-          <span className="block h-full w-full rounded-full bg-[var(--luke-purple)] transition-transform duration-100 group-active:scale-90 group-disabled:scale-100" />
+          <span className="block h-full w-full rounded-full bg-[var(--luke-lavender)] transition-transform duration-100 group-active:scale-90 group-disabled:scale-100" />
         </button>
       </div>
     </SceneFrame>
