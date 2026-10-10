@@ -86,6 +86,25 @@ The old "Hi, I'm L.U.K.E.!" text and its floating animation are gone, since the 
 - The shell draws its skyline underneath scenes, so the opaque photo would hide it. Drawing a second copy inside the scene puts it back on top.
 - The `luke-float` keyframes in `globals.css` are no longer used by anything. They were left in place in case another scene wants the effect.
 
+### `features/scenes/camera/CameraScene.tsx`
+
+Restyled to match the camera mockup, and given two new controls from it: a filters button and a thumbnail of the last photo. The capture button is still the only way to take a picture, and the overlay text, countdown and thank-you line are as before. How the filters and thumbnail work is covered in `features/scenes/camera/README.md`.
+
+- **Background:** the scene is `bg-[var(--luke-purple)]` instead of lavender, with `px-[2%] pt-[2%]` padding.
+- **Preview:** a card with rounded corners on all four sides (`rounded-[clamp(0.5rem,1.5dvh,1.25rem)]`). The purple border and bottom-only rounding are gone, since the purple padding now frames it.
+- **Capture button:** the colours are swapped. It is now a lavender ring around a lavender disc (`--luke-lavender`), with the purple background showing through the gap between them. Size, the press-to-shrink effect and the dimmed disabled state are unchanged.
+- **Controls row:** the capture button now sits in the middle of a three-column grid (`grid-cols-3`, items centred), with two new controls either side, each `clamp(2.5rem, 12vw, 5.5rem)` across, a little smaller than the capture button:
+  - **Filters button** (left): a solid lavender circle with a purple three-star sparkles icon (inline SVG, 60% of the button). It dims to 50% opacity while disabled, like the capture button, and darkens slightly while pressed (`active:brightness-90`), like the bottom bar's arrows. The chosen filter is applied to the preview as an inline `style={{ filter }}`, because the value comes from a list at runtime rather than a fixed class.
+  - **Last-photo thumbnail** (right): until a photo is taken, a lilac circle (`--luke-lilac`) with a thin lavender ring (`border-[clamp(1.5px,0.5vw,3px)]`) and a purple head-and-shoulders outline icon (inline SVG, 60% of the circle). After that, the photo cropped to a circle (`rounded-full overflow-hidden`, `object-cover`) with no ring, as in the mockup. With a photo it is a button: it darkens slightly while pressed and dims to 50% while disabled, like the filters button.
+- **Enlarged photo:** tapping the thumbnail opens the gallery scene's enlarged view, copied class for class: a full-screen `bg-black/60` button holding a `70vh × 70vw` (`max-w-2xl`) white box with an 8px gold border and rounded corners, the photo inside `object-contain`. A tap anywhere closes it. It adds `z-30`, so it also covers `NavMenu` (`z-20`) if that is open.
+
+**Why:**
+- In the mockup, the header, the scene and the bottom bar form one continuous purple surface, with the photo as the only light area. A purple scene background gives that look without changing the shell.
+- The scene background is opaque, so it covers the shell's skyline on this page. That matches the mockup, which shows no skyline here.
+- A lavender button reads clearly on purple and matches the lavender arrow buttons in the bottom bar right below it.
+- The enlarged view matches the gallery's so the two pages behave the same. It is copied rather than shared because the gallery uses `next/image` and the thumbnail is a blob URL, which `next/image` can't load. If a third page needs it, it's worth moving into `components/`.
+- Equal grid columns keep the capture button exactly centred, whether or not the thumbnail holds a photo, so nothing shifts when the first picture is taken.
+
 ### `features/kiosk/registry.ts`
 
 - **Added** `MENU_ITEMS`: the menu's entries, top to bottom, as `{ sceneId, label }` pairs.
