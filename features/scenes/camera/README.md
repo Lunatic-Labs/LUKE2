@@ -57,9 +57,31 @@ It has three effects (blocks of code that run on their own timing):
 The layout follows the camera mockup. The scene is purple, continuing the
 header and bottom bar, and the live preview fills most of it as a card with
 rounded corners and a thin purple margin. Below it, just above the bottom bar,
-sits the **capture button**: a camera-app style shutter, drawn as a lavender
-ring around a lavender disc with a purple gap between them. The disc shrinks slightly while pressed. Its accessible name is
-"Take picture".
+is a row of three controls:
+
+- **Filters button** (left): a lavender circle with a sparkles icon. Each tap
+  switches to the next entry in `FILTERS` (no filter, black and white, sepia,
+  vivid, cool), wrapping round after the last. The filter is a CSS filter on
+  the live preview, and `captureFrame` draws the same filter into the saved
+  photo, so the photo matches what the visitor saw. The button is disabled
+  during the countdown and while saving, because the photo uses the filter on
+  screen at "Pose!". Its accessible name says which filter is on, e.g.
+  "Change filter, now Sepia".
+- **Capture button** (centre): a camera-app style shutter, drawn as a lavender
+  ring around a lavender disc with a purple gap between them. The disc shrinks
+  slightly while pressed. Its accessible name is "Take picture".
+- **Last photo** (right): a round thumbnail of the last photo saved on this
+  visit to the scene. Before the first one it is a placeholder: a lilac
+  circle with a lavender ring and a purple person icon, which does nothing
+  when tapped. Only photos that saved successfully appear. Tapping the
+  thumbnail opens the photo enlarged, using the same view as the gallery
+  scene: the photo in a gold frame over a dimmed screen, closed by tapping
+  anywhere. The thumbnail is disabled during the countdown and while saving,
+  so the enlarged view can't cover a picture in progress. The thumbnail uses an object URL for
+  the JPEG already in memory, so it costs no extra request. The URL is freed
+  when a newer photo replaces it and when the scene unmounts. Leaving the
+  scene, including at the end of a session, empties the thumbnail, so the
+  next visitor never sees someone else's photo.
 
 The text over the preview follows the mockup's frames: heavy sans-serif with a
 thick dark purple outline. "Take A Picture" sits at the top while the camera is
@@ -84,8 +106,9 @@ or `localhost`. Opening the kiosk by IP address over plain `http` shows
 
 The two browser-side steps of taking a picture:
 
-- `captureFrame(video)` draws the current video frame onto a hidden canvas and
-  turns it into a JPEG.
+- `captureFrame(video, filter)` draws the current video frame onto a hidden
+  canvas, with the CSS `filter` applied (default `"none"`), and turns it into
+  a JPEG.
 - `uploadPhoto(blob)` sends that JPEG to `/api/photos`.
 
 These two together replace Processing's `saveFrame()`. They're in their own
@@ -234,7 +257,14 @@ Uses a fake webcam and fake timers to check:
 - the full countdown → capture → thank-you → back-to-ready flow, with the
   button disabled until it's over
 - taps are ignored mid-countdown
-- a failed save shows an error
+- a failed save shows an error and leaves the thumbnail empty
+- a saved photo appears as the thumbnail, and its object URL is freed when
+  the scene unmounts; the empty placeholder isn't tappable
+- tapping the thumbnail opens the enlarged view and tapping again closes it
+- the thumbnail is disabled mid-countdown
+- the filters button cycles through `FILTERS` and wraps round, applies the
+  filter to the preview, is disabled mid-countdown, and the photo is captured
+  with the filter that was on screen
 - a blocked camera, or a browser with no camera support, shows
   "Camera unavailable"
 - the camera is turned off when the visitor leaves the scene
@@ -297,3 +327,5 @@ thing preventing that. Don't change these bindings to `0.0.0.0` or remove
   licensed Adobe font, following the camera mockup. The countdown words gained
   periods ("Ready.", "Set.") to match it.
 - The preview isn't mirrored, same as the original.
+- The filters button and the last-photo thumbnail are new; upstream had
+  neither.

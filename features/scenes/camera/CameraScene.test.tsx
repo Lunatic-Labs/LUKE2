@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { SceneHandle } from "@/features/kiosk/types";
 import { captureFrame, uploadPhoto } from "./capture";
-import { CameraScene, COOLDOWN_MS, COUNTDOWN_STEP_MS, THANK_YOU_TEXT } from "./CameraScene";
+import { CameraScene, COOLDOWN_MS, COUNTDOWN_STEP_MS, FILTERS, THANK_YOU_TEXT } from "./CameraScene";
 
 jest.mock("./capture", () => ({
   captureFrame: jest.fn(),
@@ -59,6 +59,9 @@ describe("CameraScene", () => {
     jest.spyOn(console, "error").mockImplementation(() => {});
     (captureFrame as jest.Mock).mockResolvedValue(new Blob(["jpeg"]));
     (uploadPhoto as jest.Mock).mockResolvedValue(undefined);
+    // jsdom has no object URLs; the thumbnail needs them.
+    URL.createObjectURL = jest.fn(() => "blob:last-photo");
+    URL.revokeObjectURL = jest.fn();
   });
 
   afterEach(() => {
@@ -151,6 +154,75 @@ describe("CameraScene", () => {
     await advance(COUNTDOWN_STEP_MS, 3);
 
     expect(screen.getByRole("status")).toHaveTextContent("didn't save");
+    // A photo that didn't save isn't shown as the last photo.
+    expect(screen.queryByAltText("Your last photo")).not.toBeInTheDocument();
+  });
+
+  it("shows the last saved photo as a thumbnail, and frees it on the way out", async () => {
+    mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+    const { unmount } = await renderScene();
+
+    expect(screen.queryByAltText("Your last photo")).not.toBeInTheDocument();
+    // The empty placeholder isn't a button.
+    expect(screen.queryByRole("button", { name: "Enlarge your last photo" })).not.toBeInTheDocument();
+
+    fireEvent.click(takePictureButton());
+    await advance(COUNTDOWN_STEP_MS, 3);
+
+    expect(screen.getByAltText("Your last photo")).toHaveAttribute("src", "blob:last-photo");
+
+    unmount();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:last-photo");
+  });
+
+  it("enlarges the last photo on a tap, like the gallery, and closes on another", async () => {
+    mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+    await renderScene();
+    fireEvent.click(takePictureButton());
+    await advance(COUNTDOWN_STEP_MS, 3);
+    await advance(COOLDOWN_MS);
+    jest.mocked(handle.reportActivity).mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: "Enlarge your last photo" }));
+    const close = screen.getByRole("button", { name: "Close enlarged photo" });
+    expect(close.querySelector("img")).toHaveAttribute("src", "blob:last-photo");
+    expect(handle.reportActivity).toHaveBeenCalled();
+
+    fireEvent.click(close);
+    expect(screen.queryByRole("button", { name: "Close enlarged photo" })).not.toBeInTheDocument();
+  });
+
+  it("locks the thumbnail while a picture is being taken", async () => {
+    mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+    await renderScene();
+    fireEvent.click(takePictureButton());
+    await advance(COUNTDOWN_STEP_MS, 3);
+    await advance(COOLDOWN_MS);
+
+    fireEvent.click(takePictureButton());
+    expect(screen.getByRole("button", { name: "Enlarge your last photo" })).toBeDisabled();
+  });
+
+  it("cycles filters on the preview and saves the photo with the one shown", async () => {
+    mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+    const { container } = await renderScene();
+    const video = container.querySelector("video")!;
+    const filterButton = () => screen.getByRole("button", { name: /^Change filter/ });
+
+    expect(filterButton()).toHaveAccessibleName(`Change filter, now ${FILTERS[0].name}`);
+    fireEvent.click(filterButton());
+    expect(filterButton()).toHaveAccessibleName(`Change filter, now ${FILTERS[1].name}`);
+    expect(video.style.filter).toBe(FILTERS[1].css);
+
+    fireEvent.click(takePictureButton());
+    expect(filterButton()).toBeDisabled();
+    await advance(COUNTDOWN_STEP_MS, 3);
+    expect(captureFrame).toHaveBeenCalledWith(video, FILTERS[1].css);
+
+    // Wraps back to the first filter after the last.
+    await advance(COOLDOWN_MS);
+    for (let i = 1; i < FILTERS.length; i++) fireEvent.click(filterButton());
+    expect(filterButton()).toHaveAccessibleName(`Change filter, now ${FILTERS[0].name}`);
   });
 
   it("explains when camera access is denied", async () => {

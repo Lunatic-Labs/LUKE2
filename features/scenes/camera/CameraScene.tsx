@@ -10,7 +10,9 @@ import { captureFrame, uploadPhoto } from "./capture";
  *
  * Ported from `src/luke_java/CameraScene.pde`. Following the camera mockup, a
  * live preview with rounded corners fills most of the scene, inset on a purple
- * background, above a camera-app style capture button.
+ * background, above a row of controls: a filters button, a camera-app style
+ * capture button, and a thumbnail of the last photo taken on this visit, which
+ * opens enlarged on a tap, as in the gallery scene.
  * Upstream took a picture on a tap anywhere; a dedicated button keeps a
  * visitor who is only touching the screen from setting off the camera. The
  * button runs the gold Ready / Set / Pose! countdown, saves the frame to the
@@ -27,6 +29,18 @@ export const COUNTDOWN = ["Ready.", "Set.", "Pose!"];
 export const COUNTDOWN_STEP_MS = 1000;
 /** Upstream's `delay(1000)` after each capture, marked "DONT CHANGE". */
 export const COOLDOWN_MS = 1000;
+
+/**
+ * What the filters button cycles through, in order. `css` is a CSS filter,
+ * applied to the live preview and drawn into the saved photo by `captureFrame`.
+ */
+export const FILTERS = [
+  { name: "No filter", css: "none" },
+  { name: "Black and white", css: "grayscale(1)" },
+  { name: "Sepia", css: "sepia(0.9)" },
+  { name: "Vivid", css: "saturate(1.8) contrast(1.1)" },
+  { name: "Cool", css: "hue-rotate(180deg) saturate(1.2)" },
+] as const;
 
 /** `thankYouText[]` from upstream, where it was written but left disabled. */
 export const THANK_YOU_TEXT = [
@@ -53,6 +67,12 @@ export function CameraScene({ handle }: SceneComponentProps) {
   const [status, setStatus] = useState<Status>("starting");
   const [step, setStep] = useState(0);
   const [message, setMessage] = useState("");
+  const [filterIndex, setFilterIndex] = useState(0);
+  /** Object URL of the last photo saved on this visit, for the thumbnail. */
+  const [lastPhoto, setLastPhoto] = useState<string | null>(null);
+  /** Whether the last photo is open in the enlarged view. */
+  const [enlarged, setEnlarged] = useState(false);
+  const filter = FILTERS[filterIndex];
 
   // Open the camera for as long as the scene is on screen.
   useEffect(() => {
@@ -106,10 +126,16 @@ export function CameraScene({ handle }: SceneComponentProps) {
       const video = videoRef.current;
       if (!video) return;
       setStatus("saving");
-      captureFrame(video)
-        .then(uploadPhoto)
+      captureFrame(video, filter.css)
+        .then(async (photo) => {
+          await uploadPhoto(photo);
+          return photo;
+        })
         .then(
-          () => setMessage(THANK_YOU_TEXT[Math.floor(Math.random() * THANK_YOU_TEXT.length)]),
+          (photo) => {
+            setLastPhoto(URL.createObjectURL(photo));
+            setMessage(THANK_YOU_TEXT[Math.floor(Math.random() * THANK_YOU_TEXT.length)]);
+          },
           (error: unknown) => {
             console.error("CameraScene: could not save photo", error);
             setMessage("Sorry, that one didn't save. Try again!");
@@ -119,7 +145,15 @@ export function CameraScene({ handle }: SceneComponentProps) {
     }, COUNTDOWN_STEP_MS);
 
     return () => clearTimeout(timer);
-  }, [status, step]);
+  }, [status, step, filter]);
+
+  // Free each thumbnail's object URL once a newer photo replaces it, and the
+  // last one when the scene leaves the screen, so the next visitor starts
+  // with an empty thumbnail.
+  useEffect(() => {
+    if (!lastPhoto) return;
+    return () => URL.revokeObjectURL(lastPhoto);
+  }, [lastPhoto]);
 
   // Hold on the result briefly, then allow another picture.
   useEffect(() => {
@@ -135,6 +169,21 @@ export function CameraScene({ handle }: SceneComponentProps) {
     if (status !== "ready") return;
     setStep(0);
     setStatus("countdown");
+  }
+
+  function openLastPhoto() {
+    handle.reportActivity();
+    setEnlarged(true);
+  }
+
+  function closeLastPhoto() {
+    handle.reportActivity();
+    setEnlarged(false);
+  }
+
+  function handleNextFilter() {
+    handle.reportActivity();
+    setFilterIndex((index) => (index + 1) % FILTERS.length);
   }
 
   if (status === "unavailable") {
@@ -163,6 +212,7 @@ export function CameraScene({ handle }: SceneComponentProps) {
           muted
           playsInline
           className="absolute inset-0 h-full w-full object-cover"
+          style={{ filter: filter.css }}
         />
 
         {status === "ready" && (
@@ -197,10 +247,26 @@ export function CameraScene({ handle }: SceneComponentProps) {
         )}
       </div>
 
-      {/* Capture button: a lavender ring around a lavender disc, with a purple
-          gap between them. The disc shrinks a little while pressed. It stays
-          on screen, dimmed, while it cannot be used, so it never jumps. */}
-      <div className="flex shrink-0 justify-center py-[clamp(0.5rem,2dvh,1.5rem)]">
+      {/* Controls row, from the mockup: filters on the left, the capture
+          button in the middle, the last photo on the right. Three equal
+          columns keep the capture button centred whatever the sides hold. */}
+      <div className="grid shrink-0 grid-cols-3 items-center justify-items-center py-[clamp(0.5rem,2dvh,1.5rem)]">
+        <button
+          type="button"
+          aria-label={`Change filter, now ${filter.name}`}
+          onClick={handleNextFilter}
+          // The photo is taken with the filter on screen at "Pose!", so it
+          // can't change mid-countdown.
+          disabled={status === "countdown" || status === "saving"}
+          className="flex aspect-square w-[clamp(2.5rem,12vw,5.5rem)] items-center justify-center rounded-full bg-[var(--luke-lavender)] text-[var(--luke-purple)] transition-[filter,opacity] active:brightness-90 disabled:opacity-50"
+        >
+          <SparklesIcon />
+        </button>
+
+        {/* Capture button: a lavender ring around a lavender disc, with a
+            purple gap between them. The disc shrinks a little while pressed.
+            It stays on screen, dimmed, while it cannot be used, so it never
+            jumps. */}
         <button
           type="button"
           aria-label="Take picture"
@@ -210,8 +276,79 @@ export function CameraScene({ handle }: SceneComponentProps) {
         >
           <span className="block h-full w-full rounded-full bg-[var(--luke-lavender)] transition-transform duration-100 group-active:scale-90 group-disabled:scale-100" />
         </button>
+
+        {/* Last photo taken on this visit, which opens enlarged on a tap.
+            Before the first photo it is a lilac placeholder with a person
+            icon, and does nothing. */}
+        {lastPhoto ? (
+          <button
+            type="button"
+            aria-label="Enlarge your last photo"
+            onClick={openLastPhoto}
+            // Locked during a capture, like the filters button, so the
+            // enlarged view can't hide the countdown.
+            disabled={status === "countdown" || status === "saving"}
+            className="aspect-square w-[clamp(2.5rem,12vw,5.5rem)] overflow-hidden rounded-full transition-[filter,opacity] active:brightness-90 disabled:opacity-50"
+          >
+            {/* A blob URL, which next/image cannot optimise. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={lastPhoto} alt="Your last photo" className="h-full w-full object-cover" />
+          </button>
+        ) : (
+          <div
+            aria-hidden="true"
+            className="flex aspect-square w-[clamp(2.5rem,12vw,5.5rem)] items-center justify-center rounded-full border-[clamp(1.5px,0.5vw,3px)] border-[var(--luke-lavender)] bg-[var(--luke-lilac)] text-[var(--luke-purple)]"
+          >
+            <PersonIcon />
+          </div>
+        )}
       </div>
+
+      {/* Same enlarged view as the gallery scene: the photo in a gold frame
+          over a dimmed screen, closed by a tap anywhere. */}
+      {enlarged && lastPhoto && (
+        <button
+          type="button"
+          aria-label="Close enlarged photo"
+          onClick={closeLastPhoto}
+          className="fixed inset-0 z-30 flex items-center justify-center bg-black/60"
+        >
+          <span className="relative block h-[70vh] w-[70vw] max-w-2xl rounded-lg border-8 border-[var(--luke-gold)] bg-white p-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={lastPhoto} alt="" className="h-full w-full object-contain" />
+          </span>
+        </button>
+      )}
     </SceneFrame>
+  );
+}
+
+/** Head and shoulders outline, the mockup's empty-thumbnail icon. */
+function PersonIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-3/5 w-3/5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
+    </svg>
+  );
+}
+
+/** Three four-pointed stars, the mockup's filters icon. */
+function SparklesIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-3/5 w-3/5" fill="currentColor" aria-hidden="true">
+      <path d="M10 2 Q11 9 18 10 Q11 11 10 18 Q9 11 2 10 Q9 9 10 2Z" />
+      <path d="M18.5 13 Q19 16.5 22 17 Q19 17.5 18.5 21 Q18 17.5 15 17 Q18 16.5 18.5 13Z" />
+      <path d="M5.5 15 Q6 18.5 9 19 Q6 19.5 5.5 23 Q5 19.5 2 19 Q5 18.5 5.5 15Z" />
+    </svg>
   );
 }
 
