@@ -10,7 +10,7 @@ export function FeedbackScene() {
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-4 py-3 text-center">
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-start gap-8 px-4 pb-4 pt-2 text-center">
         <h2 className="text-3xl font-semibold text-black">I&apos;m still Under Development</h2>
 
         <p className="max-w-4xl text-4xl font-semibold leading-snug text-black sm:text-5xl">
