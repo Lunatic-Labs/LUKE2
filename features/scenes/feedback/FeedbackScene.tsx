@@ -1,15 +1,5 @@
 import { SceneFrame } from "@/components/SceneFrame";
 
-/**
- * "Leave Some Feedback?"
- *
- * Ported from `src/luke_java/FeedbackScene.pde`, which was itself a static
- * screen for the field demo — no interaction, just the greeting text, the
- * Lipscomb Engineering logo, and the feedback QR code (`ReDraw()`; `Draw()`
- * and the Click handlers were empty).
- * Assets live in `public/feedback/`.
- */
-
 export function FeedbackScene() {
   return (
     <SceneFrame className="bg-white text-black">
@@ -20,25 +10,24 @@ export function FeedbackScene() {
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5 px-4 py-2 text-center">
-        <h2 className="text-4xl font-semibold text-black">I&apos;m still Under Development</h2>
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 px-4 py-3 text-center">
+        <h2 className="text-3xl font-semibold text-black">I&apos;m still Under Development</h2>
 
-        <p className="max-w-4xl text-5xl font-semibold leading-snug text-black sm:text-6xl">
+        <p className="max-w-4xl text-4xl font-semibold leading-snug text-black sm:text-5xl">
           Scan the QR code to leave feedback, suggest a feature, or report a bug
         </p>
 
         <img
           src="/feedback/EngineeringLogo.jpeg"
           alt="Lipscomb Engineering logo"
-          className="mt-2 w-1/4 max-w-[160px] shrink-0 object-contain"
+          className="w-1/3 max-w-[240px] shrink-0 object-contain"
         />
 
         <img
           src="/feedback/feedbackQR.png"
           alt="QR code linking to the team's feedback form"
-          className="block min-h-0 w-full object-contain"
+          className="block min-h-0 w-3/5 max-w-[360px] shrink object-contain"
         />
-      
       </div>
     </SceneFrame>
   );
