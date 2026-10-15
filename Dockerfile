@@ -30,8 +30,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Photos from the camera scene (app/api/photos). Mount a volume here to keep them.
-RUN mkdir -p data/camera-pics && chown -R nextjs:nodejs data
+# Photos from the camera scene (app/api/photos) and trivia scores
+# (app/api/scores). Mount volumes here to keep them.
+RUN mkdir -p data/camera-pics data/trivia-scores && chown -R nextjs:nodejs data
 
 USER nextjs
 

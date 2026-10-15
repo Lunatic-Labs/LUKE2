@@ -16,6 +16,10 @@
   accepted, so it can't read other files.
 - `api/gallery/route.ts` — lists `public/gallery` plus the saved camera photos
   for the gallery scene.
+- `api/scores/route.ts` — saves a finished trivia round's `{ tag, score }`
+  via `@/features/scenes/trivia/score-store` to `scores.csv` in
+  `TRIVIA_SCORES_DIR` (default `data/trivia-scores`), and returns the
+  leaderboard. `GET` returns the leaderboard alone.
 
 Business logic does not belong here. When scenes need data from disk (video
 playlists, gallery contents, professor records), add route handlers under this

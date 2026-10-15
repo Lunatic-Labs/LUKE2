@@ -22,6 +22,8 @@ they should be ported from.
 
 `camera/photo-store.ts` is server-only (it writes to disk for `app/api/photos`);
 keep it out of the `camera/index.ts` barrel so client bundles never pull it in.
+The same goes for `trivia/score-store.ts`, which writes the trivia leaderboard
+for `app/api/scores`.
 
 To implement a scene, replace its component body and drop `placeholder: true`
 from its entry in `features/kiosk/registry.ts`.

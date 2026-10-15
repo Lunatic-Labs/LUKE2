@@ -4,16 +4,10 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import { SceneFrame } from "@/components/SceneFrame";
 import type { SceneComponentProps } from "@/features/kiosk/types";
-import {
-  DEFAULT_LEADERBOARD,
-  pickRound,
-  scoreForAnswer,
-  updateLeaderboard,
-  type Engagement,
-} from "./engagement";
+import { pickRound, QUESTION_SECONDS, scoreForAnswer, type Engagement } from "./engagement";
 import { TRIVIA_QUESTIONS } from "./questions";
+import { DEFAULT_TAG, submitScore, type Leaderboard } from "./scores";
 
-const QUESTION_SECONDS = 15;
 const ANSWERED_RESULT_SECONDS = 40;
 const TIMEOUT_RESULT_SECONDS = 15;
 /** How long a chosen answer stays highlighted before the result screen. */
@@ -30,8 +24,8 @@ type ResultOutcome = "correct" | "wrong" | "timeout";
  * screen — and drove it with a single `currentEngagementIndex`. Here that
  * becomes an explicit `phase`, which reads more clearly in React but preserves
  * every timing rule: 15s per question, 40s on a result screen reached by
- * answering, 15s on one reached by timing out (so "Time is UP!" doesn't linger
- * as long as "Correct!"/"Wrong!" does), and `(secondsRemaining * 69) + 100`
+ * answering, 15s on one reached by timing out (so "Time's up!" doesn't linger
+ * as long as "Nailed it!"/"Oops!" does), and `(secondsRemaining * 69) + 100`
  * points for a correct answer.
  *
  * `TriviaGameManager.pde`'s `Game` class was dead code upstream (nothing ever
@@ -44,7 +38,10 @@ export function TriviaScene({ handle }: SceneComponentProps) {
   const [timeLeft, setTimeLeft] = useState(QUESTION_SECONDS);
   const [score, setScore] = useState(0);
   const [outcome, setOutcome] = useState<ResultOutcome | null>(null);
-  const [leaderboard, setLeaderboard] = useState<number[]>(DEFAULT_LEADERBOARD);
+  /** The saved leaderboard, once this round's score has been saved. */
+  const [leaderboard, setLeaderboard] = useState<Leaderboard | null>(null);
+  /** True if saving this round's score failed. */
+  const [saveFailed, setSaveFailed] = useState(false);
   /** The answer just tapped, highlighted for `SELECTION_HOLD_MS` before the result. */
   const [selected, setSelected] = useState<number | null>(null);
 
@@ -91,8 +88,33 @@ export function TriviaScene({ handle }: SceneComponentProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, phase]);
 
+  // Save the score once the round is over. Only the response's state updates
+  // happen here; the board is cleared when the next round starts.
+  useEffect(() => {
+    if (phase !== "end") return;
+    let cancelled = false;
+
+    submitScore({ tag: DEFAULT_TAG, score }).then(
+      (board) => {
+        if (!cancelled) setLeaderboard(board);
+      },
+      (error: unknown) => {
+        console.error("TriviaScene: could not save score", error);
+        if (!cancelled) setSaveFailed(true);
+      },
+    );
+
+    return () => {
+      cancelled = true;
+    };
+    // The score is final once the phase is "end", so it needn't retrigger this.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
   function startRound() {
     handle.reportActivity();
+    setLeaderboard(null);
+    setSaveFailed(false);
     setRound(pickRound(TRIVIA_QUESTIONS));
     setQuestionIndex(0);
     setScore(0);
@@ -120,7 +142,6 @@ export function TriviaScene({ handle }: SceneComponentProps) {
 
   function advance() {
     if (questionIndex >= round.length - 1) {
-      setLeaderboard((board) => updateLeaderboard(board, score));
       setPhase("end");
       return;
     }
@@ -148,23 +169,15 @@ export function TriviaScene({ handle }: SceneComponentProps) {
         <QuestionScreen engagement={current} selected={selected} onAnswer={answer} />
       )}
 
-      {phase === "result" && (
-        <PromptScreen
-          prompt={resultMessage(outcome, current)}
-          buttonLabel="Tap to Continue"
-          onSelect={continueRound}
-        />
+      {phase === "result" && outcome && current && (
+        <ResultScreen outcome={outcome} correctResponse={current.correctResponse} onContinue={continueRound} />
       )}
 
-      {finished && <EndScreen score={score} leaderboard={leaderboard} onSelect={playAgain} />}
+      {finished && (
+        <EndScreen score={score} leaderboard={leaderboard} saveFailed={saveFailed} onSelect={playAgain} />
+      )}
     </SceneFrame>
   );
-}
-
-function resultMessage(outcome: ResultOutcome | null, engagement: Engagement | undefined): string {
-  if (outcome === "timeout" || !engagement) return "Time is UP!";
-  const prefix = outcome === "correct" ? "Correct!" : "Wrong!";
-  return `${prefix} The answer is: ${engagement.correctResponse}`;
 }
 
 function ScoreBar({ score, phase, timeLeft }: { score: number; phase: Phase; timeLeft: number }) {
@@ -224,42 +237,94 @@ function ClockIcon() {
 function StartScreen({ onStart }: { onStart: () => void }) {
   return (
     <div className="flex flex-1 flex-col items-center gap-[clamp(2rem,7dvh,5rem)] px-[12%] pt-[clamp(2rem,10dvh,7rem)]">
-      <p className="text-center text-[clamp(1.25rem,6.5vw,3.25rem)] leading-tight font-bold text-[var(--luke-purple)]">
-        Think you got what it takes to ace this Lipscomb Trivia?
-      </p>
-      <button
-        type="button"
-        onClick={onStart}
-        className="w-[60%] rounded-full bg-[var(--luke-purple)] py-[clamp(0.5rem,1.75dvh,1.25rem)] text-center text-[clamp(1.125rem,5.5vw,2.75rem)] font-bold text-[var(--luke-gold)] transition-[filter] active:brightness-125"
-      >
-        Game on!
-      </button>
+      <p className={`text-center ${HEADING_TEXT}`}>Think you got what it takes to ace this Lipscomb Trivia?</p>
+      <PillButton onClick={onStart}>Game on!</PillButton>
     </div>
   );
 }
 
-function PromptScreen({
-  prompt,
-  buttonLabel,
-  onSelect,
+const RESULT_HEADINGS: Record<ResultOutcome, string> = {
+  correct: "Nailed it!",
+  wrong: "Oops!",
+  timeout: "Time's up!",
+};
+
+/**
+ * The screen after each question, from the result mockups: a short heading
+ * ("Nailed it!" or "Oops!") in the upper part of the scene, then the "Next up"
+ * button. A wrong answer or a timeout also shows the correct answer, under a
+ * larger heading.
+ */
+function ResultScreen({
+  outcome,
+  correctResponse,
+  onContinue,
 }: {
-  prompt: string;
-  buttonLabel: string;
-  onSelect: () => void;
+  outcome: ResultOutcome;
+  correctResponse: string;
+  onContinue: () => void;
 }) {
+  const missed = outcome !== "correct";
+
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6 py-8">
-      <p className="text-center text-xl leading-8 whitespace-pre-line text-[var(--luke-purple)]">
-        {prompt}
-      </p>
-      <button
-        type="button"
-        onClick={onSelect}
-        className="rounded-lg bg-[var(--luke-purple)] px-10 py-6 text-center text-lg font-semibold text-[var(--luke-gold)]"
-      >
-        {buttonLabel}
-      </button>
+    <div
+      className={`flex flex-1 flex-col items-center px-[8%] pt-[clamp(2rem,7dvh,5rem)] ${
+        missed ? "gap-[clamp(0.75rem,2.5dvh,2rem)]" : "gap-[clamp(2rem,7dvh,5rem)]"
+      }`}
+    >
+      <div className="flex flex-col items-center gap-[clamp(0.25rem,1.5dvh,1.25rem)] text-center font-bold text-[var(--luke-purple)]">
+        <p
+          className={`leading-tight ${
+            missed ? "text-[clamp(1.75rem,9vw,4.5rem)]" : "text-[clamp(1.25rem,6.5vw,3.25rem)]"
+          }`}
+        >
+          {RESULT_HEADINGS[outcome]}
+        </p>
+        {missed && (
+          <p className="text-[clamp(1.25rem,6.5vw,3.25rem)] leading-tight">Correct answer: {correctResponse}</p>
+        )}
+      </div>
+      <PillButton onClick={onContinue}>
+        <span className="inline-flex items-center gap-[0.35em]">
+          Next up
+          <ArrowRightIcon />
+        </span>
+      </PillButton>
     </div>
+  );
+}
+
+/** Bold purple heading text shared by the start, question and result screens. */
+const HEADING_TEXT = "text-[clamp(1.25rem,6.5vw,3.25rem)] leading-tight font-bold text-[var(--luke-purple)]";
+
+/** The purple pill with gold text used for "Game on!" and "Next up". */
+function PillButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-[60%] rounded-full bg-[var(--luke-purple)] py-[clamp(0.5rem,1.75dvh,1.25rem)] text-center text-[clamp(1.125rem,5.5vw,2.75rem)] font-bold text-[var(--luke-gold)] transition-[filter] active:brightness-125"
+    >
+      {children}
+    </button>
+  );
+}
+
+function ArrowRightIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-[1em] w-[1em]"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <polyline points="14,5 21,12 14,19" />
+    </svg>
   );
 }
 
@@ -274,7 +339,7 @@ function QuestionScreen({
 }) {
   return (
     <div className="flex flex-1 flex-col px-[7%] pb-[clamp(1rem,4dvh,3rem)]">
-      <p className="px-[5%] pt-[clamp(1rem,4dvh,3rem)] text-center text-[clamp(1.25rem,6.5vw,3.25rem)] leading-tight font-bold text-[var(--luke-purple)]">
+      <p className={`px-[5%] pt-[clamp(1rem,4dvh,3rem)] text-center ${HEADING_TEXT}`}>
         {engagement.prompt}
       </p>
       <AnswerGrid responses={engagement.responses} selected={selected} onSelect={onAnswer} />
@@ -291,7 +356,7 @@ function QuestionScreen({
  *
  * Only question screens use this. Upstream drew four identical "Tap to Play" /
  * "Tap to Continue" buttons on the other screens because every quadrant had to
- * be clickable; here `StartScreen` and `PromptScreen` each show a single
+ * be clickable; here `StartScreen` and `ResultScreen` each show a single
  * button instead.
  */
 function AnswerGrid({
@@ -326,10 +391,12 @@ function AnswerGrid({
 function EndScreen({
   score,
   leaderboard,
+  saveFailed,
   onSelect,
 }: {
   score: number;
-  leaderboard: number[];
+  leaderboard: Leaderboard | null;
+  saveFailed: boolean;
   onSelect: () => void;
 }) {
   return (
@@ -347,33 +414,21 @@ function EndScreen({
 
       <div className="w-full max-w-xs text-[var(--luke-purple)]">
         <p className="mb-1 font-semibold">Leaderboard:</p>
-        <ul className="space-y-1">
-          {leaderboardRows(leaderboard, score).map(({ entry, isYou }, i) => (
-            <li key={i}>
-              {entry}
-              {isYou ? " <- You!" : ""}
-            </li>
-          ))}
-        </ul>
+        {saveFailed ? (
+          <p>Sorry, your score couldn&apos;t be saved.</p>
+        ) : leaderboard === null ? (
+          <p>Saving your score&hellip;</p>
+        ) : (
+          <ul className="space-y-1">
+            {leaderboard.scores.map(({ tag, score: entry }, i) => (
+              <li key={i}>
+                {tag} {entry}
+                {i === leaderboard.yours ? " <- You!" : ""}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </button>
   );
-}
-
-/**
- * Descending display order dropping the smallest entry, exactly as the
- * `for (i = 5; i > 0; i--)` loop in `moveToNextEngagement()` did. Only the
- * first row matching the just-finished score is marked "You!" — a tie
- * further down the board doesn't get relabeled (`markedYou` upstream).
- */
-function leaderboardRows(leaderboard: number[], score: number) {
-  let markedYou = false;
-  return [...leaderboard]
-    .slice(1)
-    .reverse()
-    .map((entry) => {
-      const isYou = !markedYou && entry === score;
-      if (isYou) markedYou = true;
-      return { entry, isYou };
-    });
 }

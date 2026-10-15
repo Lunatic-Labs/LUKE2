@@ -4,13 +4,14 @@ Port of `TriviaScene.pde`, `TriviaEngagement.pde` and
 `data/triviaQuestions.txt` from the
 [Processing kiosk](https://github.com/Lunatic-Labs/Kiosk). Visitors play a
 five-question round against a 15-second clock and see their score on a
-leaderboard at the end. This page outlines how a round works, what each file
-does, and how the scene has changed from the original and in the redesign.
+saved leaderboard at the end. This page outlines how a round works, where
+scores are saved, what each file does, and how the scene has changed from
+the original and in the redesign.
 
 ## How a round works
 
 ```
-start ──Game on!──▶ question ──answer──▶ result ──Tap to Continue──▶ question …
+start ──Game on!──▶ question ──answer──▶ result ──Next up──▶ question …
                        │                    ▲
                        └──15s runs out──────┘
                                             after question 5 ──▶ end ──tap──▶ start
@@ -22,17 +23,19 @@ start ──Game on!──▶ question ──answer──▶ result ──Tap to
    purple card showing the score and a 15-second countdown. The tapped
    answer turns yellow for 0.4 seconds (`SELECTION_HOLD_MS`) before the
    result appears. Only the first tap counts.
-3. **Result:** "Correct! The answer is: …", "Wrong! The answer is: …", or
-   "Time is UP!" if the clock ran out, with a "Tap to Continue" button.
+3. **Result:** "Nailed it!" after a right answer. After a wrong answer it
+   shows "Oops!", or "Time's up!" if the clock ran out, with "Correct
+   answer: …" underneath. Each has a "Next up →" button.
 4. Steps 2 and 3 repeat for five questions.
-5. **End:** "Good game!", the visitor's score and the leaderboard. Tapping
-   anywhere goes back to the start screen.
+5. **End:** the score is saved, then "Good game!", the visitor's score and
+   the saved leaderboard appear. Tapping anywhere goes back to the start
+   screen.
 
 ### Timing
 
 | Screen                         | How long before it moves on by itself |
 | ------------------------------ | -------------------------------------- |
-| Question                       | 15 seconds, then "Time is UP!"         |
+| Question                       | 15 seconds, then "Time's up!"          |
 | Chosen answer highlighted      | 0.4 seconds; the clock is paused       |
 | Result after answering         | 40 seconds                             |
 | Result after the clock ran out | 15 seconds                             |
@@ -50,17 +53,78 @@ score uses the seconds left at the moment of the tap; the short
 highlight afterwards doesn't cost anything, because the clock is paused. A wrong
 answer or a timeout scores nothing. This is the original formula, unchanged.
 
-### Leaderboard
+### Saved scores and the leaderboard
 
-The board holds six scores and starts as `0, 2560, 2580, 3000, 5620, 7500`.
-At the end of a round, the visitor's score replaces the lowest entry and the
-board is re-sorted. The end screen shows the top five, highest first, and
-marks the visitor's row with "<- You!".
+**Every finished round's score is saved.** When the end screen appears, the
+scene sends the score to `POST /api/scores`, which adds it as a new row of a
+table on the kiosk's disk. The leaderboard is then read back from that table,
+so it's shared by every visitor and survives page reloads, sessions ending
+and kiosk restarts.
 
-The leaderboard lives in the scene's React state. It survives replays while
-the visitor stays on the trivia page, but it resets to the defaults whenever
-the scene leaves the screen. Upstream kept it for as long as the sketch ran;
-saving it properly would need a route handler like the camera's `/api/photos`.
+```
+TriviaScene ──submitScore──▶ POST /api/scores ──saveScore──▶ TRIVIA_SCORES_DIR/scores.csv
+     ▲                                                              │
+     └──────────── top 5, with your row marked ◀── readScores ──────┘
+```
+
+**Where:** `data/trivia-scores/scores.csv`, relative to the folder the app
+runs from, next to the camera's `data/camera-pics`. Set the
+`TRIVIA_SCORES_DIR` environment variable to use another folder. The `data/`
+folder is gitignored, so scores never end up in a commit. In Docker the
+folder is the `trivia-scores` volume (see `docker-compose.yml`), so scores
+survive rebuilding the image.
+
+**What's in the table:** a CSV file, which opens in Excel or any text editor,
+with one row per finished round, oldest first:
+
+```csv
+tag,score
+TST,100
+TST,1135
+```
+
+- **`tag`:** exactly three capital letters, A-Z. No lowercase letters,
+  spaces, digits or symbols, and never blank. Every score is saved as `TST`
+  for now (`DEFAULT_TAG` in `scores.ts`), until visitors can type their own.
+- **`score`:** a whole number from 0 to 5,675, the most a round can score
+  (`MAX_SCORE`: five questions answered the instant they appear).
+
+The server checks both before writing, and rejects anything else with a 400
+error, so the table only ever holds valid rows. When reading, rows that
+don't fit (the header, a lowercase tag, or a line damaged by hand-editing)
+are skipped rather than breaking the board.
+
+**The leaderboard:** the end screen shows the top five scores
+(`LEADERBOARD_SIZE`), highest first, as `TAG score`. Equal scores keep the
+order they were saved in, so an earlier score stays above a later one that
+ties it. If the visitor's new score made the top five, its row is marked
+"<- You!". Every round is kept in the file, not only the top five, so the
+board size can change later without losing scores.
+
+**All scores are real.** The board starts empty and only ever shows scores
+from rounds actually played. The made-up starting scores
+(`2560`, `2580`, `3000`, `5620`, `7500`) from the Processing version are
+gone. Scores saved while testing on a development machine stay in that
+machine's `data/trivia-scores` folder, not on the kiosk.
+
+**If saving fails** (for example, the disk is full), the end screen says
+"Sorry, your score couldn't be saved." instead of showing the board, and
+the error is logged to the browser console.
+
+**Managing the table:**
+
+- **Clear the board:** delete `scores.csv`. A new one is created with the
+  next score.
+- **Remove one score:** delete its row in a text editor. Keep the
+  `tag,score` header.
+- **Back up or export:** copy `scores.csv`. In Docker, copy it out of the
+  container with `docker compose cp web:/app/data/trivia-scores/scores.csv .`
+
+**Security:** `/api/scores` has no login, like `/api/photos`. Anyone who can
+reach the server could post a made-up score, within the valid range. This
+is safe only because the server listens on localhost (see the port notes in
+`docker-compose.yml`). Don't open it to the network without adding
+authentication.
 
 ## Files in this folder
 
@@ -84,9 +148,19 @@ It is split into small components, one per part of the screen:
 - **`QuestionScreen`** and **`AnswerGrid`:** the question and its four
   answers as lavender cards with thick purple outlines. The tapped card turns
   yellow and the other three are disabled.
-- **`PromptScreen`:** a message and one button, used for the result screens.
+- **`ResultScreen`:** the result after each question: a heading from
+  `RESULT_HEADINGS`, the correct answer after a miss, and the "Next up"
+  button.
+- **`PillButton`:** the purple pill with gold text shared by "Game on!" and
+  "Next up". `HEADING_TEXT` is the bold purple heading style shared by the
+  start, question and result screens.
 - **`EndScreen`:** the final score, `public/trivia/triviaHeader.jpg` and the
-  leaderboard, all inside one button so a tap anywhere plays again.
+  saved leaderboard ("Saving your score…" until it arrives), all inside one
+  button so a tap anywhere plays again.
+
+An effect saves the score when the phase becomes `end`, with
+`submitScore({ tag: DEFAULT_TAG, score })`, and stores the leaderboard the
+server sends back.
 
 ### [engagement.ts](engagement.ts)
 
@@ -97,11 +171,49 @@ The game logic, with no React in it, so it can be tested on its own:
 - `pickRound()` shuffles the whole bank and takes the first five, so a round
   never repeats a question.
 - `scoreForAnswer()` is the scoring formula above.
-- `DEFAULT_LEADERBOARD` and `updateLeaderboard()` hold and update the board.
+- `QUESTION_SECONDS` (15) and `ROUND_LENGTH` (5) are the clock and round
+  size. They live here, not in the scene, because the server also needs
+  them to work out the highest possible score.
 
 The name "engagement" comes from upstream's `Engagement` class, one question
 with its shuffled answers. Upstream's `TriviaGameManager.pde` was never used,
 so it has no counterpart here.
+
+### [scores.ts](scores.ts)
+
+Saved-score rules shared by the browser and the server, plus the browser's
+call to save a score. Safe to import anywhere.
+
+- `isValidTag()` and `isValidScore()`: the rules for a row (three capital
+  letters, A-Z; a whole number from 0 to `MAX_SCORE`).
+- `DEFAULT_TAG` (`"TST"`), `LEADERBOARD_SIZE` (5) and `MAX_SCORE` (5,675).
+- `buildLeaderboard()`: picks the top scores from the table and works out
+  where the visitor's new score landed.
+- `submitScore()`: posts a score to `/api/scores` and returns the updated
+  leaderboard.
+
+### [score-store.ts](score-store.ts)
+
+Reads and writes `scores.csv`, like `camera/photo-store.ts` does for photos.
+**Server-only:** it uses the file system, so only `app/api/scores` may import
+it. Keep it out of `index.ts` so it's never bundled for the browser.
+
+- `scoresDir()`: `TRIVIA_SCORES_DIR` if set, otherwise
+  `data/trivia-scores`.
+- `saveScore()`: appends a row, creating the folder and the file with its
+  header the first time. Refuses an invalid tag or score.
+- `readScores()`: every valid row, oldest first. A missing file is an empty
+  table.
+
+### [`app/api/scores/route.ts`](../../../app/api/scores/route.ts)
+
+The route the browser talks to:
+
+- `GET /api/scores` returns the current leaderboard.
+- `POST /api/scores` with `{ "tag": "TST", "score": 100 }` validates and saves
+  the score, then returns the updated leaderboard with the new row's
+  position in `yours`. It answers 400 for an invalid tag, score or body, and
+  413 for a body over 1 KB.
 
 ### [questions.ts](questions.ts)
 
@@ -144,14 +256,20 @@ reasons, is in the repo's [`CSS.md`](../../../CSS.md).
   heading. The answers are a 2×2 grid of lavender cards with thick purple
   outlines and rounded corners, in the lower part of the scene. The tapped
   card turns a soft yellow (`#e7cb7d`).
-- The result and end screens still use their original layout. The result
-  screens now share the new score card.
+- **Result screen:** under the score card, a bold purple heading in the
+  upper part of the scene, then a "Next up →" pill button styled like
+  "Game on!". After a right answer the heading is "Nailed it!", the same
+  size as the other headings. After a miss it is a larger "Oops!" (or
+  "Time's up!") with "Correct answer: …" under it at the normal heading
+  size, and the button sits closer underneath.
+- The end screen still uses its original layout, but its leaderboard rows
+  now read `TAG score`.
 
 ## Tests
 
 - **[engagement.test.ts](engagement.test.ts):** answer shuffling keeps track
   of the right answer, rounds have five different questions from the bank,
-  the scoring formula, and leaderboard updates.
+  and the scoring formula.
 - **[TriviaScene.test.tsx](TriviaScene.test.tsx):** uses a fixed round
   (by mocking `pickRound`) and fake timers to check that:
   - the start screen shows the heading and "Game on!" with no score;
@@ -160,9 +278,22 @@ reasons, is in the repo's [`CSS.md`](../../../CSS.md).
   - a tapped answer is highlighted, scored at the tap, and followed by the
     result;
   - the clock is paused while the answer is highlighted;
-  - only the first answer tapped counts.
+  - only the first answer tapped counts;
+  - a right answer shows "Nailed it!" without the correct answer, a wrong
+    one shows "Oops!" with it, and a timeout shows "Time's up!" with it;
+  - "Next up" moves to the next question with the clock reset;
+  - the end screen saves the score under `TST` and shows the board the
+    server returns, or an apology if saving fails. Saving is faked here.
+- **[scores.test.ts](scores.test.ts):** which tags and scores are valid, and
+  how the leaderboard is ranked and marked.
+- **[score-store.test.ts](score-store.test.ts):** the table's format, the
+  folder and header being created, invalid rows refused on write and skipped
+  on read, and `TRIVIA_SCORES_DIR`. Uses a temporary folder.
+- **[`app/api/scores/route.test.ts`](../../../app/api/scores/route.test.ts):**
+  saving and reading through the route, and every kind of bad request being
+  rejected without writing anything.
 
-Run them with `npx jest features/scenes/trivia`.
+Run them with `npx jest features/scenes/trivia app/api/scores`.
 
 ## Differences from the Processing version
 
@@ -172,15 +303,22 @@ Run them with `npx jest features/scenes/trivia`.
 - The start screen's "Care for some trivia? Tap the button to play!" and
   "Tap to Play" became "Think you got what it takes to ace this Lipscomb
   Trivia?" and "Game on!", and the score is hidden there.
-- The leaderboard resets when the scene leaves the screen (see above).
+- Upstream's leaderboard lived in memory, held six scores seeded with
+  made-up ones, and was lost when the program closed. Scores are now saved
+  to `scores.csv` with a three-letter tag, and the board shows only real
+  ones.
 - Upstream went straight to the result screen when an answer was tapped.
   Here the answer is highlighted for 0.4 seconds first, with the clock
   paused.
 - The answer buttons were checkerboarded purple and gold; they're now
   matching lavender cards.
+- The result messages "Correct! The answer is: …", "Wrong! The answer is:
+  …" and "Time is UP!" became "Nailed it!", "Oops! / Correct answer: …" and
+  "Time's up! / Correct answer: …". A timeout now shows the correct answer
+  too. "Tap to Continue" became "Next up →".
 
 ## Status
 
 The scene is still registered with `placeholder: true` in
 `features/kiosk/registry.ts`. It's fully playable; remove that flag once the
-result and end screens have been redesigned.
+end screen has been redesigned.

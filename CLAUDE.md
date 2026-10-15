@@ -21,6 +21,8 @@ docker compose up --build                       # production image
 
 `CAMERA_DIR` (optional) sets where `app/api/photos` saves camera-scene photos; it defaults to `data/camera-pics` relative to the working directory, which is gitignored and mounted as the `camera-pics` volume in `docker-compose.yml`. The camera needs a secure context (https or localhost) for `getUserMedia`.
 
+`TRIVIA_SCORES_DIR` (optional) sets where `app/api/scores` keeps the trivia leaderboard, a `scores.csv` table of `tag,score` rows; it defaults to `data/trivia-scores` and is mounted as the `trivia-scores` volume in `docker-compose.yml`. `features/scenes/trivia/score-store.ts` is server-only, like `camera/photo-store.ts`.
+
 ## Architecture
 
 This is a Next.js (App Router) + React 19 + TypeScript (strict) + Tailwind v4 app hosting **L.U.K.E.** (Lipscomb University Kiosk Experience), ported from the Processing/Java sketch at https://github.com/Lunatic-Labs/Kiosk (`src/luke_java/`). The shell architecture is ported; most individual scenes are registered placeholders awaiting implementation.
@@ -49,3 +51,13 @@ Jest is configured via `next/jest` (`jest.config.ts`) with `jest-environment-jsd
 `react-hooks/refs` is enforced as an error: writing `ref.current` during render fails `npm run lint`. The "latest value" ref pattern must sync inside a `useEffect` — see `hooks/useIdleTimer.ts`.
 
 Two ESLint configs have existed in this repo at different points: `eslint.config.mjs` (Next.js core-web-vitals + TypeScript config) is the one ESLint actually resolves. If an `eslint.config.mts` reappears, confirm it isn't a stray duplicate before editing it — verify with `npx eslint --debug <file>` and check which config file it reports loading.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

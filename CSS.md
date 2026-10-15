@@ -89,7 +89,7 @@ The old "Hi, I'm L.U.K.E.!" text and its floating animation are gone, since the 
 ### `features/scenes/trivia/TriviaScene.tsx`
 
 - **Background:** the scene's `SceneFrame` now has the trivia mockup's question-mark pattern: `bg-[url('/images/trivia-pattern.svg')]`, repeated, over a `#d9d9d9` grey fallback. `bg-[length:40%_auto]` sizes each tile to 40% of the scene's width. A tile holds two columns of marks, so there are always five columns across, matching the mockup at any screen width.
-- **Start screen:** a new `StartScreen` component replaces the shared `PromptScreen` on the opening screen, following the start-screen mockup:
+- **Start screen:** a new `StartScreen` component replaces the old shared `PromptScreen` on the opening screen, following the start-screen mockup:
   - **Heading:** "Think you got what it takes to ace this Lipscomb Trivia?", bold, centred and in `--luke-purple`, sized `clamp(1.25rem, 6.5vw, 3.25rem)`. It sits in the upper part of the scene (`pt-[clamp(2rem,10dvh,7rem)]`) rather than centred vertically, with `px-[12%]` so it wraps onto three lines as in the mockup.
   - **Button:** "Game on!" in a `rounded-full` purple pill, 60% of the scene's width, with bold gold text (`clamp(1.125rem, 5.5vw, 2.75rem)`). It brightens slightly while pressed (`active:brightness-125`), because darkening barely shows on dark purple.
 - **Score bar:** hidden on the start screen. `ScoreBar` returns nothing until a round begins, so the score and timer appear only once "Game on!" is tapped.
@@ -97,7 +97,13 @@ The old "Hi, I'm L.U.K.E.!" text and its floating animation are gone, since the 
 - **Question:** bold, centred, `--luke-purple`, the same size as the start screen's heading.
 - **Answers:** a 2×2 grid pushed to the lower part of the scene (`mt-auto`). Each answer is a lavender card (`--luke-lavender`) with a thick purple outline (`clamp(3px, 0.8vw, 6px)`), rounded corners, a minimum height of `clamp(4rem, 11dvh, 9rem)`, and purple text at normal weight (`clamp(1rem, 5vw, 2.5rem)`). They replace the original purple and gold checkerboard.
 - **Chosen answer:** the tapped card turns a soft yellow, `#e7cb7d`, taken from the mockup, and the other three are disabled. It stays like that for 0.4 seconds (`SELECTION_HOLD_MS`) before the result screen.
-- The result and end screens' own layouts are unchanged. The result screens still use `PromptScreen`.
+- **Result screen:** a new `ResultScreen` replaces `PromptScreen`, which is gone. It follows the correct and incorrect answer mockups:
+  - **Right answer:** "Nailed it!" in the shared heading style, then the "Next up" button, with the same large gap as the start screen (`clamp(2rem, 7dvh, 5rem)`).
+  - **Wrong answer or timeout:** a larger "Oops!" or "Time's up!" (`clamp(1.75rem, 9vw, 4.5rem)`), with "Correct answer: …" under it in the shared heading style, and a smaller gap before the button (`clamp(0.75rem, 2.5dvh, 2rem)`), as in the mockup.
+  - **Button:** "Next up" followed by a right-arrow icon (inline SVG sized `1em`), in the same purple pill as "Game on!".
+  - The text block starts in the upper part of the scene (`pt-[clamp(2rem,7dvh,5rem)]`) rather than centred vertically.
+- **Shared styles:** `PillButton` (the purple pill with gold text) and `HEADING_TEXT` (bold purple, `clamp(1.25rem, 6.5vw, 3.25rem)`) are shared by the start, question and result screens, so they stay the same everywhere.
+- The end screen's own layout is unchanged. Its leaderboard rows now read `TAG score` (e.g. `TST 1135`), because scores are saved with a three-letter tag; see the trivia README.
 
 **Why:**
 - The background is opaque, so it also covers the shell's skyline on this page, as in the mockup.

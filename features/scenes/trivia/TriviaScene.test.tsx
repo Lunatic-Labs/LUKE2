@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { SceneHandle } from "@/features/kiosk/types";
+import { submitScore } from "./scores";
 import { SELECTION_HOLD_MS, TriviaScene } from "./TriviaScene";
 
 // A fixed round, so tests know which answer is right and where it sits.
@@ -13,6 +14,9 @@ jest.mock("./engagement", () => {
   });
   return { ...actual, pickRound: () => [1, 2, 3, 4, 5].map(question) };
 });
+
+// No server in tests: saving a score is faked.
+jest.mock("./scores", () => ({ ...jest.requireActual("./scores"), submitScore: jest.fn() }));
 
 const handle: SceneHandle = {
   reportActivity: jest.fn(),
@@ -33,14 +37,34 @@ async function advance(ms: number) {
   });
 }
 
+/** Answer all five questions, the first `correct` of them right, to reach the end screen. */
+async function playRound(correct: number) {
+  for (let i = 0; i < 5; i++) {
+    fireEvent.click(screen.getByRole("button", { name: i < correct ? "Swang" : "Fields" }));
+    await advance(SELECTION_HOLD_MS);
+    fireEvent.click(screen.getByRole("button", { name: "Next up" }));
+  }
+  // Let the save's promise settle.
+  await act(async () => {});
+}
+
 describe("TriviaScene", () => {
   beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
+    jest.spyOn(console, "error").mockImplementation(() => {});
+    jest.mocked(submitScore).mockResolvedValue({
+      scores: [
+        { tag: "ACE", score: 5000 },
+        { tag: "TST", score: 1135 },
+      ],
+      yours: 1,
+    });
   });
 
   afterEach(() => {
     jest.useRealTimers();
+    jest.restoreAllMocks();
   });
 
   it("opens on the start screen with no score showing", () => {
@@ -79,7 +103,9 @@ describe("TriviaScene", () => {
     expect(screen.getByText(`Score: ${15 * 69 + 100}`)).toBeInTheDocument();
 
     await advance(SELECTION_HOLD_MS);
-    expect(screen.getByText("Correct! The answer is: Swang")).toBeInTheDocument();
+    expect(screen.getByText("Nailed it!")).toBeInTheDocument();
+    // The correct answer is only spelled out after a miss.
+    expect(screen.queryByText(/Correct answer:/)).not.toBeInTheDocument();
   });
 
   it("stops the clock while the chosen answer is highlighted", async () => {
@@ -99,7 +125,47 @@ describe("TriviaScene", () => {
     fireEvent.click(screen.getByRole("button", { name: "Swang" }));
     await advance(SELECTION_HOLD_MS);
 
-    expect(screen.getByText("Wrong! The answer is: Swang")).toBeInTheDocument();
+    expect(screen.getByText("Oops!")).toBeInTheDocument();
+    expect(screen.getByText("Correct answer: Swang")).toBeInTheDocument();
     expect(screen.getByText("Score: 0")).toBeInTheDocument();
+  });
+
+  it("shows the correct answer when the clock runs out", async () => {
+    renderAndStart();
+
+    for (let i = 0; i < 15; i++) await advance(1000);
+
+    expect(screen.getByText("Time's up!")).toBeInTheDocument();
+    expect(screen.getByText("Correct answer: Swang")).toBeInTheDocument();
+  });
+
+  it("moves to the next question from Next up", async () => {
+    renderAndStart();
+    fireEvent.click(screen.getByRole("button", { name: "Swang" }));
+    await advance(SELECTION_HOLD_MS);
+
+    fireEvent.click(screen.getByRole("button", { name: "Next up" }));
+
+    expect(screen.getByText("Question 2?")).toBeInTheDocument();
+    expect(screen.getByText("15 seconds")).toBeInTheDocument();
+  });
+
+  it("saves the round's score under the TST tag and shows the saved leaderboard", async () => {
+    renderAndStart();
+    await playRound(1);
+
+    expect(submitScore).toHaveBeenCalledTimes(1);
+    expect(submitScore).toHaveBeenCalledWith({ tag: "TST", score: 15 * 69 + 100 });
+    expect(screen.getByText("ACE 5000")).toBeInTheDocument();
+    expect(screen.getByText("TST 1135 <- You!")).toBeInTheDocument();
+  });
+
+  it("says so when the score can't be saved", async () => {
+    jest.mocked(submitScore).mockRejectedValue(new Error("offline"));
+    renderAndStart();
+    await playRound(0);
+
+    expect(submitScore).toHaveBeenCalledWith({ tag: "TST", score: 0 });
+    expect(screen.getByText("Sorry, your score couldn't be saved.")).toBeInTheDocument();
   });
 });
