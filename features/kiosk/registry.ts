@@ -50,7 +50,7 @@ export const SCENES: SceneDefinition[] = [
   { id: "camera", name: "Take a Picture!", Component: CameraScene},
   { id: "gallery", name: "Browse the Gallery", Component: GalleryScene},
   { id: "board", name: "Draw", Component: BoardScene },
-  { id: "trivia", name: "Test Your Knowledge", Component: TriviaScene, placeholder: true },
+  { id: "trivia", name: "Test Your Knowledge", Component: TriviaScene},
   { id: "feedback", name: "Leave Some Feedback?", Component: FeedbackScene },
   { id: "directory", name: "L.U.K.E. Directory", Component: DirectoryScene, placeholder: true },
 ];

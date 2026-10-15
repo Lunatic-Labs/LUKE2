@@ -86,6 +86,19 @@ The old "Hi, I'm L.U.K.E.!" text and its floating animation are gone, since the 
 - The shell draws its skyline underneath scenes, so the opaque photo would hide it. Drawing a second copy inside the scene puts it back on top.
 - The `luke-float` keyframes in `globals.css` are no longer used by anything. They were left in place in case another scene wants the effect.
 
+### `features/scenes/trivia/TriviaScene.tsx`
+
+- **Background:** the scene's `SceneFrame` now has the trivia mockup's question-mark pattern: `bg-[url('/images/trivia-pattern.svg')]`, repeated, over a `#d9d9d9` grey fallback. `bg-[length:40%_auto]` sizes each tile to 40% of the scene's width. A tile holds two columns of marks, so there are always five columns across, matching the mockup at any screen width.
+- **Start screen:** a new `StartScreen` component replaces the shared `PromptScreen` on the opening screen, following the start-screen mockup:
+  - **Heading:** "Think you got what it takes to ace this Lipscomb Trivia?", bold, centred and in `--luke-purple`, sized `clamp(1.25rem, 6.5vw, 3.25rem)`. It sits in the upper part of the scene (`pt-[clamp(2rem,10dvh,7rem)]`) rather than centred vertically, with `px-[12%]` so it wraps onto three lines as in the mockup.
+  - **Button:** "Game on!" in a `rounded-full` purple pill, 60% of the scene's width, with bold gold text (`clamp(1.125rem, 5.5vw, 2.75rem)`). It brightens slightly while pressed (`active:brightness-125`), because darkening barely shows on dark purple.
+- **Score bar:** hidden on the start screen. `ScoreBar` returns nothing until a round begins, so the score and timer appear only once "Game on!" is tapped.
+- The question, result and end screens are unchanged. The result screens still use `PromptScreen`.
+
+**Why:**
+- The background is opaque, so it also covers the shell's skyline on this page, as in the mockup.
+- The grey is written inline rather than as a token, like the welcome screen's `#3E364D`, because only this page uses it.
+
 ### `features/kiosk/registry.ts`
 
 - **Added** `MENU_ITEMS`: the menu's entries, top to bottom, as `{ sceneId, label }` pairs.
@@ -156,6 +169,16 @@ The shield logo, cropped to its visible bounds (372×438). The original had tran
 The skyline, cropped to 482×119. The source image has "NASHVILLE" cut out of its base as transparent letters, so the crop stops just above them. That leaves a solid purple base that blends into the bottom bar. The source is already exactly `#302052`, so it needed no recoloring.
 
 **Known limitation:** at 482px wide it looks slightly jagged on large or high-DPI screens. An SVG version would fix that.
+
+### `features/scenes/trivia/TriviaScene.test.tsx`
+
+The trivia scene's first component tests. They check that the start screen shows the heading and "Game on!" with no score, and that tapping "Game on!" starts a round with the score and timer showing.
+
+### `public/images/trivia-pattern.svg`
+
+One repeating tile of the trivia background, 114×57: a `#D9D9D9` grey square with two bold question marks in lavender-grey `#C4C0D6`, tilted 15°. The second mark sits half a row higher, so neighbouring columns are staggered when the tile repeats.
+
+**Why an SVG rather than the mockup image:** the exported mockup image has a pink line down its left edge, and its edges don't line up, so it would show seams when tiled. A redrawn tile repeats seamlessly and stays sharp at any resolution. The marks use the system's bold Arial, because an SVG used as a CSS background can't load web fonts.
 
 ### `public/images/lipscomb-entrance.png`
 

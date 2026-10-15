@@ -118,16 +118,13 @@ export function TriviaScene({ handle }: SceneComponentProps) {
   }
 
   return (
-    <SceneFrame>
+    // Tiled question-mark pattern from the trivia mockup. Each tile holds two
+    // columns, so 40% gives five columns across at any screen width. Opaque,
+    // so it also covers the shell's skyline here.
+    <SceneFrame className="bg-[#d9d9d9] bg-[url('/images/trivia-pattern.svg')] bg-[length:40%_auto] bg-repeat">
       <ScoreBar score={score} phase={phase} timeLeft={timeLeft} />
 
-      {phase === "start" && (
-        <PromptScreen
-          prompt="Care for some trivia? Tap the button to play!"
-          buttonLabel="Tap to Play"
-          onSelect={startRound}
-        />
-      )}
+      {phase === "start" && <StartScreen onStart={startRound} />}
 
       {phase === "question" && current && (
         <QuestionScreen engagement={current} onAnswer={answer} />
@@ -153,6 +150,9 @@ function resultMessage(outcome: ResultOutcome | null, engagement: Engagement | u
 }
 
 function ScoreBar({ score, phase, timeLeft }: { score: number; phase: Phase; timeLeft: number }) {
+  // No round has started yet, so there's no score to show.
+  if (phase === "start") return null;
+
   return (
     <div className="shrink-0">
       <div className="flex items-center justify-center bg-[var(--luke-gold)] px-4 py-3 text-[var(--luke-purple)]">
@@ -162,7 +162,7 @@ function ScoreBar({ score, phase, timeLeft }: { score: number; phase: Phase; tim
           <span className="font-semibold">Score: {score}</span>
         )}
       </div>
-      {phase !== "start" && phase !== "end" && (
+      {phase !== "end" && (
         <div className="flex items-center justify-center bg-white px-4 py-2 text-[var(--luke-purple)]">
           <span className="font-medium">Time remaining: {timeLeft}</span>
         </div>
@@ -172,6 +172,27 @@ function ScoreBar({ score, phase, timeLeft }: { score: number; phase: Phase; tim
           <span className="font-medium">Tap anywhere to play again!</span>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * The opening screen, from the trivia mockup: a bold purple question in the
+ * upper part of the scene, with a purple pill button under it.
+ */
+function StartScreen({ onStart }: { onStart: () => void }) {
+  return (
+    <div className="flex flex-1 flex-col items-center gap-[clamp(2rem,7dvh,5rem)] px-[12%] pt-[clamp(2rem,10dvh,7rem)]">
+      <p className="text-center text-[clamp(1.25rem,6.5vw,3.25rem)] leading-tight font-bold text-[var(--luke-purple)]">
+        Think you got what it takes to ace this Lipscomb Trivia?
+      </p>
+      <button
+        type="button"
+        onClick={onStart}
+        className="w-[60%] rounded-full bg-[var(--luke-purple)] py-[clamp(0.5rem,1.75dvh,1.25rem)] text-center text-[clamp(1.125rem,5.5vw,2.75rem)] font-bold text-[var(--luke-gold)] transition-[filter] active:brightness-125"
+      >
+        Game on!
+      </button>
     </div>
   );
 }
@@ -226,7 +247,8 @@ function QuestionScreen({
  *
  * Only question screens use this. Upstream drew four identical "Tap to Play" /
  * "Tap to Continue" buttons on the other screens because every quadrant had to
- * be clickable; here `PromptScreen` shows a single centered button instead.
+ * be clickable; here `StartScreen` and `PromptScreen` each show a single
+ * button instead.
  */
 function AnswerGrid({
   responses,
