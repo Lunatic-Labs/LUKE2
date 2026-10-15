@@ -8,7 +8,7 @@ import { NavMenu } from "@/components/NavMenu";
 import { useCarousel } from "@/hooks/useCarousel";
 import { useIdleTimer } from "@/hooks/useIdleTimer";
 import { bottomBarHeight, DEFAULT_OPTIONS, type KioskOptions } from "../options";
-import { IDLE_SCENE, MENU_ITEMS, SCENES } from "../registry";
+import { IDLE_SCENE, MAIN_MENU_SCENE, MENU_ITEMS, SCENES } from "../registry";
 import { SessionTracker, type SessionSink } from "../session-log";
 import type { SceneHandle } from "../types";
 import { SceneErrorBoundary } from "./SceneErrorBoundary";
@@ -31,6 +31,8 @@ export interface KioskShellProps {
 
 export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShellProps) {
   const [sessionActive, setSessionActive] = useState(false);
+  /** True from the tap that leaves idle until the visitor picks a page. */
+  const [onMainMenu, setOnMainMenu] = useState(false);
   const { index, next, previous, goTo } = useCarousel({ length: SCENES.length });
 
   // Read inside the timer tick, which must see the current values without
@@ -38,9 +40,11 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
   // forbids writing refs during render.
   const indexRef = useRef(index);
   const sessionActiveRef = useRef(sessionActive);
+  const onMainMenuRef = useRef(onMainMenu);
   useEffect(() => {
     indexRef.current = index;
     sessionActiveRef.current = sessionActive;
+    onMainMenuRef.current = onMainMenu;
   });
 
   const tracker = useMemo(() => new SessionTracker(sessionSink), [sessionSink]);
@@ -56,6 +60,7 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
   const endSession = useCallback(() => {
     tracker.end();
     setSessionActive(false);
+    setOnMainMenu(false);
     // The next visitor should not find the previous one's menu left open.
     setMenuOpen(false);
     goTo(0);
@@ -86,6 +91,7 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
   const beginSession = useCallback(() => {
     tracker.begin();
     setSessionActive(true);
+    setOnMainMenu(true);
     goTo(0);
     resetIdleRef.current?.();
   }, [goTo, tracker]);
@@ -107,6 +113,7 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
     (sceneId: string) => {
       reportActivity();
       goTo(SCENES.findIndex((scene) => scene.id === sceneId));
+      setOnMainMenu(false);
       setMenuOpen(false);
     },
     [goTo, reportActivity],
@@ -118,12 +125,15 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
       nextScene: goNext,
       previousScene: goPrevious,
       exitCarousel: endSession,
+      goToScene,
     }),
-    [endSession, goNext, goPrevious, reportActivity],
+    [endSession, goNext, goPrevious, goToScene, reportActivity],
   );
 
-  const scene = sessionActive ? SCENES[index] : IDLE_SCENE;
+  const scene = !sessionActive ? IDLE_SCENE : onMainMenu ? MAIN_MENU_SCENE : SCENES[index];
   const { Component } = scene;
+  // The main menu already lists every page, so the header's menu is hidden there.
+  const inCarousel = sessionActive && !onMainMenu;
 
   return (
     <div
@@ -132,7 +142,7 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
       // any interaction anywhere reset the idle clock. Same here.
       onPointerDown={sessionActive ? reportActivity : beginSession}
     >
-      <KioskHeader showMenuToggle={sessionActive} menuOpen={menuOpen} onToggleMenu={toggleMenu} />
+      <KioskHeader showMenuToggle={inCarousel} menuOpen={menuOpen} onToggleMenu={toggleMenu} />
 
       <main className="relative min-h-0 flex-1">
         {/* Backdrop only: its solid base meets the bottom bar so the skyline
@@ -158,23 +168,18 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
           </SceneErrorBoundary>
         </div>
         <NavMenu
-          open={sessionActive && menuOpen}
+          open={inCarousel && menuOpen}
           items={MENU_ITEMS.map(({ sceneId, label }) => ({ id: sceneId, label }))}
           currentId={scene.id}
           onSelect={goToScene}
         />
       </main>
 
-      {sessionActive ? (
-        <BottomBar
-          sceneName={scene.name}
-          onNext={goNext}
-          onPrevious={goPrevious}
-          height={barHeight}
-        />
+      {inCarousel ? (
+        <BottomBar sceneName={scene.name} onNext={goNext} onPrevious={goPrevious} height={barHeight} />
       ) : (
-        // The attract screen has no controls, but keeps the bar's purple strip
-        // so the layout does not jump when a session starts.
+        // The attract screen and main menu have no arrows, but keep the bar's
+        // purple strip so the layout does not jump on the way into the carousel.
         <div aria-hidden="true" className="w-full shrink-0 bg-[var(--luke-purple)]" style={{ height: barHeight }} />
       )}
     </div>

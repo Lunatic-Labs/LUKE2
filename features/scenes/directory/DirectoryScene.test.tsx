@@ -7,6 +7,7 @@ describe("DirectoryScene", () => {
     nextScene: jest.fn(),
     previousScene: jest.fn(),
     exitCarousel: jest.fn(),
+    goToScene: jest.fn(),
   };
 
   it("renders the faculty and staff directory and filters by category", () => {
@@ -42,5 +43,15 @@ describe("DirectoryScene", () => {
     fireEvent.click(screen.getByRole("button", { name: "Computer Engineering" }));
     expect(screen.getByText("Jacob Dyer")).toBeInTheDocument();
     expect(screen.getByText("1 / 1")).toBeInTheDocument();
+  });
+
+  it("opens the credits and returns to the directory", () => {
+    render(<DirectoryScene bounds={{ width: 1200, height: 800 }} handle={handle} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Credits" }));
+    expect(screen.getByText("About L.U.K.E.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByText("Our Faculty and Staff")).toBeInTheDocument();
   });
 });
