@@ -16,6 +16,8 @@ import { TRIVIA_QUESTIONS } from "./questions";
 const QUESTION_SECONDS = 15;
 const ANSWERED_RESULT_SECONDS = 40;
 const TIMEOUT_RESULT_SECONDS = 15;
+/** How long a chosen answer stays highlighted before the result screen. */
+export const SELECTION_HOLD_MS = 400;
 
 type Phase = "start" | "question" | "result" | "end";
 type ResultOutcome = "correct" | "wrong" | "timeout";
@@ -43,22 +45,37 @@ export function TriviaScene({ handle }: SceneComponentProps) {
   const [score, setScore] = useState(0);
   const [outcome, setOutcome] = useState<ResultOutcome | null>(null);
   const [leaderboard, setLeaderboard] = useState<number[]>(DEFAULT_LEADERBOARD);
+  /** The answer just tapped, highlighted for `SELECTION_HOLD_MS` before the result. */
+  const [selected, setSelected] = useState<number | null>(null);
 
   const finished = phase === "end";
   const current = round[questionIndex];
 
   // Ticks whenever a question or a result screen is showing. Keyed on
   // (phase, questionIndex) rather than `timeLeft` so it restarts exactly once
-  // per screen instead of on every second.
+  // per screen instead of on every second. It stops while a chosen answer is
+  // highlighted, so the clock can't run out after the visitor has answered.
   useEffect(() => {
     if (phase !== "question" && phase !== "result") return;
+    if (selected !== null) return;
 
     const interval = setInterval(() => {
       setTimeLeft((previous) => Math.max(0, previous - 1));
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [phase, questionIndex]);
+  }, [phase, questionIndex, selected]);
+
+  // After the chosen answer has been highlighted, move on to its result.
+  useEffect(() => {
+    if (selected === null) return;
+    const timer = setTimeout(() => {
+      setSelected(null);
+      setTimeLeft(ANSWERED_RESULT_SECONDS);
+      setPhase("result");
+    }, SELECTION_HOLD_MS);
+    return () => clearTimeout(timer);
+  }, [selected]);
 
   useEffect(() => {
     if (timeLeft > 0) return;
@@ -86,13 +103,14 @@ export function TriviaScene({ handle }: SceneComponentProps) {
 
   function answer(responseIndex: number) {
     handle.reportActivity();
-    if (!current) return;
+    // One answer per question: ignore taps while one is highlighted.
+    if (!current || selected !== null) return;
 
+    // Scored now, with the time left at the tap, not after the highlight.
     const correct = responseIndex === current.correctIndex;
     if (correct) setScore((s) => s + scoreForAnswer(timeLeft));
     setOutcome(correct ? "correct" : "wrong");
-    setTimeLeft(ANSWERED_RESULT_SECONDS);
-    setPhase("result");
+    setSelected(responseIndex);
   }
 
   function continueRound() {
@@ -127,7 +145,7 @@ export function TriviaScene({ handle }: SceneComponentProps) {
       {phase === "start" && <StartScreen onStart={startRound} />}
 
       {phase === "question" && current && (
-        <QuestionScreen engagement={current} onAnswer={answer} />
+        <QuestionScreen engagement={current} selected={selected} onAnswer={answer} />
       )}
 
       {phase === "result" && (
@@ -153,26 +171,49 @@ function ScoreBar({ score, phase, timeLeft }: { score: number; phase: Phase; tim
   // No round has started yet, so there's no score to show.
   if (phase === "start") return null;
 
-  return (
-    <div className="shrink-0">
-      <div className="flex items-center justify-center bg-[var(--luke-gold)] px-4 py-3 text-[var(--luke-purple)]">
-        {phase === "end" ? (
+  if (phase === "end") {
+    return (
+      <div className="shrink-0">
+        <div className="flex items-center justify-center bg-[var(--luke-gold)] px-4 py-3 text-[var(--luke-purple)]">
           <span className="text-center font-semibold">Thanks for playing!</span>
-        ) : (
-          <span className="font-semibold">Score: {score}</span>
-        )}
-      </div>
-      {phase !== "end" && (
-        <div className="flex items-center justify-center bg-white px-4 py-2 text-[var(--luke-purple)]">
-          <span className="font-medium">Time remaining: {timeLeft}</span>
         </div>
-      )}
-      {phase === "end" && (
         <div className="flex items-center justify-center bg-white px-4 py-2 text-center text-[var(--luke-purple)]">
           <span className="font-medium">Tap anywhere to play again!</span>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  // Question and result screens: a purple card at the top, from the quiz
+  // mockup, with the score over a clock and the seconds left.
+  return (
+    <div className="flex shrink-0 justify-center pt-[clamp(0.75rem,2.5dvh,2rem)]">
+      <div className="flex flex-col items-center rounded-[clamp(0.75rem,2dvh,1.5rem)] bg-[var(--luke-purple)] px-[clamp(1.5rem,10vw,5rem)] py-[clamp(0.375rem,1.25dvh,1rem)] text-[clamp(0.875rem,4vw,2rem)] leading-snug font-bold text-[var(--luke-gold)]">
+        <span>Score: {score}</span>
+        <span className="flex items-center gap-[0.3em]">
+          <ClockIcon />
+          {timeLeft} {timeLeft === 1 ? "second" : "seconds"}
+        </span>
+      </div>
     </div>
+  );
+}
+
+function ClockIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="h-[1em] w-[1em]"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="9.5" />
+      <polyline points="12,6.5 12,12 15.5,14" />
+    </svg>
   );
 }
 
@@ -224,26 +265,29 @@ function PromptScreen({
 
 function QuestionScreen({
   engagement,
+  selected,
   onAnswer,
 }: {
   engagement: Engagement;
+  selected: number | null;
   onAnswer: (index: number) => void;
 }) {
   return (
-    <div className="flex flex-1 flex-col">
-      <p className="flex-1 px-6 py-8 text-center text-xl leading-8 text-[var(--luke-purple)]">
+    <div className="flex flex-1 flex-col px-[7%] pb-[clamp(1rem,4dvh,3rem)]">
+      <p className="px-[5%] pt-[clamp(1rem,4dvh,3rem)] text-center text-[clamp(1.25rem,6.5vw,3.25rem)] leading-tight font-bold text-[var(--luke-purple)]">
         {engagement.prompt}
       </p>
-      <AnswerGrid responses={engagement.responses} onSelect={onAnswer} />
+      <AnswerGrid responses={engagement.responses} selected={selected} onSelect={onAnswer} />
     </div>
   );
 }
 
 /**
- * The 2x2 answer grid, checkerboarded purple/gold exactly as `DrawButtons()`
- * did: top-left and bottom-right are purple-on-gold, top-right and
- * bottom-left are gold-on-purple. `onSelect` receives the button's index in
- * `responses`, matching `Click()`'s quadrant-to-answer-index mapping.
+ * The 2x2 answer grid, from the quiz mockup: lavender cards with a thick
+ * purple outline and rounded corners. The tapped card turns yellow while it's
+ * held on screen, and the others are disabled. `onSelect` receives the
+ * button's index in `responses`, matching the quadrant-to-answer mapping of
+ * upstream's `Click()`, which checkerboarded the four buttons purple and gold.
  *
  * Only question screens use this. Upstream drew four identical "Tap to Play" /
  * "Tap to Continue" buttons on the other screens because every quadrant had to
@@ -252,24 +296,24 @@ function QuestionScreen({
  */
 function AnswerGrid({
   responses,
+  selected,
   onSelect,
 }: {
   responses: string[];
+  selected: number | null;
   onSelect: (index: number) => void;
 }) {
-  const swapped = [false, true, true, false];
-
   return (
-    <div className="grid shrink-0 grid-cols-2 grid-rows-2 gap-1 p-1">
+    <div className="mt-auto grid shrink-0 grid-cols-2 gap-[clamp(0.75rem,4vw,2rem)] pt-[clamp(1.5rem,6dvh,4rem)]">
       {responses.map((response, index) => (
         <button
           key={index}
           type="button"
           onClick={() => onSelect(index)}
-          className={`rounded-lg px-3 py-6 text-center font-semibold ${
-            swapped[index]
-              ? "bg-[var(--luke-gold)] text-[var(--luke-purple)]"
-              : "bg-[var(--luke-purple)] text-[var(--luke-gold)]"
+          aria-pressed={selected === index}
+          disabled={selected !== null && selected !== index}
+          className={`flex min-h-[clamp(4rem,11dvh,9rem)] items-center justify-center rounded-[clamp(0.75rem,2.5dvh,1.75rem)] border-[clamp(3px,0.8vw,6px)] border-[var(--luke-purple)] px-2 py-2 text-center text-[clamp(1rem,5vw,2.5rem)] leading-tight text-[var(--luke-purple)] ${
+            selected === index ? "bg-[#e7cb7d]" : "bg-[var(--luke-lavender)]"
           }`}
         >
           {response}

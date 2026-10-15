@@ -93,10 +93,16 @@ The old "Hi, I'm L.U.K.E.!" text and its floating animation are gone, since the 
   - **Heading:** "Think you got what it takes to ace this Lipscomb Trivia?", bold, centred and in `--luke-purple`, sized `clamp(1.25rem, 6.5vw, 3.25rem)`. It sits in the upper part of the scene (`pt-[clamp(2rem,10dvh,7rem)]`) rather than centred vertically, with `px-[12%]` so it wraps onto three lines as in the mockup.
   - **Button:** "Game on!" in a `rounded-full` purple pill, 60% of the scene's width, with bold gold text (`clamp(1.125rem, 5.5vw, 2.75rem)`). It brightens slightly while pressed (`active:brightness-125`), because darkening barely shows on dark purple.
 - **Score bar:** hidden on the start screen. `ScoreBar` returns nothing until a round begins, so the score and timer appear only once "Game on!" is tapped.
-- The question, result and end screens are unchanged. The result screens still use `PromptScreen`.
+- **Score card:** on question and result screens, the gold and white strips are replaced by a purple card from the quiz mockup, centred at the top: rounded corners (`clamp(0.75rem, 2dvh, 1.5rem)`), bold gold text (`clamp(0.875rem, 4vw, 2rem)`), "Score: N" above a clock icon and "N seconds" ("1 second" at one). The clock is an inline SVG sized `1em`, so it scales with the text. The end screen keeps the original strips.
+- **Question:** bold, centred, `--luke-purple`, the same size as the start screen's heading.
+- **Answers:** a 2×2 grid pushed to the lower part of the scene (`mt-auto`). Each answer is a lavender card (`--luke-lavender`) with a thick purple outline (`clamp(3px, 0.8vw, 6px)`), rounded corners, a minimum height of `clamp(4rem, 11dvh, 9rem)`, and purple text at normal weight (`clamp(1rem, 5vw, 2.5rem)`). They replace the original purple and gold checkerboard.
+- **Chosen answer:** the tapped card turns a soft yellow, `#e7cb7d`, taken from the mockup, and the other three are disabled. It stays like that for 0.4 seconds (`SELECTION_HOLD_MS`) before the result screen.
+- The result and end screens' own layouts are unchanged. The result screens still use `PromptScreen`.
 
 **Why:**
 - The background is opaque, so it also covers the shell's skyline on this page, as in the mockup.
+- The chosen answer's yellow is softer than `--luke-gold`, as in the mockup, so purple text on it stays readable. Like the background grey, it's written inline because only this page uses it.
+- Upstream jumped straight to the result screen on a tap, so a highlight would never have been seen. The short hold (0.4 seconds) makes it visible. The clock is paused during it and the answer is scored at the tap, so the hold doesn't cost the visitor any points.
 - The grey is written inline rather than as a token, like the welcome screen's `#3E364D`, because only this page uses it.
 
 ### `features/kiosk/registry.ts`
@@ -172,7 +178,7 @@ The skyline, cropped to 482×119. The source image has "NASHVILLE" cut out of it
 
 ### `features/scenes/trivia/TriviaScene.test.tsx`
 
-The trivia scene's first component tests. They check that the start screen shows the heading and "Game on!" with no score, and that tapping "Game on!" starts a round with the score and timer showing.
+The trivia scene's component tests, run against a fixed round with fake timers. They check the start screen (heading and "Game on!", no score), that starting a round shows the score card and timer, that the timer counts down, that a tapped answer is highlighted and scored at the tap before its result appears, that the clock pauses during the highlight, and that only the first answer tapped counts.
 
 ### `public/images/trivia-pattern.svg`
 
