@@ -10,6 +10,7 @@ This restyle brings the kiosk in line with the design mockup: a purple branded h
 | `--luke-lavender`  | `#C9C3D5` | Content background, navigation buttons             |
 | `--luke-lilac`     | `#8F7EB3` | Header title and menu button, welcome-screen tint  |
 | `--luke-gold`      | `#F4AA00` | Unchanged; the shield and map highlights use it   |
+| `--luke-grey`      | `#D9D9D9` | unused                                            |
 
 The welcome screen's gradients also use `#3E364D`, a dark purple-grey. It appears only in that one gradient, so it is written inline rather than added as a token.
 
