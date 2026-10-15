@@ -8,7 +8,7 @@ This restyle brings the kiosk in line with the design mockup: a purple branded h
 | ------------------ | --------- | ------------------------------------------------- |
 | `--luke-purple`    | `#302052` | Header, bottom bar, skyline, text on lavender      |
 | `--luke-lavender`  | `#C9C3D5` | Content background, navigation buttons             |
-| `--luke-lilac`     | `#8F7EB3` | Header title and chevron, welcome-screen tint      |
+| `--luke-lilac`     | `#8F7EB3` | Header title and menu button, welcome-screen tint  |
 | `--luke-gold`      | `#F4AA00` | Unchanged; the shield and map highlights use it   |
 
 The welcome screen's gradients also use `#3E364D`, a dark purple-grey. It appears only in that one gradient, so it is written inline rather than added as a token.
@@ -97,7 +97,7 @@ The old "Hi, I'm L.U.K.E.!" text and its floating animation are gone, since the 
 | Faculty  | `directory` | L.U.K.E. Directory   |
 | Video    | `video`     | Video Player         |
 | Map      | `map`       | You Are Here         |
-| Selfie   | `camera`    | Take a Picture!      |
+| Camera   | `camera`    | Take a Picture!      |
 | Gallery  | `gallery`   | Browse the Gallery   |
 | Drawing  | `board`     | Draw                 |
 | Quizzes  | `trivia`    | Test Your Knowledge  |
@@ -107,7 +107,7 @@ The old "Hi, I'm L.U.K.E.!" text and its floating animation are gone, since the 
 
 - Two assertions now look for "WELCOME!" instead of "Hi, I'm L.U.K.E.!".
 - **Added** five menu tests:
-  - the chevron opens and closes the menu, and flips `aria-expanded`;
+  - the menu button opens and closes the menu, and flips `aria-expanded`;
   - choosing "Map" jumps to that scene and closes the menu;
   - the bottom bar's next and previous arrows close the menu;
   - the scene on screen is marked `aria-current="page"` in the menu;
@@ -126,18 +126,19 @@ The old "Hi, I'm L.U.K.E.!" text and its floating animation are gone, since the 
 The purple branding bar at the top of the kiosk:
 
 - **Shield:** the Lipscomb shield via `next/image` with `priority`, because it is above the fold on first paint. Height is `clamp(2.5rem, 8dvh, 6rem)`, so it scales with the screen without getting too small or too large.
-- **Chevron:** a lilac down-chevron under the shield. It is a button that opens and closes `NavMenu`, and it flips vertically (`-scale-y-100`, with a 200ms transition) to point up while the menu is open. Mirroring rather than rotating means it flattens to a line halfway through the animation instead of turning sideways. It carries `aria-expanded` and an "Open menu"/"Close menu" label. Its visibility is controlled by the `showMenuToggle` prop (default `true`), and the shell hides it on the welcome screen to match the mockup. It is hidden with `invisible` rather than removed, so it still takes up its space: the header stays the same height and the title stays in the same place on every screen.
-- **Title:** "Lipscomb University Kiosk Experience" in lilac. Its size is `clamp(0.875rem, 4.3vw, 2rem)`, so it fits on one line at the kiosk's width. Bottom padding lines the title up with the shield rather than the shield-plus-chevron group.
+- **Menu button:** a lilac three-line hamburger icon under the shield (`clamp(1.5625rem, 5dvh, 3.75rem)` wide). It sits in a strip with equal padding above and below that runs from the shield's bottom to the header's bottom (the header has top padding only), so the icon is centred exactly between the two. While the menu is open the icon turns cream (`--luke-cream`, `#f1e7cf`); it is lilac otherwise. It is a button that opens and closes `NavMenu`. It replaced a down-chevron that flipped while the menu was open; the hamburger stays the same open or closed, with no animation of its own. It carries `aria-expanded` and an "Open menu"/"Close menu" label. Its visibility is controlled by the `showMenuToggle` prop (default `true`), and the shell hides it on the welcome screen to match the mockup. It is hidden with `invisible` rather than removed, so it still takes up its space: the header stays the same height and the title stays in the same place on every screen.
+- **Title:** "Lipscomb University Kiosk Experience" in lilac. Its size is `clamp(0.875rem, 4.3vw, 2rem)`, so it fits on one line at the kiosk's width. Bottom padding lines the title up with the shield rather than the shield-plus-menu-button group.
 
 **Why a separate component:** it is layout chrome shared by every scene, like `BottomBar`, so it belongs in `components/` rather than in a feature.
 
 ### `components/NavMenu.tsx`
 
-The drop-down scene menu, matching the navbar mockup: a lavender panel hanging from the top-left of the scene area, 48% of the width, with a purple border on its right and bottom edges and a rounded bottom-right corner. It sits above the scene (`z-20`).
+The drop-down scene menu, matching the navbar mockup: an off-white panel (`--luke-off-white`, `#faf9fc`) hanging from the top-left of the scene area, 48% of the width, with a purple border on its right and bottom edges and a rounded bottom-right corner. It sits above the scene (`z-20`).
 
 - **State:** `KioskShell` owns `menuOpen`, passes the toggle to the header, and renders the panel only during a session. Ending a session closes it, so the next visitor starts with it shut.
-- **Buttons:** one pill per page (`rounded-full`, 2px purple border, bold purple text), full panel width. Text size matches the header title (`clamp(0.875rem, 4.3vw, 2rem)`), and gaps and padding scale with screen height. The panel's height comes from its buttons.
-- **Order and labels:** set by `MENU_ITEMS` in `features/kiosk/registry.ts`, which follows the mockup (Faculty, Video, Map, Selfie, Gallery, Drawing, Quizzes, Feedback) rather than carousel order. The labels are short versions of the scene names, e.g. "Selfie" for the camera scene and "Faculty" for the directory. A test checks that the menu lists every scene exactly once.
+- **Animation:** the panel stays mounted and grows down from the header when opened, and shrinks back up when closed (`grid-template-rows` 0fr ↔ 1fr, ease-out, off for reduced-motion users). Its height is what animates, so the purple bottom edge and rounded corner stay visible throughout while the buttons are uncovered behind them. At the same time the buttons slide in from the left edge of the screen in a wave, top first, each arriving as the panel's edge reaches it; closing runs the wave bottom first. The panel and the whole wave take `NAV_MENU_ANIMATION_MS` (400ms), each button 200ms of it, and the buttons ignore taps until the opening animation has finished. While closed it is `invisible`, `inert` and `aria-hidden`, so its buttons can't be tapped or focused.
+- **Buttons:** one pill per page (`rounded-full`, lavender fill, 2px purple border, bold purple text, drop shadow `0 4px 4px` black at 25%), full panel width. Text size matches the header title (`clamp(0.875rem, 4.3vw, 2rem)`), and gaps and padding scale with screen height. The panel's height comes from its buttons.
+- **Order and labels:** set by `MENU_ITEMS` in `features/kiosk/menu-items.ts` (re-exported from `registry.ts`), which follows the mockup's order rather than carousel order. The labels are short versions of the scene names, e.g. "Faculty" for the directory. The camera page was labelled "Selfie" in the navbar mockup and is now "Camera", to match the main menu. A test checks that the menu lists every scene exactly once.
 - **Choosing a page:** jumps straight to that scene, resets the idle clock, and closes the menu. The bottom bar's arrows and the end of a session also close it; the automatic scene advance does not. The page on screen is marked with `aria-current="page"`; it has no visual highlight, since the mockup doesn't show one.
 - **Generic component:** `NavMenu` takes a list of `{ id, label }` items and an `onSelect` callback and knows nothing about scenes, so it stays in `components/`.
 - **Not a `<nav>`:** the bottom bar is the page's only `navigation` landmark, and the shell tests rely on that.

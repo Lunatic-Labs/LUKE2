@@ -33,6 +33,7 @@ describe("MapScene", () => {
       nextScene: jest.fn(),
       previousScene: jest.fn(),
       exitCarousel: jest.fn(),
+      goToScene: jest.fn(),
     };
     render(<MapScene bounds={{ width: MAP_WIDTH, height: MAP_HEIGHT }} handle={handle} />);
     return handle;
