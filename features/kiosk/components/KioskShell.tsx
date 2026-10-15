@@ -75,7 +75,7 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
       }
 
       if (sessionActiveRef.current) {
-        tracker.record(SCENES[indexRef.current].id);
+        tracker.record(onMainMenuRef.current ? MAIN_MENU_SCENE.id : SCENES[indexRef.current].id);
       }
     },
   });
