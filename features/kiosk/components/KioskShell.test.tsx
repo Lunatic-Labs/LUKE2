@@ -91,7 +91,7 @@ describe("KioskShell", () => {
     render(<KioskShell sessionSink={sink} />);
     touchScreen();
 
-    advanceSeconds(DEFAULT_OPTIONS.sceneIdleSeconds);
+    advanceSeconds(DEFAULT_OPTIONS.sessionIdleSeconds - 1);
     expect(screen.getByRole("navigation", { name: "Main menu" })).toBeInTheDocument();
   });
 
