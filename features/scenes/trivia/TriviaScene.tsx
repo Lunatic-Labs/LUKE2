@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { SceneFrame } from "@/components/SceneFrame";
 import type { SceneComponentProps } from "@/features/kiosk/types";
 import { pickRound, QUESTION_SECONDS, scoreForAnswer, type Engagement } from "./engagement";
 import { TRIVIA_QUESTIONS } from "./questions";
-import { DEFAULT_TAG, submitScore, type Leaderboard } from "./scores";
+import { DEFAULT_TAG, submitScore } from "./scores";
 
 const ANSWERED_RESULT_SECONDS = 40;
 const TIMEOUT_RESULT_SECONDS = 15;
@@ -38,10 +37,6 @@ export function TriviaScene({ handle }: SceneComponentProps) {
   const [timeLeft, setTimeLeft] = useState(QUESTION_SECONDS);
   const [score, setScore] = useState(0);
   const [outcome, setOutcome] = useState<ResultOutcome | null>(null);
-  /** The saved leaderboard, once this round's score has been saved. */
-  const [leaderboard, setLeaderboard] = useState<Leaderboard | null>(null);
-  /** True if saving this round's score failed. */
-  const [saveFailed, setSaveFailed] = useState(false);
   /** The answer just tapped, highlighted for `SELECTION_HOLD_MS` before the result. */
   const [selected, setSelected] = useState<number | null>(null);
 
@@ -88,33 +83,20 @@ export function TriviaScene({ handle }: SceneComponentProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, phase]);
 
-  // Save the score once the round is over. Only the response's state updates
-  // happen here; the board is cleared when the next round starts.
+  // Save the score once the round is over. The end screen doesn't show the
+  // leaderboard, so a failure is only logged; the visitor's round still ends
+  // normally.
   useEffect(() => {
     if (phase !== "end") return;
-    let cancelled = false;
-
-    submitScore({ tag: DEFAULT_TAG, score }).then(
-      (board) => {
-        if (!cancelled) setLeaderboard(board);
-      },
-      (error: unknown) => {
-        console.error("TriviaScene: could not save score", error);
-        if (!cancelled) setSaveFailed(true);
-      },
-    );
-
-    return () => {
-      cancelled = true;
-    };
+    submitScore({ tag: DEFAULT_TAG, score }).catch((error: unknown) => {
+      console.error("TriviaScene: could not save score", error);
+    });
     // The score is final once the phase is "end", so it needn't retrigger this.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
   function startRound() {
     handle.reportActivity();
-    setLeaderboard(null);
-    setSaveFailed(false);
     setRound(pickRound(TRIVIA_QUESTIONS));
     setQuestionIndex(0);
     setScore(0);
@@ -173,29 +155,15 @@ export function TriviaScene({ handle }: SceneComponentProps) {
         <ResultScreen outcome={outcome} correctResponse={current.correctResponse} onContinue={continueRound} />
       )}
 
-      {finished && (
-        <EndScreen score={score} leaderboard={leaderboard} saveFailed={saveFailed} onSelect={playAgain} />
-      )}
+      {finished && <EndScreen score={score} onPlayAgain={playAgain} onExit={handle.goToMainMenu} />}
     </SceneFrame>
   );
 }
 
 function ScoreBar({ score, phase, timeLeft }: { score: number; phase: Phase; timeLeft: number }) {
-  // No round has started yet, so there's no score to show.
-  if (phase === "start") return null;
-
-  if (phase === "end") {
-    return (
-      <div className="shrink-0">
-        <div className="flex items-center justify-center bg-[var(--luke-gold)] px-4 py-3 text-[var(--luke-purple)]">
-          <span className="text-center font-semibold">Thanks for playing!</span>
-        </div>
-        <div className="flex items-center justify-center bg-white px-4 py-2 text-center text-[var(--luke-purple)]">
-          <span className="font-medium">Tap anywhere to play again!</span>
-        </div>
-      </div>
-    );
-  }
+  // Only shown during a round: there's no score before it, and the end
+  // screen shows the final score itself.
+  if (phase === "start" || phase === "end") return null;
 
   // Question and result screens: a purple card at the top, from the quiz
   // mockup, with the score over a clock and the seconds left.
@@ -297,8 +265,8 @@ function ResultScreen({
 /** Bold purple heading text shared by the start, question and result screens. */
 const HEADING_TEXT = "text-[clamp(1.25rem,6.5vw,3.25rem)] leading-tight font-bold text-[var(--luke-purple)]";
 
-/** The purple pill with gold text used for "Game on!" and "Next up". */
-function PillButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+/** The purple pill with gold text used for "Game on!", "Next up" and the end screen's buttons. */
+function PillButton({ onClick, children }: { onClick?: () => void; children: React.ReactNode }) {
   return (
     <button
       type="button"
@@ -388,47 +356,36 @@ function AnswerGrid({
   );
 }
 
+/**
+ * The end of a round, from the end-screen mockup: a thank-you heading, the
+ * final score, and three buttons. "Play again?" goes back to the start
+ * screen, "Exit" goes back to the kiosk's main menu, and "Score Board" does
+ * nothing yet.
+ */
 function EndScreen({
   score,
-  leaderboard,
-  saveFailed,
-  onSelect,
+  onPlayAgain,
+  onExit,
 }: {
   score: number;
-  leaderboard: Leaderboard | null;
-  saveFailed: boolean;
-  onSelect: () => void;
+  onPlayAgain: () => void;
+  onExit: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className="flex flex-1 flex-col items-center gap-4 px-6 py-6 text-center"
-    >
-      <p className="text-lg font-semibold text-[var(--luke-purple)]">Good game!</p>
-      <p className="text-[var(--luke-purple)]">Your score was: {score}</p>
-
-      <div className="relative h-24 w-full max-w-xs">
-        <Image src="/trivia/triviaHeader.jpg" alt="" fill className="object-contain" sizes="320px" />
+    <div className="flex flex-1 flex-col items-center px-[8%] pt-[clamp(1.5rem,5dvh,4rem)]">
+      <p className={`text-center ${HEADING_TEXT}`}>Thank you for playing!</p>
+      <div className="mt-[clamp(0.75rem,2.5dvh,2rem)] text-center text-[clamp(1rem,4.75vw,2.5rem)] leading-snug font-bold text-[var(--luke-purple)]">
+        <p>
+          <span aria-hidden="true">🦬</span> That&apos;s a wrap, Bison!
+        </p>
+        <p>Your score was: {score}</p>
       </div>
-
-      <div className="w-full max-w-xs text-[var(--luke-purple)]">
-        <p className="mb-1 font-semibold">Leaderboard:</p>
-        {saveFailed ? (
-          <p>Sorry, your score couldn&apos;t be saved.</p>
-        ) : leaderboard === null ? (
-          <p>Saving your score&hellip;</p>
-        ) : (
-          <ul className="space-y-1">
-            {leaderboard.scores.map(({ tag, score: entry }, i) => (
-              <li key={i}>
-                {tag} {entry}
-                {i === leaderboard.yours ? " <- You!" : ""}
-              </li>
-            ))}
-          </ul>
-        )}
+      <div className="mt-[clamp(1rem,3.5dvh,3rem)] flex w-full flex-col items-center gap-[clamp(0.75rem,2.5dvh,2rem)]">
+        <PillButton onClick={onPlayAgain}>Play again?</PillButton>
+        {/* No function yet; it will open the saved leaderboard. */}
+        <PillButton>Score Board</PillButton>
+        <PillButton onClick={onExit}>Exit</PillButton>
       </div>
-    </button>
+    </div>
   );
 }

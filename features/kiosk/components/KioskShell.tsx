@@ -14,13 +14,24 @@ import type { SceneHandle } from "../types";
 import { SceneErrorBoundary } from "./SceneErrorBoundary";
 
 /**
+ * The header drop-down's entries: "Home" for the main menu, then the pages in
+ * `MENU_ITEMS` order. "Home" is added here rather than to `MENU_ITEMS`
+ * because the main menu renders that list too, and shouldn't link to itself.
+ */
+const NAV_MENU_ITEMS = [
+  { id: MAIN_MENU_SCENE.id, label: "Home" },
+  ...MENU_ITEMS.map(({ sceneId, label }) => ({ id: sceneId, label })),
+];
+
+/**
  * The kiosk shell — the React counterpart of `DisplayManager.pde`.
  *
  * It owns the same three responsibilities the Processing class did:
  *
  *  1. Hold the scene carousel, plus the idle scene and main menu held apart
  *     from it. A tap on idle opens the main menu; picking a page there enters
- *     the carousel, and the session never returns to the menu.
+ *     the carousel. The carousel never drifts back to the menu; only a scene
+ *     calling `handle.goToMainMenu()` (trivia's Exit button) returns there.
  *  2. Run the idle clock. A scene untouched for `sceneIdleSeconds` advances the
  *     carousel; once the carousel wraps back to where it first went idle — or a
  *     single scene sits for `sessionIdleSeconds` — the session ends and the
@@ -158,6 +169,12 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
     [goTo, reportActivity],
   );
 
+  const goToMainMenu = useCallback(() => {
+    reportActivity();
+    setOnMainMenu(true);
+    setMenuOpen(false);
+  }, [reportActivity]);
+
   const handle: SceneHandle = useMemo(
     () => ({
       reportActivity,
@@ -165,14 +182,22 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
       previousScene: goPrevious,
       exitCarousel: endSession,
       goToScene,
+      goToMainMenu,
     }),
-    [endSession, goNext, goPrevious, goToScene, reportActivity],
+    [endSession, goNext, goPrevious, goToScene, goToMainMenu, reportActivity],
   );
 
   const scene = !sessionActive ? IDLE_SCENE : onMainMenu ? MAIN_MENU_SCENE : SCENES[index];
   const { Component } = scene;
-  // The main menu already lists every page, so the header's menu is hidden there.
   const inCarousel = sessionActive && !onMainMenu;
+
+  // The header's drop-down: "Home" (the main menu) first, then every page.
+  // Only the welcome screen goes without it.
+  const navMenuAvailable = sessionActive;
+  const selectFromNavMenu = useCallback(
+    (id: string) => (id === MAIN_MENU_SCENE.id ? goToMainMenu() : goToScene(id)),
+    [goToMainMenu, goToScene],
+  );
 
   return (
     <div
@@ -181,7 +206,7 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
       // any interaction anywhere reset the idle clock. Same here.
       onPointerDown={sessionActive ? reportActivity : beginSession}
     >
-      <KioskHeader showMenuToggle={inCarousel} menuOpen={menuOpen} onToggleMenu={toggleMenu} />
+      <KioskHeader showMenuToggle={navMenuAvailable} menuOpen={menuOpen} onToggleMenu={toggleMenu} />
 
       <main className="relative min-h-0 flex-1">
         {/* Backdrop only: its solid base meets the bottom bar so the skyline
@@ -207,10 +232,10 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
           </SceneErrorBoundary>
         </div>
         <NavMenu
-          open={inCarousel && menuOpen}
-          items={MENU_ITEMS.map(({ sceneId, label }) => ({ id: sceneId, label }))}
+          open={navMenuAvailable && menuOpen}
+          items={NAV_MENU_ITEMS}
           currentId={scene.id}
-          onSelect={goToScene}
+          onSelect={selectFromNavMenu}
         />
       </main>
 

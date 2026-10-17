@@ -14,7 +14,8 @@ the original and in the redesign.
 start ──Game on!──▶ question ──answer──▶ result ──Next up──▶ question …
                        │                    ▲
                        └──15s runs out──────┘
-                                            after question 5 ──▶ end ──tap──▶ start
+                                            after question 5 ──▶ end ──Play again?──▶ start
+                                                                     └──Exit──▶ kiosk main menu
 ```
 
 1. **Start:** "Think you got what it takes to ace this Lipscomb Trivia?" with
@@ -27,9 +28,14 @@ start ──Game on!──▶ question ──answer──▶ result ──Next u
    shows "Oops!", or "Time's up!" if the clock ran out, with "Correct
    answer: …" underneath. Each has a "Next up →" button.
 4. Steps 2 and 3 repeat for five questions.
-5. **End:** the score is saved, then "Good game!", the visitor's score and
-   the saved leaderboard appear. Tapping anywhere goes back to the start
-   screen.
+5. **End:** the score is saved, and the screen shows "Thank you for
+   playing!", "🦬 That's a wrap, Bison!", the visitor's score, and three
+   buttons:
+   - **Play again?** goes back to the start screen.
+   - **Score Board** does nothing yet. It will open the saved leaderboard.
+   - **Exit** goes back to the kiosk's main menu (the page of all kiosk
+     pages). The visitor's session carries on; it doesn't return to the
+     welcome screen.
 
 ### Timing
 
@@ -94,12 +100,15 @@ error, so the table only ever holds valid rows. When reading, rows that
 don't fit (the header, a lowercase tag, or a line damaged by hand-editing)
 are skipped rather than breaking the board.
 
-**The leaderboard:** the end screen shows the top five scores
-(`LEADERBOARD_SIZE`), highest first, as `TAG score`. Equal scores keep the
-order they were saved in, so an earlier score stays above a later one that
-ties it. If the visitor's new score made the top five, its row is marked
-"<- You!". Every round is kept in the file, not only the top five, so the
-board size can change later without losing scores.
+**The leaderboard:** not shown on screen at the moment. The end screen's
+"Score Board" button is a placeholder until the score board screen is built.
+The pieces for it are ready: `GET /api/scores` returns the top five scores
+(`LEADERBOARD_SIZE`), highest first, and `buildLeaderboard()` ranks them.
+Equal scores keep the order they were saved in, so an earlier score stays
+above a later one that ties it. After a save, the response also says where
+the new score landed (`yours`), for marking the visitor's row. Every round is
+kept in the file, not only the top five, so the board size can change later
+without losing scores.
 
 **All scores are real.** The board starts empty and only ever shows scores
 from rounds actually played. The made-up starting scores
@@ -107,9 +116,9 @@ from rounds actually played. The made-up starting scores
 gone. Scores saved while testing on a development machine stay in that
 machine's `data/trivia-scores` folder, not on the kiosk.
 
-**If saving fails** (for example, the disk is full), the end screen says
-"Sorry, your score couldn't be saved." instead of showing the board, and
-the error is logged to the browser console.
+**If saving fails** (for example, the disk is full), the error is logged
+to the browser console. The end screen looks the same either way, so the
+visitor isn't interrupted.
 
 **Managing the table:**
 
@@ -143,8 +152,7 @@ It is split into small components, one per part of the screen:
 - **`StartScreen`:** the opening heading and the "Game on!" button.
 - **`ScoreBar`:** on question and result screens, a purple card with gold
   text: "Score: N" above a clock icon and "N seconds". Hidden on the start
-  screen. On the end screen it is still the original gold and white strips,
-  reading "Thanks for playing!" and "Tap anywhere to play again!".
+  and end screens.
 - **`QuestionScreen`** and **`AnswerGrid`:** the question and its four
   answers as lavender cards with thick purple outlines. The tapped card turns
   yellow and the other three are disabled.
@@ -154,13 +162,12 @@ It is split into small components, one per part of the screen:
 - **`PillButton`:** the purple pill with gold text shared by "Game on!" and
   "Next up". `HEADING_TEXT` is the bold purple heading style shared by the
   start, question and result screens.
-- **`EndScreen`:** the final score, `public/trivia/triviaHeader.jpg` and the
-  saved leaderboard ("Saving your score…" until it arrives), all inside one
-  button so a tap anywhere plays again.
+- **`EndScreen`:** the thank-you heading, the final score and the three
+  buttons. "Play again?" sets the phase back to `start`; "Exit" calls
+  `handle.goToMainMenu()`; "Score Board" has no click handler yet.
 
 An effect saves the score when the phase becomes `end`, with
-`submitScore({ tag: DEFAULT_TAG, score })`, and stores the leaderboard the
-server sends back.
+`submitScore({ tag: DEFAULT_TAG, score })`. It only logs a failure.
 
 ### [engagement.ts](engagement.ts)
 
@@ -234,7 +241,8 @@ Re-exports `TriviaScene` for `features/kiosk/registry.ts`.
 - [`public/images/trivia-pattern.svg`](../../../public/images/trivia-pattern.svg):
   the repeating question-mark background tile.
 - [`public/trivia/triviaHeader.jpg`](../../../public/trivia/triviaHeader.jpg):
-  the banner on the end screen.
+  the banner the old end screen showed. The redesigned end screen doesn't
+  use it, so it can be deleted unless the score board screen needs it.
 
 ## Look and feel (redesign)
 
@@ -262,8 +270,11 @@ reasons, is in the repo's [`CSS.md`](../../../CSS.md).
   size as the other headings. After a miss it is a larger "Oops!" (or
   "Time's up!") with "Correct answer: …" under it at the normal heading
   size, and the button sits closer underneath.
-- The end screen still uses its original layout, but its leaderboard rows
-  now read `TAG score`.
+- **End screen:** "Thank you for playing!" in the shared heading style,
+  then "🦬 That's a wrap, Bison!" and "Your score was: N" in smaller bold
+  purple, then three purple pill buttons stacked down the middle: "Play
+  again?", "Score Board" and "Exit". The score card is hidden here, since
+  the score is shown in the text.
 
 ## Tests
 
@@ -282,8 +293,12 @@ reasons, is in the repo's [`CSS.md`](../../../CSS.md).
   - a right answer shows "Nailed it!" without the correct answer, a wrong
     one shows "Oops!" with it, and a timeout shows "Time's up!" with it;
   - "Next up" moves to the next question with the clock reset;
-  - the end screen saves the score under `TST` and shows the board the
-    server returns, or an apology if saving fails. Saving is faked here.
+  - the end screen saves the score under `TST`, and the round still ends
+    normally if saving fails. Saving is faked here;
+  - the end screen shows the thank-you, the score and its three buttons,
+    with no score card;
+  - "Play again?" returns to the start screen, "Exit" calls
+    `goToMainMenu`, and "Score Board" does nothing.
 - **[scores.test.ts](scores.test.ts):** which tags and scores are valid, and
   how the leaderboard is ranked and marked.
 - **[score-store.test.ts](score-store.test.ts):** the table's format, the
@@ -307,6 +322,11 @@ Run them with `npx jest features/scenes/trivia app/api/scores`.
   made-up ones, and was lost when the program closed. Scores are now saved
   to `scores.csv` with a three-letter tag, and the board shows only real
   ones.
+- Upstream's end screen showed "Good game!", the score and the leaderboard,
+  and a tap anywhere played again. It now has separate "Play again?",
+  "Score Board" and "Exit" buttons, and the leaderboard has moved behind
+  "Score Board". Exit returning to the main menu is new; upstream had no way
+  back to a menu.
 - Upstream went straight to the result screen when an answer was tapped.
   Here the answer is highlighted for 0.4 seconds first, with the clock
   paused.
@@ -320,5 +340,6 @@ Run them with `npx jest features/scenes/trivia app/api/scores`.
 ## Status
 
 The scene is still registered with `placeholder: true` in
-`features/kiosk/registry.ts`. It's fully playable; remove that flag once the
-end screen has been redesigned.
+`features/kiosk/registry.ts`. It's fully playable. What's left is the score
+board screen behind the end screen's "Score Board" button; remove the flag
+once that's done.

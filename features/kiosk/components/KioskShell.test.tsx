@@ -1,9 +1,19 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { DEFAULT_OPTIONS } from "../options";
 import type { SessionSink } from "../session-log";
 import { NAV_MENU_ANIMATION_MS } from "@/components/NavMenu";
 import { MENU_INPUT_DELAY_MS } from "@/features/scenes/main-menu/MainMenuScene";
 import { KioskShell } from "./KioskShell";
+
+// Stand-in for the trivia scene: one button that asks the shell for the main
+// menu, the way the real end screen's Exit button does.
+jest.mock("@/features/scenes/trivia", () => {
+  const { createElement } = jest.requireActual("react");
+  return {
+    TriviaScene: ({ handle }: { handle: { goToMainMenu: () => void } }) =>
+      createElement("button", { type: "button", onClick: handle.goToMainMenu }, "Exit trivia"),
+  };
+});
 
 /** Silent sink so tests do not depend on console output. */
 const sink: SessionSink = { writeSession: jest.fn(), writeError: jest.fn() };
@@ -22,6 +32,16 @@ function touchScreen() {
 function openMainMenu() {
   touchScreen();
   advanceSeconds(MENU_INPUT_DELAY_MS / 1000);
+}
+
+/** Open the header's drop-down and wait until it accepts taps. */
+function openNavMenu(container: HTMLElement) {
+  fireEvent.click(screen.getByRole("button", { name: "Open menu" }));
+  act(() => {
+    jest.advanceTimersByTime(NAV_MENU_ANIMATION_MS);
+  });
+  // Scoped, because on the main menu its page buttons share their names.
+  return within(container.querySelector<HTMLElement>("#kiosk-nav-menu")!);
 }
 
 /** Leave idle and pick the first carousel page from the main menu. */
@@ -55,14 +75,62 @@ describe("KioskShell", () => {
     expect(screen.getByRole("button", { name: "Video" })).toBeInTheDocument();
   });
 
-  it("shows no bottom bar arrows and hides the header menu on the main menu", () => {
+  it("shows no bottom bar arrows on the main menu, but offers the header menu", () => {
     render(<KioskShell sessionSink={sink} />);
     touchScreen();
 
     expect(screen.queryByRole("button", { name: "Previous scene" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Next scene" })).not.toBeInTheDocument();
     // KioskHeader hides the menu button with Tailwind's `invisible`, which jsdom does not apply.
+    expect(screen.getByRole("button", { name: "Open menu" })).not.toHaveClass("invisible");
+  });
+
+  it("hides the header menu on the welcome screen", () => {
+    render(<KioskShell sessionSink={sink} />);
+
     expect(screen.getByRole("button", { name: "Open menu" })).toHaveClass("invisible");
+  });
+
+  it("lists Home at the top of the header menu, then every page", () => {
+    const { container } = render(<KioskShell sessionSink={sink} />);
+    startSession();
+    const menu = openNavMenu(container);
+
+    expect(menu.getAllByRole("button").map((button) => button.textContent)).toEqual([
+      "Home",
+      "Faculty",
+      "Video",
+      "Map",
+      "Camera",
+      "Gallery",
+      "Drawing",
+      "Quizzes",
+      "Feedback",
+    ]);
+  });
+
+  it("goes back to the main menu from Home in the header menu", () => {
+    const { container } = render(<KioskShell sessionSink={sink} />);
+    startSession();
+    const menu = openNavMenu(container);
+
+    fireEvent.click(menu.getByRole("button", { name: "Home" }));
+
+    expect(screen.getByRole("navigation", { name: "Main menu" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Next scene" })).not.toBeInTheDocument();
+    expect(container.querySelector("#kiosk-nav-menu")).toHaveAttribute("data-state", "closed");
+  });
+
+  it("opens the header menu on the main menu, with Home marked as the page on screen", () => {
+    const { container } = render(<KioskShell sessionSink={sink} />);
+    openMainMenu();
+    const menu = openNavMenu(container);
+
+    expect(menu.getByRole("button", { name: "Home" })).toHaveAttribute("aria-current", "page");
+
+    fireEvent.click(menu.getByRole("button", { name: "Map" }));
+    expect(screen.getByRole("navigation")).toHaveTextContent("You Are Here");
+    expect(container.querySelector("#kiosk-nav-menu")).toHaveAttribute("data-state", "closed");
   });
 
   it("ignores taps on the main menu until its input delay has passed", () => {
@@ -85,6 +153,24 @@ describe("KioskShell", () => {
 
     expect(screen.getByRole("navigation")).toHaveTextContent("You Are Here");
     expect(screen.getByRole("button", { name: "Next scene" })).toBeInTheDocument();
+  });
+
+  it("returns to the main menu when a scene asks for it, keeping the session", () => {
+    render(<KioskShell sessionSink={sink} />);
+    openMainMenu();
+    fireEvent.click(screen.getByRole("button", { name: "Quizzes" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Exit trivia" }));
+
+    expect(screen.getByRole("navigation", { name: "Main menu" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Next scene" })).not.toBeInTheDocument();
+    expect(screen.queryByText("WELCOME!")).not.toBeInTheDocument();
+    expect(sink.writeSession).not.toHaveBeenCalled();
+
+    // And the menu works again once its input delay has passed.
+    advanceSeconds(MENU_INPUT_DELAY_MS / 1000);
+    fireEvent.click(screen.getByRole("button", { name: "Map" }));
+    expect(screen.getByRole("navigation")).toHaveTextContent("You Are Here");
   });
 
   it("never auto-advances off the main menu", () => {

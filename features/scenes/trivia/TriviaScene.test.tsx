@@ -24,6 +24,7 @@ const handle: SceneHandle = {
   previousScene: jest.fn(),
   exitCarousel: jest.fn(),
   goToScene: jest.fn(),
+  goToMainMenu: jest.fn(),
 };
 
 function renderAndStart() {
@@ -150,22 +151,62 @@ describe("TriviaScene", () => {
     expect(screen.getByText("15 seconds")).toBeInTheDocument();
   });
 
-  it("saves the round's score under the TST tag and shows the saved leaderboard", async () => {
+  it("saves the round's score under the TST tag", async () => {
     renderAndStart();
     await playRound(1);
 
     expect(submitScore).toHaveBeenCalledTimes(1);
     expect(submitScore).toHaveBeenCalledWith({ tag: "TST", score: 15 * 69 + 100 });
-    expect(screen.getByText("ACE 5000")).toBeInTheDocument();
-    expect(screen.getByText("TST 1135 <- You!")).toBeInTheDocument();
   });
 
-  it("says so when the score can't be saved", async () => {
+  it("ends with a thank-you, the score and three buttons, and no score card", async () => {
+    renderAndStart();
+    await playRound(1);
+
+    expect(screen.getByText("Thank you for playing!")).toBeInTheDocument();
+    expect(screen.getByText(/That's a wrap, Bison!/)).toBeInTheDocument();
+    expect(screen.getByText(`Your score was: ${15 * 69 + 100}`)).toBeInTheDocument();
+    expect(screen.queryByText(/^Score:/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Play again?" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Score Board" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Exit" })).toBeInTheDocument();
+  });
+
+  it("goes back to the start screen from Play again?", async () => {
+    renderAndStart();
+    await playRound(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Play again?" }));
+
+    expect(screen.getByRole("button", { name: "Game on!" })).toBeInTheDocument();
+  });
+
+  it("goes back to the main menu from Exit", async () => {
+    renderAndStart();
+    await playRound(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Exit" }));
+
+    expect(handle.goToMainMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it("does nothing yet when Score Board is tapped", async () => {
+    renderAndStart();
+    await playRound(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Score Board" }));
+
+    expect(screen.getByText("Thank you for playing!")).toBeInTheDocument();
+    expect(handle.goToMainMenu).not.toHaveBeenCalled();
+  });
+
+  it("still finishes the round normally when the score can't be saved", async () => {
     jest.mocked(submitScore).mockRejectedValue(new Error("offline"));
     renderAndStart();
     await playRound(0);
 
     expect(submitScore).toHaveBeenCalledWith({ tag: "TST", score: 0 });
-    expect(screen.getByText("Sorry, your score couldn't be saved.")).toBeInTheDocument();
+    expect(console.error).toHaveBeenCalled();
+    expect(screen.getByText("Thank you for playing!")).toBeInTheDocument();
   });
 });
