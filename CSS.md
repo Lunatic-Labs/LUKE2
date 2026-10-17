@@ -94,20 +94,25 @@ The old "Hi, I'm L.U.K.E.!" text and its floating animation are gone, since the 
   - **Heading:** "Think you got what it takes to ace this Lipscomb Trivia?", bold, centred and in `--luke-purple`, sized `clamp(1.25rem, 6.5vw, 3.25rem)`. It sits in the upper part of the scene (`pt-[clamp(2rem,10dvh,7rem)]`) rather than centred vertically, with `px-[12%]` so it wraps onto three lines as in the mockup.
   - **Button:** "Game on!" in a `rounded-full` purple pill, 60% of the scene's width, with bold gold text (`clamp(1.125rem, 5.5vw, 2.75rem)`). It brightens slightly while pressed (`active:brightness-125`), because darkening barely shows on dark purple.
 - **Score bar:** hidden on the start screen. `ScoreBar` returns nothing until a round begins, so the score and timer appear only once "Game on!" is tapped.
-- **Score card:** on question and result screens, the gold and white strips are replaced by a purple card from the quiz mockup, centred at the top: rounded corners (`clamp(0.75rem, 2dvh, 1.5rem)`), bold gold text (`clamp(0.875rem, 4vw, 2rem)`), "Score: N" above a clock icon and "N seconds" ("1 second" at one). The clock is an inline SVG sized `1em`, so it scales with the text. It's hidden on the end screen too, which shows the score in its text.
+- **Score card:** on question and result screens, the gold and white strips are replaced by a purple card from the quiz mockup, centred at the top: rounded corners (`clamp(0.75rem, 2dvh, 1.5rem)`), bold gold text (`clamp(0.875rem, 4vw, 2rem)`), "Score: N" above a clock icon and "N seconds" ("1 second" at one). The clock is an inline SVG sized `1em`, so it scales with the text. It's hidden on the end screen, which shows the score in its text, and on the leader board screen.
 - **Question:** bold, centred, `--luke-purple`, the same size as the start screen's heading.
 - **Answers:** a 2×2 grid pushed to the lower part of the scene (`mt-auto`). Each answer is a lavender card (`--luke-lavender`) with a thick purple outline (`clamp(3px, 0.8vw, 6px)`), rounded corners, a minimum height of `clamp(4rem, 11dvh, 9rem)`, and purple text at normal weight (`clamp(1rem, 5vw, 2.5rem)`). They replace the original purple and gold checkerboard.
 - **Chosen answer:** the tapped card turns a soft yellow, `#e7cb7d`, taken from the mockup, and the other three are disabled. It stays like that for 0.4 seconds (`SELECTION_HOLD_MS`) before the result screen.
 - **Result screen:** a new `ResultScreen` replaces `PromptScreen`, which is gone. It follows the correct and incorrect answer mockups:
-  - **Right answer:** "Nailed it!" in the shared heading style, then the "Next up" button, with the same large gap as the start screen (`clamp(2rem, 7dvh, 5rem)`).
-  - **Wrong answer or timeout:** a larger "Oops!" or "Time's up!" (`clamp(1.75rem, 9vw, 4.5rem)`), with "Correct answer: …" under it in the shared heading style, and a smaller gap before the button (`clamp(0.75rem, 2.5dvh, 2rem)`), as in the mockup.
+  - **Right answer:** "Nailed it!" at the shared heading size, then the "Next up" button, with the same large gap as the start screen (`clamp(2rem, 7dvh, 5rem)`).
+  - **Wrong answer or timeout:** a larger "Oops!" or "Time's up!" (`clamp(1.75rem, 9vw, 4.5rem)`), with "Correct answer: …" under it at the shared heading size, and a smaller gap before the button (`clamp(0.75rem, 2.5dvh, 2rem)`), as in the mockup.
   - **Button:** "Next up" followed by a right-arrow icon (inline SVG sized `1em`), in the same purple pill as "Game on!".
   - The text block starts in the upper part of the scene (`pt-[clamp(2rem,7dvh,5rem)]`) rather than centred vertically.
-- **Shared styles:** `PillButton` (the purple pill with gold text) and `HEADING_TEXT` (bold purple, `clamp(1.25rem, 6.5vw, 3.25rem)`) are shared by the start, question and result screens, so they stay the same everywhere.
+- **Shared styles:** `PillButton` (the purple pill with gold text) is used for every button outside the answer grid: "Game on!", "Next up", the end screen's three buttons and "Back". `HEADING_TEXT` (bold purple, `clamp(1.25rem, 6.5vw, 3.25rem)`) is used by the start, question, end and leader board headings. `ResultScreen` writes the same size out itself, because its "Oops!" heading needs a larger one.
 - **End screen:** rebuilt from the end-screen mockup. The old gold and white strips, the `triviaHeader.jpg` banner and the on-screen leaderboard are gone. In their place, top to bottom:
   - "Thank you for playing!" in the shared `HEADING_TEXT` style, near the top (`pt-[clamp(1.5rem,5dvh,4rem)]`).
   - "🦬 That's a wrap, Bison!" and "Your score was: N", centred, bold and purple, a step smaller than the heading (`clamp(1rem, 4.75vw, 2.5rem)`). The bison emoji is `aria-hidden`, so screen readers skip it.
-  - Three `PillButton`s stacked down the middle with even gaps (`clamp(0.75rem, 2.5dvh, 2rem)`): "Play again?", "Score Board" and "Exit". All three look the same, including "Score Board", which has no function yet.
+  - Three `PillButton`s stacked down the middle with even gaps (`clamp(0.75rem, 2.5dvh, 2rem)`): "Play again?", "Leader Board" and "Exit". All three look the same.
+- **Leader board screen:** new, from the leader board mockup, opened from the end screen:
+  - "Leader Board" in the shared `HEADING_TEXT` style at the top.
+  - A box 65% of the scene's width and `clamp(11rem, 45dvh, 32rem)` tall, with the answer cards' look: lavender fill (`--luke-lavender`), a thick purple outline (`clamp(3px, 0.8vw, 6px)`) and rounded corners. The scores are listed in it, centred, in bold purple at `clamp(1.125rem, 6vw, 3rem)`, one per line as `TAG - score`. The loading, empty and error messages use 60% of that size.
+  - A "Back" `PillButton` pushed to the bottom of the scene (`mt-auto`), as in the mockup.
+  - The box has a fixed height, so it doesn't jump when the scores arrive, and the top five always fit.
 
 **Why:**
 - The background is opaque, so it also covers the shell's skyline on this page, as in the mockup.

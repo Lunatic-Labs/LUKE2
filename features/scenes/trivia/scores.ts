@@ -61,6 +61,15 @@ export function buildLeaderboard(
   return { scores: top.map(({ entry }) => entry), yours: yours === -1 ? null : yours };
 }
 
+/** The current leaderboard, for the leader board screen. */
+export async function fetchLeaderboard(): Promise<Leaderboard> {
+  const response = await fetch("/api/scores");
+  if (!response.ok) {
+    throw new Error(`Loading the leaderboard failed with ${response.status}`);
+  }
+  return response.json();
+}
+
 /** Saves a finished round's score and returns the updated leaderboard. */
 export async function submitScore(entry: ScoreEntry): Promise<Leaderboard> {
   const response = await fetch("/api/scores", {

@@ -11,7 +11,7 @@
 import type { TriviaQuestion } from "./questions";
 
 /** Seconds on the clock for each question. */
-export const QUESTION_SECONDS = 15;
+export const QUESTION_SECONDS = 25;
 /** Questions in one round. */
 export const ROUND_LENGTH = 5;
 

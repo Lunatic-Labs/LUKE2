@@ -1,4 +1,4 @@
-import { scoreForAnswer } from "./engagement";
+import { QUESTION_SECONDS, ROUND_LENGTH, scoreForAnswer } from "./engagement";
 import { buildLeaderboard, isValidScore, isValidTag, MAX_SCORE } from "./scores";
 
 describe("isValidTag", () => {
@@ -17,7 +17,7 @@ describe("isValidTag", () => {
 
 describe("isValidScore", () => {
   it("accepts whole numbers from 0 up to a perfect round", () => {
-    expect(MAX_SCORE).toBe(5 * scoreForAnswer(15));
+    expect(MAX_SCORE).toBe(ROUND_LENGTH * scoreForAnswer(QUESTION_SECONDS));
     expect(isValidScore(0)).toBe(true);
     expect(isValidScore(100)).toBe(true);
     expect(isValidScore(MAX_SCORE)).toBe(true);

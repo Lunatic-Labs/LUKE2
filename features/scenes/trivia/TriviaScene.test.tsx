@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { SceneHandle } from "@/features/kiosk/types";
-import { submitScore } from "./scores";
+import { QUESTION_SECONDS, scoreForAnswer } from "./engagement";
+import { fetchLeaderboard, submitScore } from "./scores";
 import { SELECTION_HOLD_MS, TriviaScene } from "./TriviaScene";
 
 // A fixed round, so tests know which answer is right and where it sits.
@@ -16,7 +17,11 @@ jest.mock("./engagement", () => {
 });
 
 // No server in tests: saving a score is faked.
-jest.mock("./scores", () => ({ ...jest.requireActual("./scores"), submitScore: jest.fn() }));
+jest.mock("./scores", () => ({
+  ...jest.requireActual("./scores"),
+  submitScore: jest.fn(),
+  fetchLeaderboard: jest.fn(),
+}));
 
 const handle: SceneHandle = {
   reportActivity: jest.fn(),
@@ -54,6 +59,13 @@ describe("TriviaScene", () => {
     jest.useFakeTimers();
     jest.clearAllMocks();
     jest.spyOn(console, "error").mockImplementation(() => {});
+    jest.mocked(fetchLeaderboard).mockResolvedValue({
+      scores: [
+        { tag: "TST", score: 1025 },
+        { tag: "AAA", score: 450 },
+      ],
+      yours: null,
+    });
     jest.mocked(submitScore).mockResolvedValue({
       scores: [
         { tag: "ACE", score: 5000 },
@@ -81,7 +93,7 @@ describe("TriviaScene", () => {
 
     expect(handle.reportActivity).toHaveBeenCalled();
     expect(screen.getByText("Score: 0")).toBeInTheDocument();
-    expect(screen.getByText("15 seconds")).toBeInTheDocument();
+    expect(screen.getByText(`${QUESTION_SECONDS} seconds`)).toBeInTheDocument();
     expect(screen.getByText("Question 1?")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Game on!" })).not.toBeInTheDocument();
   });
@@ -90,7 +102,7 @@ describe("TriviaScene", () => {
     renderAndStart();
 
     await advance(1000);
-    expect(screen.getByText("14 seconds")).toBeInTheDocument();
+    expect(screen.getByText(`${QUESTION_SECONDS - 1} seconds`)).toBeInTheDocument();
   });
 
   it("highlights the chosen answer, then shows the result", async () => {
@@ -100,8 +112,8 @@ describe("TriviaScene", () => {
 
     expect(screen.getByRole("button", { name: "Swang" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Fields" })).toBeDisabled();
-    // Scored at the tap, with the full 15 seconds left.
-    expect(screen.getByText(`Score: ${15 * 69 + 100}`)).toBeInTheDocument();
+    // Scored at the tap, with the full clock left.
+    expect(screen.getByText(`Score: ${scoreForAnswer(QUESTION_SECONDS)}`)).toBeInTheDocument();
 
     await advance(SELECTION_HOLD_MS);
     expect(screen.getByText("Nailed it!")).toBeInTheDocument();
@@ -116,7 +128,7 @@ describe("TriviaScene", () => {
     fireEvent.click(screen.getByRole("button", { name: "Fields" }));
     await advance(SELECTION_HOLD_MS - 1);
 
-    expect(screen.getByText("14 seconds")).toBeInTheDocument();
+    expect(screen.getByText(`${QUESTION_SECONDS - 1} seconds`)).toBeInTheDocument();
   });
 
   it("takes only the first answer tapped", async () => {
@@ -134,7 +146,7 @@ describe("TriviaScene", () => {
   it("shows the correct answer when the clock runs out", async () => {
     renderAndStart();
 
-    for (let i = 0; i < 15; i++) await advance(1000);
+    for (let i = 0; i < QUESTION_SECONDS; i++) await advance(1000);
 
     expect(screen.getByText("Time's up!")).toBeInTheDocument();
     expect(screen.getByText("Correct answer: Swang")).toBeInTheDocument();
@@ -148,7 +160,7 @@ describe("TriviaScene", () => {
     fireEvent.click(screen.getByRole("button", { name: "Next up" }));
 
     expect(screen.getByText("Question 2?")).toBeInTheDocument();
-    expect(screen.getByText("15 seconds")).toBeInTheDocument();
+    expect(screen.getByText(`${QUESTION_SECONDS} seconds`)).toBeInTheDocument();
   });
 
   it("saves the round's score under the TST tag", async () => {
@@ -156,7 +168,7 @@ describe("TriviaScene", () => {
     await playRound(1);
 
     expect(submitScore).toHaveBeenCalledTimes(1);
-    expect(submitScore).toHaveBeenCalledWith({ tag: "TST", score: 15 * 69 + 100 });
+    expect(submitScore).toHaveBeenCalledWith({ tag: "TST", score: scoreForAnswer(QUESTION_SECONDS) });
   });
 
   it("ends with a thank-you, the score and three buttons, and no score card", async () => {
@@ -165,10 +177,10 @@ describe("TriviaScene", () => {
 
     expect(screen.getByText("Thank you for playing!")).toBeInTheDocument();
     expect(screen.getByText(/That's a wrap, Bison!/)).toBeInTheDocument();
-    expect(screen.getByText(`Your score was: ${15 * 69 + 100}`)).toBeInTheDocument();
+    expect(screen.getByText(`Your score was: ${scoreForAnswer(QUESTION_SECONDS)}`)).toBeInTheDocument();
     expect(screen.queryByText(/^Score:/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Play again?" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Score Board" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Leader Board" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Exit" })).toBeInTheDocument();
   });
 
@@ -190,14 +202,55 @@ describe("TriviaScene", () => {
     expect(handle.goToMainMenu).toHaveBeenCalledTimes(1);
   });
 
-  it("does nothing yet when Score Board is tapped", async () => {
+  it("opens the leader board, listing scores as TAG - score", async () => {
     renderAndStart();
     await playRound(0);
 
-    fireEvent.click(screen.getByRole("button", { name: "Score Board" }));
+    fireEvent.click(screen.getByRole("button", { name: "Leader Board" }));
+    expect(screen.getByText("Loading…")).toBeInTheDocument();
+    await act(async () => {});
+
+    expect(fetchLeaderboard).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Leader Board")).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem").map((row) => row.textContent)).toEqual(["TST - 1025", "AAA - 450"]);
+    expect(screen.queryByText("Thank you for playing!")).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Score:/)).not.toBeInTheDocument();
+  });
+
+  it("goes back to the end screen from Back, without saving the score again", async () => {
+    renderAndStart();
+    await playRound(1);
+    fireEvent.click(screen.getByRole("button", { name: "Leader Board" }));
+    await act(async () => {});
+
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
 
     expect(screen.getByText("Thank you for playing!")).toBeInTheDocument();
-    expect(handle.goToMainMenu).not.toHaveBeenCalled();
+    expect(screen.getByText(`Your score was: ${scoreForAnswer(QUESTION_SECONDS)}`)).toBeInTheDocument();
+    expect(submitScore).toHaveBeenCalledTimes(1);
+  });
+
+  it("says so when there are no scores yet", async () => {
+    jest.mocked(fetchLeaderboard).mockResolvedValue({ scores: [], yours: null });
+    renderAndStart();
+    await playRound(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Leader Board" }));
+    await act(async () => {});
+
+    expect(screen.getByText("No scores yet. Be the first!")).toBeInTheDocument();
+  });
+
+  it("says so when the leader board can't be loaded", async () => {
+    jest.mocked(fetchLeaderboard).mockRejectedValue(new Error("offline"));
+    renderAndStart();
+    await playRound(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Leader Board" }));
+    await act(async () => {});
+
+    expect(screen.getByText("Sorry, the leader board couldn't be loaded.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument();
   });
 
   it("still finishes the round normally when the score can't be saved", async () => {

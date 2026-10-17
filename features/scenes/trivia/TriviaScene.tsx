@@ -5,14 +5,14 @@ import { SceneFrame } from "@/components/SceneFrame";
 import type { SceneComponentProps } from "@/features/kiosk/types";
 import { pickRound, QUESTION_SECONDS, scoreForAnswer, type Engagement } from "./engagement";
 import { TRIVIA_QUESTIONS } from "./questions";
-import { DEFAULT_TAG, submitScore } from "./scores";
+import { DEFAULT_TAG, fetchLeaderboard, submitScore, type Leaderboard } from "./scores";
 
 const ANSWERED_RESULT_SECONDS = 40;
 const TIMEOUT_RESULT_SECONDS = 15;
 /** How long a chosen answer stays highlighted before the result screen. */
 export const SELECTION_HOLD_MS = 400;
 
-type Phase = "start" | "question" | "result" | "end";
+type Phase = "start" | "question" | "result" | "end" | "leaderboard";
 type ResultOutcome = "correct" | "wrong" | "timeout";
 
 /**
@@ -21,11 +21,11 @@ type ResultOutcome = "correct" | "wrong" | "timeout";
  * Ported from `TriviaScene.pde`. Upstream flattened a round into one array —
  * start screen, then (question, result) pairs for five questions, then an end
  * screen — and drove it with a single `currentEngagementIndex`. Here that
- * becomes an explicit `phase`, which reads more clearly in React but preserves
- * every timing rule: 15s per question, 40s on a result screen reached by
- * answering, 15s on one reached by timing out (so "Time's up!" doesn't linger
- * as long as "Nailed it!"/"Oops!" does), and `(secondsRemaining * 69) + 100`
- * points for a correct answer.
+ * becomes an explicit `phase`, which reads more clearly in React. It keeps
+ * upstream's 40s on a result screen reached by answering, 15s on one reached
+ * by timing out (so "Time's up!" doesn't linger as long as "Nailed it!"/"Oops!"
+ * does), and `(secondsRemaining * 69) + 100` points for a correct answer.
+ * Each question gets `QUESTION_SECONDS` (25s) rather than upstream's 15s.
  *
  * `TriviaGameManager.pde`'s `Game` class was dead code upstream (nothing ever
  * constructed one) and has no counterpart here — see `engagement.ts`.
@@ -37,6 +37,10 @@ export function TriviaScene({ handle }: SceneComponentProps) {
   const [timeLeft, setTimeLeft] = useState(QUESTION_SECONDS);
   const [score, setScore] = useState(0);
   const [outcome, setOutcome] = useState<ResultOutcome | null>(null);
+  /** The saved scores, once loaded for the leader board. */
+  const [leaderboard, setLeaderboard] = useState<Leaderboard | null>(null);
+  /** True if loading the leader board failed. */
+  const [leaderboardFailed, setLeaderboardFailed] = useState(false);
   /** The answer just tapped, highlighted for `SELECTION_HOLD_MS` before the result. */
   const [selected, setSelected] = useState<number | null>(null);
 
@@ -83,16 +87,25 @@ export function TriviaScene({ handle }: SceneComponentProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeLeft, phase]);
 
-  // Save the score once the round is over. The end screen doesn't show the
-  // leaderboard, so a failure is only logged; the visitor's round still ends
-  // normally.
+  // Load the saved scores whenever the leader board opens. It's cleared when
+  // the board is opened, so only the response's state updates happen here.
   useEffect(() => {
-    if (phase !== "end") return;
-    submitScore({ tag: DEFAULT_TAG, score }).catch((error: unknown) => {
-      console.error("TriviaScene: could not save score", error);
-    });
-    // The score is final once the phase is "end", so it needn't retrigger this.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (phase !== "leaderboard") return;
+    let cancelled = false;
+
+    fetchLeaderboard().then(
+      (board) => {
+        if (!cancelled) setLeaderboard(board);
+      },
+      (error: unknown) => {
+        console.error("TriviaScene: could not load the leader board", error);
+        if (!cancelled) setLeaderboardFailed(true);
+      },
+    );
+
+    return () => {
+      cancelled = true;
+    };
   }, [phase]);
 
   function startRound() {
@@ -124,6 +137,12 @@ export function TriviaScene({ handle }: SceneComponentProps) {
 
   function advance() {
     if (questionIndex >= round.length - 1) {
+      // Saved here, once per round, rather than whenever the end screen
+      // shows: the leader board's Back button returns to the end screen. A
+      // failure is only logged, so the visitor's round still ends normally.
+      submitScore({ tag: DEFAULT_TAG, score }).catch((error: unknown) => {
+        console.error("TriviaScene: could not save score", error);
+      });
       setPhase("end");
       return;
     }
@@ -136,6 +155,18 @@ export function TriviaScene({ handle }: SceneComponentProps) {
   function playAgain() {
     handle.reportActivity();
     setPhase("start");
+  }
+
+  function openLeaderboard() {
+    handle.reportActivity();
+    setLeaderboard(null);
+    setLeaderboardFailed(false);
+    setPhase("leaderboard");
+  }
+
+  function closeLeaderboard() {
+    handle.reportActivity();
+    setPhase("end");
   }
 
   return (
@@ -155,7 +186,18 @@ export function TriviaScene({ handle }: SceneComponentProps) {
         <ResultScreen outcome={outcome} correctResponse={current.correctResponse} onContinue={continueRound} />
       )}
 
-      {finished && <EndScreen score={score} onPlayAgain={playAgain} onExit={handle.goToMainMenu} />}
+      {finished && (
+        <EndScreen
+          score={score}
+          onPlayAgain={playAgain}
+          onLeaderboard={openLeaderboard}
+          onExit={handle.goToMainMenu}
+        />
+      )}
+
+      {phase === "leaderboard" && (
+        <LeaderboardScreen leaderboard={leaderboard} failed={leaderboardFailed} onBack={closeLeaderboard} />
+      )}
     </SceneFrame>
   );
 }
@@ -163,7 +205,7 @@ export function TriviaScene({ handle }: SceneComponentProps) {
 function ScoreBar({ score, phase, timeLeft }: { score: number; phase: Phase; timeLeft: number }) {
   // Only shown during a round: there's no score before it, and the end
   // screen shows the final score itself.
-  if (phase === "start" || phase === "end") return null;
+  if (phase !== "question" && phase !== "result") return null;
 
   // Question and result screens: a purple card at the top, from the quiz
   // mockup, with the score over a clock and the seconds left.
@@ -262,10 +304,10 @@ function ResultScreen({
   );
 }
 
-/** Bold purple heading text shared by the start, question and result screens. */
+/** Bold purple heading text shared by the start, question, end and leader board screens. */
 const HEADING_TEXT = "text-[clamp(1.25rem,6.5vw,3.25rem)] leading-tight font-bold text-[var(--luke-purple)]";
 
-/** The purple pill with gold text used for "Game on!", "Next up" and the end screen's buttons. */
+/** The purple pill with gold text used for every button outside the answer grid. */
 function PillButton({ onClick, children }: { onClick?: () => void; children: React.ReactNode }) {
   return (
     <button
@@ -359,16 +401,18 @@ function AnswerGrid({
 /**
  * The end of a round, from the end-screen mockup: a thank-you heading, the
  * final score, and three buttons. "Play again?" goes back to the start
- * screen, "Exit" goes back to the kiosk's main menu, and "Score Board" does
- * nothing yet.
+ * screen, "Leader Board" opens the saved scores, and "Exit" goes back to the
+ * kiosk's main menu.
  */
 function EndScreen({
   score,
   onPlayAgain,
+  onLeaderboard,
   onExit,
 }: {
   score: number;
   onPlayAgain: () => void;
+  onLeaderboard: () => void;
   onExit: () => void;
 }) {
   return (
@@ -382,9 +426,49 @@ function EndScreen({
       </div>
       <div className="mt-[clamp(1rem,3.5dvh,3rem)] flex w-full flex-col items-center gap-[clamp(0.75rem,2.5dvh,2rem)]">
         <PillButton onClick={onPlayAgain}>Play again?</PillButton>
-        {/* No function yet; it will open the saved leaderboard. */}
-        <PillButton>Score Board</PillButton>
+        <PillButton onClick={onLeaderboard}>Leader Board</PillButton>
         <PillButton onClick={onExit}>Exit</PillButton>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The saved top scores, from the leader board mockup: a heading, a lavender
+ * box with a thick purple outline listing each score as `TAG - score`, and a
+ * Back button at the bottom that returns to the end screen.
+ */
+function LeaderboardScreen({
+  leaderboard,
+  failed,
+  onBack,
+}: {
+  leaderboard: Leaderboard | null;
+  failed: boolean;
+  onBack: () => void;
+}) {
+  return (
+    <div className="flex flex-1 flex-col items-center px-[8%] pt-[clamp(1rem,4dvh,3rem)] pb-[clamp(1.5rem,5dvh,4rem)]">
+      <p className={`text-center ${HEADING_TEXT}`}>Leader Board</p>
+      <div className="mt-[clamp(0.75rem,2dvh,1.5rem)] h-[clamp(11rem,45dvh,32rem)] w-[65%] rounded-[clamp(0.75rem,2.5dvh,1.75rem)] border-[clamp(3px,0.8vw,6px)] border-[var(--luke-purple)] bg-[var(--luke-lavender)] px-[6%] py-[clamp(0.5rem,2dvh,1.5rem)] text-center text-[clamp(1.125rem,6vw,3rem)] leading-tight font-bold text-[var(--luke-purple)]">
+        {failed ? (
+          <p className="text-[0.6em]">Sorry, the leader board couldn&apos;t be loaded.</p>
+        ) : leaderboard === null ? (
+          <p className="text-[0.6em]">Loading&hellip;</p>
+        ) : leaderboard.scores.length === 0 ? (
+          <p className="text-[0.6em]">No scores yet. Be the first!</p>
+        ) : (
+          <ol>
+            {leaderboard.scores.map(({ tag, score }, i) => (
+              <li key={i}>
+                {tag} - {score}
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+      <div className="mt-auto flex w-full justify-center pt-[clamp(1rem,3dvh,2rem)]">
+        <PillButton onClick={onBack}>Back</PillButton>
       </div>
     </div>
   );

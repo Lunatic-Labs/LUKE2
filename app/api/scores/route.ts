@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { readScores, saveScore } from "@/features/scenes/trivia/score-store";
 import { buildLeaderboard, isValidScore, isValidTag } from "@/features/scenes/trivia/scores";
 
-/** `{"tag":"TST","score":5675}` is about 30 bytes; anything near this isn't a score. */
+/** `{"tag":"TST","score":9125}` is about 30 bytes; anything near this isn't a score. */
 const MAX_BODY_BYTES = 1024;
 
 /** The current leaderboard. */
