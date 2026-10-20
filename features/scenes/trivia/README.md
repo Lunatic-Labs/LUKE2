@@ -11,9 +11,10 @@ the original and in the redesign.
 ## How a round works
 
 ```
-start ──Game on!──▶ question ──answer──▶ result ──Next up──▶ question …
-                       │                    ▲
-                       └──25s runs out──────┘
+start ──Let's go!──▶ initials ──Game on!──▶ question ──answer──▶ result ──Next up──▶ question …
+  │ ▲                   │                       │                    ▲
+  │ └───────Back────────┘                       └──25s runs out──────┘
+  └──Score Board──▶ leader board ──Back──▶ start
                                             after question 5 ──▶ end ──Play again?──▶ start
                                                                   │ ├──Exit──▶ kiosk main menu
                                                                   │ └──Leader Board──▶ leader board
@@ -21,26 +22,35 @@ start ──Game on!──▶ question ──answer──▶ result ──Next u
 ```
 
 1. **Start:** "Think you got what it takes to ace this Lipscomb Trivia?" with
-   a "Game on!" button. No score is shown yet.
-2. **Question:** the question with four answers in a 2×2 grid, under a
+   a "Let's go! →" button and a "Score Board" button. No score is shown yet.
+   "Score Board" opens the leader board (step 7), whose "Back" returns here.
+2. **Initials:** "Enter your initials" over three letter boxes, starting at
+   `AAA`, each with a gold arrow above and below it. The lower arrow steps
+   the letter forward (A → B → C …) and the upper arrow steps it back (A → Z
+   → Y …); both wrap around. "Game on!" starts the round, and the initials
+   are saved with the score at the end. "Back" returns to the start screen.
+   The initials are kept for "Play again?", so a returning player doesn't
+   have to enter them again.
+3. **Question:** the question with four answers in a 2×2 grid, under a
    purple card showing the score and a 25-second countdown. The tapped
    answer turns yellow for 0.4 seconds (`SELECTION_HOLD_MS`) before the
    result appears. Only the first tap counts.
-3. **Result:** "Nailed it!" after a right answer. After a wrong answer it
+4. **Result:** "Nailed it!" after a right answer. After a wrong answer it
    shows "Oops!", or "Time's up!" if the clock ran out, with "Correct
    answer: …" underneath. Each has a "Next up →" button.
-4. Steps 2 and 3 repeat for five questions.
-5. **End:** the score is saved, and the screen shows "Thank you for
+5. Steps 3 and 4 repeat for five questions.
+6. **End:** the score is saved, and the screen shows "Thank you for
    playing!", "🦬 That's a wrap, Bison!", the visitor's score, and three
    buttons:
    - **Play again?** goes back to the start screen.
-   - **Leader Board** opens the leader board (step 6).
+   - **Leader Board** opens the leader board (step 7).
    - **Exit** goes back to the kiosk's main menu (the page of all kiosk
      pages). The visitor's session carries on; it doesn't return to the
      welcome screen.
-6. **Leader Board:** "Leader Board" over a box listing the top five saved
+7. **Leader Board:** "Leader Board" over a box listing the top five saved
    scores as `TAG - score` (for example `TST - 1025`), highest first, and a
-   "Back" button that returns to the end screen. The scores are loaded fresh
+   "Back" button that returns to whichever screen opened it: the start
+   screen or the end screen. The scores are loaded fresh
    each time it opens, so the visitor's just-saved score is included. Going
    back and forth doesn't save the score again.
 
@@ -52,7 +62,7 @@ start ──Game on!──▶ question ──answer──▶ result ──Next u
 | Chosen answer highlighted      | 0.4 seconds; the clock is paused       |
 | Result after answering         | 40 seconds                             |
 | Result after the clock ran out | 15 seconds                             |
-| Start, end and leader board    | Never; they wait for a tap             |
+| Start, initials, end, leader board | Never; they wait for a tap         |
 
 The two result timers are `ANSWERED_RESULT_SECONDS` and
 `TIMEOUT_RESULT_SECONDS` in `TriviaScene.tsx`; the question timer is
@@ -109,8 +119,10 @@ TST,1825
 ```
 
 - **`tag`:** exactly three capital letters, A-Z. No lowercase letters,
-  spaces, digits or symbols, and never blank. Every score is saved as `TST`
-  for now (`DEFAULT_TAG` in `scores.ts`), until visitors can type their own.
+  spaces, digits or symbols, and never blank. The visitor picks it on the
+  initials screen, which starts at `AAA` (`DEFAULT_TAG` in `scores.ts`), so
+  a visitor who doesn't change it is saved as `AAA`. Rows saved as `TST`
+  come from before the initials screen existed.
 - **`score`:** a whole number from 0 to 9,125, the most a round can score
   (`MAX_SCORE`: five questions answered the instant they appear).
 
@@ -119,7 +131,8 @@ error, so the table only ever holds valid rows. When reading, rows that
 don't fit (the header, a lowercase tag, or a line damaged by hand-editing)
 are skipped rather than breaking the board.
 
-**The leaderboard:** the end screen's "Leader Board" button opens it. It
+**The leaderboard:** the start screen's "Score Board" button and the end
+screen's "Leader Board" button open it. It
 loads `GET /api/scores`, which returns the top five scores
 (`LEADERBOARD_SIZE`), highest first, and shows each as `TAG - score`. Equal
 scores keep the order they were saved in, so an earlier score stays above a
@@ -162,8 +175,9 @@ authentication.
 ### [TriviaScene.tsx](TriviaScene.tsx)
 
 The screen itself. Upstream drove the round with one flat array of screens
-and an index into it; here a `phase` state (`start`, `question`, `result`,
-`end`, `leaderboard`) says which screen is showing. Two effects run the clock: one ticks
+and an index into it; here a `phase` state (`start`, `initials`, `question`,
+`result`, `end`, `leaderboard`) says which screen is showing. A `tag` state
+holds the visitor's initials. Two effects run the clock: one ticks
 `timeLeft` down every second on question and result screens, the other acts
 when it reaches zero. A `selected` state holds the answer just tapped; while
 it's set, the clock is paused, and a third effect moves to the result screen
@@ -171,7 +185,11 @@ after `SELECTION_HOLD_MS`.
 
 It is split into small components, one per part of the screen:
 
-- **`StartScreen`:** the opening heading and the "Game on!" button.
+- **`StartScreen`:** the opening heading, the "Let's go! →" button (to the
+  initials screen) and the "Score Board" button (to the leader board).
+- **`InitialsScreen`:** "Enter your initials", the three `LetterBox`es with
+  an `ArrowButton` above and below each, "Game on!" and "Back". The arrows
+  call `shiftLetter()` from `scores.ts` with -1 (upper) or +1 (lower).
 - **`ScoreBar`:** a purple card with gold text: "Score: N" above a clock
   icon and "N seconds". Only shown on question and result screens.
 - **`QuestionScreen`** and **`AnswerGrid`:** the question and its four
@@ -181,18 +199,19 @@ It is split into small components, one per part of the screen:
   `RESULT_HEADINGS`, the correct answer after a miss, and the "Next up"
   button.
 - **`PillButton`:** the purple pill with gold text used for every button
-  outside the answer grid: "Game on!", "Next up", the end screen's three
-  buttons and "Back". `HEADING_TEXT` is the bold purple heading style used
+  outside the answer grid: "Let's go!", "Score Board", "Game on!", "Next
+  up", the end screen's three buttons and both "Back" buttons. `HEADING_TEXT` is the bold purple heading style used
   by the start, question, end and leader board screens. The result screen's
   text uses the same size, written out in `ResultScreen`.
 - **`EndScreen`:** the thank-you heading, the final score and the three
   buttons. "Play again?" sets the phase back to `start`; "Leader Board" sets
   it to `leaderboard`; "Exit" calls `handle.goToMainMenu()`.
 - **`LeaderboardScreen`:** the heading, the box of scores, and "Back", which
-  sets the phase back to `end`.
+  sets the phase back to `start` or `end`, whichever opened it
+  (`leaderboardReturn`).
 
 The score is saved in `advance()`, at the moment the last question's result
-moves on to the end screen, with `submitScore({ tag: DEFAULT_TAG, score })`.
+moves on to the end screen, with `submitScore({ tag, score })`.
 That runs once per round; saving whenever the end screen appeared would save
 again each time the visitor came back from the leader board. A failure is
 only logged. An effect loads the leaderboard with `fetchLeaderboard()` each
@@ -222,7 +241,10 @@ call to save a score. Safe to import anywhere.
 
 - `isValidTag()` and `isValidScore()`: the rules for a row (three capital
   letters, A-Z; a whole number from 0 to `MAX_SCORE`).
-- `DEFAULT_TAG` (`"TST"`), `LEADERBOARD_SIZE` (5) and `MAX_SCORE` (9,125).
+- `DEFAULT_TAG` (`"AAA"`, the initials screen's starting letters),
+  `LEADERBOARD_SIZE` (5) and `MAX_SCORE` (9,125).
+- `shiftLetter()`: the letter one step forward or back from another,
+  wrapping from Z to A and from A to Z. The initials screen's arrows use it.
 - `buildLeaderboard()`: picks the top scores from the table and works out
   where the visitor's new score landed.
 - `submitScore()`: posts a score to `/api/scores` and returns the updated
@@ -285,8 +307,13 @@ reasons, is in the repo's [`CSS.md`](../../../CSS.md).
   the scene's width, so there are always five columns of marks. The
   background is opaque, so the shell's skyline doesn't show on this page.
 - **Start screen:** a bold purple heading in the upper part of the scene,
-  with a purple pill-shaped "Game on!" button with gold text under it. Text
-  sizes scale with the screen.
+  with two purple pill-shaped buttons with gold text under it: "Let's go! →"
+  and "Score Board". Text sizes scale with the screen.
+- **Initials screen:** "Enter your initials" in the shared heading style,
+  then three lavender letter boxes side by side, each with a thick purple
+  outline and a thinner purple line inside it, and a gold triangle with a
+  purple outline above and below. "Game on!" and "Back" pill buttons are
+  stacked underneath.
 - **Score card:** on question and result screens, the score and timer sit
   in a purple card with rounded corners and bold gold text, centred at the
   top, with a clock icon before the seconds. It's not shown on the start,
@@ -297,7 +324,7 @@ reasons, is in the repo's [`CSS.md`](../../../CSS.md).
   card turns a soft yellow (`#e7cb7d`).
 - **Result screen:** under the score card, a bold purple heading in the
   upper part of the scene, then a "Next up →" pill button styled like
-  "Game on!". After a right answer the heading is "Nailed it!", the same
+  "Let's go! →". After a right answer the heading is "Nailed it!", the same
   size as the other headings. After a miss it is a larger "Oops!" (or
   "Time's up!") with "Correct answer: …" under it at the normal heading
   size, and the button sits closer underneath.
@@ -318,7 +345,14 @@ reasons, is in the repo's [`CSS.md`](../../../CSS.md).
   and the scoring formula.
 - **[TriviaScene.test.tsx](TriviaScene.test.tsx):** uses a fixed round
   (by mocking `pickRound`) and fake timers to check that:
-  - the start screen shows the heading and "Game on!" with no score;
+  - the start screen shows the heading, "Let's go!" and "Score Board" with
+    no score;
+  - "Let's go!" opens the initials screen at `AAA`; the lower arrows step a
+    letter forward and the upper ones back, wrapping around; "Back" returns
+    to the start screen;
+  - the score is saved under the chosen initials;
+  - "Score Board" opens the leader board, and its "Back" returns to the
+    start screen;
   - tapping "Game on!" starts a round with the score and timer showing;
   - the timer counts down a second at a time;
   - a tapped answer is highlighted, scored at the tap, and followed by the
@@ -328,7 +362,8 @@ reasons, is in the repo's [`CSS.md`](../../../CSS.md).
   - a right answer shows "Nailed it!" without the correct answer, a wrong
     one shows "Oops!" with it, and a timeout shows "Time's up!" with it;
   - "Next up" moves to the next question with the clock reset;
-  - the end screen saves the score under `TST`, and the round still ends
+  - the end screen saves the score once, under `AAA` if the initials
+    weren't changed, and the round still ends
     normally if saving fails. Saving is faked here;
   - the end screen shows the thank-you, the score and its three buttons,
     with no score card;
@@ -338,8 +373,9 @@ reasons, is in the repo's [`CSS.md`](../../../CSS.md).
     with no score card;
   - "Back" returns to the end screen without saving the score again;
   - the leader board's empty and failed-to-load messages.
-- **[scores.test.ts](scores.test.ts):** which tags and scores are valid, and
-  how the leaderboard is ranked and marked.
+- **[scores.test.ts](scores.test.ts):** which tags and scores are valid,
+  `shiftLetter()` stepping and wrapping, and how the leaderboard is ranked
+  and marked.
 - **[score-store.test.ts](score-store.test.ts):** the table's format, the
   folder and header being created, invalid rows refused on write and skipped
   on read, and `TRIVIA_SCORES_DIR`. Uses a temporary folder.
@@ -356,7 +392,8 @@ Run them with `npx jest features/scenes/trivia app/api/scores`.
   tappable. Here those screens have a single button.
 - The start screen's "Care for some trivia? Tap the button to play!" and
   "Tap to Play" became "Think you got what it takes to ace this Lipscomb
-  Trivia?" and "Game on!", and the score is hidden there.
+  Trivia?" with "Let's go! →" and "Score Board", and the score is hidden
+  there. Entering initials before a round is new; upstream had no tags.
 - Upstream's leaderboard lived in memory, held six scores seeded with
   made-up ones, and was lost when the program closed. Scores are now saved
   to `scores.csv` with a three-letter tag, and the board shows only real
@@ -383,7 +420,5 @@ Every screen has been redesigned from the mockups, and the scene is no
 longer marked `placeholder: true` in `features/kiosk/registry.ts`. Still to
 do:
 
-- Let visitors enter their own three-letter tag; every score is `TST` for
-  now.
 - Decide whether the 40-second result screen after an answer should be
   shorter than the kiosk's 30-second idle timeout (see "Timing").

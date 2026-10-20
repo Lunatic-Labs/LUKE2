@@ -34,7 +34,18 @@ const handle: SceneHandle = {
 
 function renderAndStart() {
   render(<TriviaScene bounds={{ width: 360, height: 640 }} handle={handle} />);
+  fireEvent.click(screen.getByRole("button", { name: "Let's go!" }));
   fireEvent.click(screen.getByRole("button", { name: "Game on!" }));
+}
+
+/** The three initials as they read on the initials screen. */
+function initials() {
+  return [1, 2, 3].map((n) => screen.getByRole("group", { name: `Initial ${n}` }).textContent).join("");
+}
+
+function tapArrow(position: number, which: "previous" | "next", times = 1) {
+  const button = screen.getByRole("button", { name: `Initial ${position}: ${which} letter` });
+  for (let i = 0; i < times; i++) fireEvent.click(button);
 }
 
 async function advance(ms: number) {
@@ -84,8 +95,66 @@ describe("TriviaScene", () => {
     render(<TriviaScene bounds={{ width: 360, height: 640 }} handle={handle} />);
 
     expect(screen.getByText("Think you got what it takes to ace this Lipscomb Trivia?")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Let's go!" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Score Board" })).toBeInTheDocument();
+    expect(screen.queryByText(/Score:/)).not.toBeInTheDocument();
+  });
+
+  it("asks for initials, starting at AAA, after Let's go!", () => {
+    render(<TriviaScene bounds={{ width: 360, height: 640 }} handle={handle} />);
+    fireEvent.click(screen.getByRole("button", { name: "Let's go!" }));
+
+    expect(screen.getByText("Enter your initials")).toBeInTheDocument();
+    expect(initials()).toBe("AAA");
     expect(screen.getByRole("button", { name: "Game on!" })).toBeInTheDocument();
     expect(screen.queryByText(/Score:/)).not.toBeInTheDocument();
+  });
+
+  it("steps each initial forward with its lower arrow and back with its upper one, wrapping around", () => {
+    render(<TriviaScene bounds={{ width: 360, height: 640 }} handle={handle} />);
+    fireEvent.click(screen.getByRole("button", { name: "Let's go!" }));
+
+    tapArrow(1, "next", 2);
+    expect(initials()).toBe("CAA");
+    tapArrow(2, "previous");
+    expect(initials()).toBe("CZA");
+    tapArrow(2, "previous");
+    expect(initials()).toBe("CYA");
+    tapArrow(3, "next", 26);
+    expect(initials()).toBe("CYA");
+    expect(handle.reportActivity).toHaveBeenCalled();
+  });
+
+  it("goes back to the start screen from the initials screen's Back", () => {
+    render(<TriviaScene bounds={{ width: 360, height: 640 }} handle={handle} />);
+    fireEvent.click(screen.getByRole("button", { name: "Let's go!" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+
+    expect(screen.getByText("Think you got what it takes to ace this Lipscomb Trivia?")).toBeInTheDocument();
+  });
+
+  it("saves the score under the initials the visitor chose", async () => {
+    render(<TriviaScene bounds={{ width: 360, height: 640 }} handle={handle} />);
+    fireEvent.click(screen.getByRole("button", { name: "Let's go!" }));
+    tapArrow(1, "next", 2);
+    tapArrow(2, "previous");
+    tapArrow(3, "next", 4);
+    fireEvent.click(screen.getByRole("button", { name: "Game on!" }));
+    await playRound(0);
+
+    expect(submitScore).toHaveBeenCalledWith({ tag: "CZE", score: 0 });
+  });
+
+  it("opens the leader board from Score Board, and Back returns to the start screen", async () => {
+    render(<TriviaScene bounds={{ width: 360, height: 640 }} handle={handle} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Score Board" }));
+    await act(async () => {});
+    expect(screen.getAllByRole("listitem").map((row) => row.textContent)).toEqual(["TST - 1025", "AAA - 450"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(screen.getByText("Think you got what it takes to ace this Lipscomb Trivia?")).toBeInTheDocument();
   });
 
   it("starts a round, with the score and timer, when Game on! is tapped", () => {
@@ -163,12 +232,12 @@ describe("TriviaScene", () => {
     expect(screen.getByText(`${QUESTION_SECONDS} seconds`)).toBeInTheDocument();
   });
 
-  it("saves the round's score under the TST tag", async () => {
+  it("saves the round's score once, under AAA if the initials weren't changed", async () => {
     renderAndStart();
     await playRound(1);
 
     expect(submitScore).toHaveBeenCalledTimes(1);
-    expect(submitScore).toHaveBeenCalledWith({ tag: "TST", score: scoreForAnswer(QUESTION_SECONDS) });
+    expect(submitScore).toHaveBeenCalledWith({ tag: "AAA", score: scoreForAnswer(QUESTION_SECONDS) });
   });
 
   it("ends with a thank-you, the score and three buttons, and no score card", async () => {
@@ -190,7 +259,7 @@ describe("TriviaScene", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Play again?" }));
 
-    expect(screen.getByRole("button", { name: "Game on!" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Let's go!" })).toBeInTheDocument();
   });
 
   it("goes back to the main menu from Exit", async () => {
@@ -258,7 +327,7 @@ describe("TriviaScene", () => {
     renderAndStart();
     await playRound(0);
 
-    expect(submitScore).toHaveBeenCalledWith({ tag: "TST", score: 0 });
+    expect(submitScore).toHaveBeenCalledWith({ tag: "AAA", score: 0 });
     expect(console.error).toHaveBeenCalled();
     expect(screen.getByText("Thank you for playing!")).toBeInTheDocument();
   });

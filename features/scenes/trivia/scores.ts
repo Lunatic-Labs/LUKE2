@@ -24,8 +24,21 @@ export interface Leaderboard {
   yours: number | null;
 }
 
-/** Saved with every score until visitors can enter their own tag. */
-export const DEFAULT_TAG = "TST";
+/** The initials the initials screen starts on, from the mockup. */
+export const DEFAULT_TAG = "AAA";
+
+const FIRST_LETTER = "A".charCodeAt(0);
+const LETTER_COUNT = 26;
+
+/**
+ * The letter `step` places after `letter`, wrapping around the alphabet:
+ * `shiftLetter("A", 1)` is "B" and `shiftLetter("A", -1)` is "Z".
+ */
+export function shiftLetter(letter: string, step: number): string {
+  const offset = letter.charCodeAt(0) - FIRST_LETTER;
+  const shifted = (((offset + step) % LETTER_COUNT) + LETTER_COUNT) % LETTER_COUNT;
+  return String.fromCharCode(FIRST_LETTER + shifted);
+}
 
 /** How many scores the end screen shows. */
 export const LEADERBOARD_SIZE = 5;

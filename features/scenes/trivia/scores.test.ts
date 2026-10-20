@@ -1,5 +1,23 @@
 import { QUESTION_SECONDS, ROUND_LENGTH, scoreForAnswer } from "./engagement";
-import { buildLeaderboard, isValidScore, isValidTag, MAX_SCORE } from "./scores";
+import { buildLeaderboard, DEFAULT_TAG, isValidScore, isValidTag, MAX_SCORE, shiftLetter } from "./scores";
+
+describe("shiftLetter", () => {
+  it("steps forward and back through the alphabet", () => {
+    expect(shiftLetter("A", 1)).toBe("B");
+    expect(shiftLetter("B", 1)).toBe("C");
+    expect(shiftLetter("C", -1)).toBe("B");
+  });
+
+  it("wraps around at either end", () => {
+    expect(shiftLetter("A", -1)).toBe("Z");
+    expect(shiftLetter("Z", -1)).toBe("Y");
+    expect(shiftLetter("Z", 1)).toBe("A");
+  });
+
+  it("starts from initials that are a valid tag", () => {
+    expect(isValidTag(DEFAULT_TAG)).toBe(true);
+  });
+});
 
 describe("isValidTag", () => {
   it("accepts exactly three capital letters", () => {

@@ -5,14 +5,14 @@ import { SceneFrame } from "@/components/SceneFrame";
 import type { SceneComponentProps } from "@/features/kiosk/types";
 import { pickRound, QUESTION_SECONDS, scoreForAnswer, type Engagement } from "./engagement";
 import { TRIVIA_QUESTIONS } from "./questions";
-import { DEFAULT_TAG, fetchLeaderboard, submitScore, type Leaderboard } from "./scores";
+import { DEFAULT_TAG, fetchLeaderboard, shiftLetter, submitScore, type Leaderboard } from "./scores";
 
 const ANSWERED_RESULT_SECONDS = 40;
 const TIMEOUT_RESULT_SECONDS = 15;
 /** How long a chosen answer stays highlighted before the result screen. */
 export const SELECTION_HOLD_MS = 400;
 
-type Phase = "start" | "question" | "result" | "end" | "leaderboard";
+type Phase = "start" | "initials" | "question" | "result" | "end" | "leaderboard";
 type ResultOutcome = "correct" | "wrong" | "timeout";
 
 /**
@@ -37,6 +37,10 @@ export function TriviaScene({ handle }: SceneComponentProps) {
   const [timeLeft, setTimeLeft] = useState(QUESTION_SECONDS);
   const [score, setScore] = useState(0);
   const [outcome, setOutcome] = useState<ResultOutcome | null>(null);
+  /** The visitor's three initials, saved with their score. Kept for "Play again?". */
+  const [tag, setTag] = useState(DEFAULT_TAG);
+  /** The screen the leader board's Back button returns to. */
+  const [leaderboardReturn, setLeaderboardReturn] = useState<"start" | "end">("end");
   /** The saved scores, once loaded for the leader board. */
   const [leaderboard, setLeaderboard] = useState<Leaderboard | null>(null);
   /** True if loading the leader board failed. */
@@ -108,6 +112,23 @@ export function TriviaScene({ handle }: SceneComponentProps) {
     };
   }, [phase]);
 
+  function openInitials() {
+    handle.reportActivity();
+    setPhase("initials");
+  }
+
+  function closeInitials() {
+    handle.reportActivity();
+    setPhase("start");
+  }
+
+  function shiftInitial(position: number, step: number) {
+    handle.reportActivity();
+    setTag((current) =>
+      [...current].map((letter, i) => (i === position ? shiftLetter(letter, step) : letter)).join(""),
+    );
+  }
+
   function startRound() {
     handle.reportActivity();
     setRound(pickRound(TRIVIA_QUESTIONS));
@@ -140,7 +161,7 @@ export function TriviaScene({ handle }: SceneComponentProps) {
       // Saved here, once per round, rather than whenever the end screen
       // shows: the leader board's Back button returns to the end screen. A
       // failure is only logged, so the visitor's round still ends normally.
-      submitScore({ tag: DEFAULT_TAG, score }).catch((error: unknown) => {
+      submitScore({ tag, score }).catch((error: unknown) => {
         console.error("TriviaScene: could not save score", error);
       });
       setPhase("end");
@@ -157,16 +178,17 @@ export function TriviaScene({ handle }: SceneComponentProps) {
     setPhase("start");
   }
 
-  function openLeaderboard() {
+  function openLeaderboard(from: "start" | "end") {
     handle.reportActivity();
     setLeaderboard(null);
     setLeaderboardFailed(false);
+    setLeaderboardReturn(from);
     setPhase("leaderboard");
   }
 
   function closeLeaderboard() {
     handle.reportActivity();
-    setPhase("end");
+    setPhase(leaderboardReturn);
   }
 
   return (
@@ -176,7 +198,11 @@ export function TriviaScene({ handle }: SceneComponentProps) {
     <SceneFrame className="bg-[#d9d9d9] bg-[url('/images/trivia-pattern.svg')] bg-[length:40%_auto] bg-repeat">
       <ScoreBar score={score} phase={phase} timeLeft={timeLeft} />
 
-      {phase === "start" && <StartScreen onStart={startRound} />}
+      {phase === "start" && <StartScreen onStart={openInitials} onLeaderboard={() => openLeaderboard("start")} />}
+
+      {phase === "initials" && (
+        <InitialsScreen tag={tag} onShift={shiftInitial} onStart={startRound} onBack={closeInitials} />
+      )}
 
       {phase === "question" && current && (
         <QuestionScreen engagement={current} selected={selected} onAnswer={answer} />
@@ -190,7 +216,7 @@ export function TriviaScene({ handle }: SceneComponentProps) {
         <EndScreen
           score={score}
           onPlayAgain={playAgain}
-          onLeaderboard={openLeaderboard}
+          onLeaderboard={() => openLeaderboard("end")}
           onExit={handle.goToMainMenu}
         />
       )}
@@ -242,14 +268,120 @@ function ClockIcon() {
 
 /**
  * The opening screen, from the trivia mockup: a bold purple question in the
- * upper part of the scene, with a purple pill button under it.
+ * upper part of the scene, with "Let's go!" (on to the initials screen) and
+ * "Score Board" (the leader board) under it.
  */
-function StartScreen({ onStart }: { onStart: () => void }) {
+function StartScreen({ onStart, onLeaderboard }: { onStart: () => void; onLeaderboard: () => void }) {
   return (
-    <div className="flex flex-1 flex-col items-center gap-[clamp(2rem,7dvh,5rem)] px-[12%] pt-[clamp(2rem,10dvh,7rem)]">
+    <div className="flex flex-1 flex-col items-center px-[12%] pt-[clamp(2rem,10dvh,7rem)]">
       <p className={`text-center ${HEADING_TEXT}`}>Think you got what it takes to ace this Lipscomb Trivia?</p>
-      <PillButton onClick={onStart}>Game on!</PillButton>
+      <div className="mt-[clamp(2rem,7dvh,5rem)] flex w-full flex-col items-center gap-[clamp(0.75rem,2.5dvh,2rem)]">
+        <PillButton onClick={onStart}>
+          <span className="inline-flex items-center gap-[0.35em]">
+            Let&apos;s go!
+            <ArrowRightIcon />
+          </span>
+        </PillButton>
+        <PillButton onClick={onLeaderboard}>Score Board</PillButton>
+      </div>
     </div>
+  );
+}
+
+/**
+ * Where the visitor picks the three initials saved with their score, from the
+ * initials mockup. Each letter sits between two gold arrows: the lower one
+ * steps forward through the alphabet (A, B, C…) and the upper one steps back
+ * (A, Z, Y…). "Game on!" starts the round and "Back" returns to the start.
+ */
+function InitialsScreen({
+  tag,
+  onShift,
+  onStart,
+  onBack,
+}: {
+  tag: string;
+  onShift: (position: number, step: number) => void;
+  onStart: () => void;
+  onBack: () => void;
+}) {
+  return (
+    <div className="flex flex-1 flex-col items-center px-[8%] pt-[clamp(1.5rem,7dvh,5rem)]">
+      <p className={`text-center ${HEADING_TEXT}`}>Enter your initials</p>
+      <div className="mt-[clamp(0.75rem,2.5dvh,2rem)] flex justify-center gap-[clamp(0.5rem,3vw,1.5rem)]">
+        {[...tag].map((letter, position) => (
+          <div
+            key={position}
+            role="group"
+            aria-label={`Initial ${position + 1}`}
+            className="flex flex-col items-center gap-[clamp(0.25rem,1dvh,0.75rem)]"
+          >
+            <ArrowButton
+              direction="up"
+              label={`Initial ${position + 1}: previous letter`}
+              onClick={() => onShift(position, -1)}
+            />
+            <LetterBox letter={letter} />
+            <ArrowButton
+              direction="down"
+              label={`Initial ${position + 1}: next letter`}
+              onClick={() => onShift(position, 1)}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="mt-[clamp(1.5rem,5dvh,4rem)] flex w-full flex-col items-center gap-[clamp(0.75rem,2.5dvh,2rem)]">
+        <PillButton onClick={onStart}>Game on!</PillButton>
+        <PillButton onClick={onBack}>Back</PillButton>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One initial: a lavender card with a thick purple outline and a thinner
+ * purple line inside it, from the mockup.
+ */
+function LetterBox({ letter }: { letter: string }) {
+  return (
+    <div className="rounded-[clamp(0.75rem,2.5dvh,1.75rem)] border-[clamp(3px,0.8vw,6px)] border-[var(--luke-purple)] bg-[var(--luke-lavender)] p-[clamp(2px,0.6vw,4px)]">
+      <div
+        aria-live="polite"
+        className="flex h-[clamp(4rem,22vw,10rem)] w-[clamp(3.25rem,18vw,8rem)] items-center justify-center rounded-[clamp(0.5rem,1.75dvh,1.25rem)] border-[clamp(1.5px,0.4vw,3px)] border-[var(--luke-purple)] text-[clamp(2rem,11vw,5.5rem)] font-medium text-[var(--luke-purple)]"
+      >
+        {letter}
+      </div>
+    </div>
+  );
+}
+
+/** A gold triangle with a purple outline that steps one initial up or down. */
+function ArrowButton({
+  direction,
+  label,
+  onClick,
+}: {
+  direction: "up" | "down";
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className="w-[clamp(2.5rem,13vw,6rem)] transition-[filter] active:brightness-90"
+    >
+      <svg viewBox="0 0 40 30" className="block w-full" aria-hidden="true">
+        <polygon
+          points={direction === "up" ? "20,3 37,27 3,27" : "3,3 37,3 20,27"}
+          fill="var(--luke-gold)"
+          stroke="var(--luke-purple)"
+          strokeWidth={2.5}
+          strokeLinejoin="round"
+        />
+      </svg>
+    </button>
   );
 }
 
