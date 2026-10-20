@@ -28,7 +28,7 @@ const NAV_MENU_ITEMS = [
  *
  * It owns the same three responsibilities the Processing class did:
  *
- *  1.  *  1. Hold the scene carousel, plus the idle scene and main menu held apart
+ *  1. Hold the scene carousel, plus the idle scene and main menu held apart
  *     from it. A tap on idle opens the main menu; picking a page there enters
  *     the carousel. Only a scene calling `handle.goToMainMenu()` (trivia's Exit
  *     button) or the header menu's "Home" entry returns there.
