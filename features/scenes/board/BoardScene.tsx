@@ -29,6 +29,7 @@ interface Point {
 export function BoardScene({ bounds }: SceneComponentProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
+  const activePointerIdRef = useRef<number | null>(null);
   // Upstream `points`: the previous segment endpoint, -1 when not drawing.
   const lastPointRef = useRef<Point | null>(null);
   const [eraseMode, setEraseMode] = useState(false);
@@ -47,11 +48,14 @@ export function BoardScene({ bounds }: SceneComponentProps) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const context = canvas.getContext("2d");
+    if (!context) return;
 
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
-    clearCanvas();
-  }, [clearCanvas]);
+    context.fillStyle = "white";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  }, []);
 
   function canvasPoint(event: React.PointerEvent<HTMLCanvasElement>): Point {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -59,12 +63,15 @@ export function BoardScene({ bounds }: SceneComponentProps) {
   }
 
   function handlePointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (activePointerIdRef.current !== null) return;
+    activePointerIdRef.current = event.pointerId;
     event.currentTarget.setPointerCapture(event.pointerId);
     drawingRef.current = true;
     lastPointRef.current = canvasPoint(event);
   }
 
   function handlePointerMove(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (event.pointerId !== activePointerIdRef.current) return;
     if (!drawingRef.current) return;
 
     const context = canvasRef.current?.getContext("2d");
@@ -85,9 +92,14 @@ export function BoardScene({ bounds }: SceneComponentProps) {
   }
 
   // `ClickRelease()` reset the point chain so strokes don't reconnect.
-  function endStroke() {
+  function endStroke(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (event.pointerId !== activePointerIdRef.current) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
     drawingRef.current = false;
     lastPointRef.current = null;
+    activePointerIdRef.current = null;
   }
 
   return (

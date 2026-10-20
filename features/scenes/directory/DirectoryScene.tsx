@@ -5,6 +5,7 @@ import Image from "next/image";
 import { SceneFrame } from "@/components/SceneFrame";
 import type { SceneComponentProps } from "@/features/kiosk/types";
 import { CreditsView } from "./CreditsView";
+import { MajorsView } from "./MajorsView";
 
 interface StaffRecord {
   name: string;
@@ -261,6 +262,7 @@ export function DirectoryScene({ handle }: SceneComponentProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [failedImage, setFailedImage] = useState<string | null>(null);
   const [showCredits, setShowCredits] = useState(false);
+  const [showMajors, setShowMajors] = useState(false);
 
   const visiblePeople = useMemo(() => {
     if (selectedCategory === "All Staff") {
@@ -296,6 +298,15 @@ export function DirectoryScene({ handle }: SceneComponentProps) {
     return (
       <SceneFrame className="bg-white text-black">
         <CreditsView onBack={() => setShowCredits(false)} onActivity={() => handle.reportActivity()} />
+      </SceneFrame>
+    );
+  }
+
+  
+  if (showMajors) {
+    return (
+      <SceneFrame className="bg-white text-black">
+        <MajorsView onBack={() => setShowMajors(false)} onActivity={() => handle.reportActivity()} />
       </SceneFrame>
     );
   }
@@ -352,16 +363,28 @@ export function DirectoryScene({ handle }: SceneComponentProps) {
           </div>
 
           <div className="-mx-3 mt-4 grid flex-none grid-cols-[1fr_auto_1fr] items-center pb-1 sm:-mx-7">
-                        <button
-              type="button"
-              onClick={() => {
-                handle.reportActivity();
-                setShowCredits(true);
-              }}
-              className="justify-self-start rounded-md border border-[#2B0A54]/40 bg-white px-5 py-2 text-sm font-medium text-[#2B0A54] transition-colors hover:border-[#AD8C45] hover:bg-[#AD8C45]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#AD8C45]"
-            >
-              Credits
-            </button>
+                                    <div className="flex items-center gap-3 justify-self-start">
+              <button
+                type="button"
+                onClick={() => {
+                  handle.reportActivity();
+                  setShowMajors(true);
+                }}
+                className="rounded-md border border-[#2B0A54]/40 bg-white px-5 py-2 text-sm font-medium text-[#2B0A54] transition-colors hover:border-[#AD8C45] hover:bg-[#AD8C45]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#AD8C45]"
+              >
+                Our Majors
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handle.reportActivity();
+                  setShowCredits(true);
+                }}
+                className="rounded-md border border-[#2B0A54]/40 bg-white px-5 py-2 text-sm font-medium text-[#2B0A54] transition-colors hover:border-[#AD8C45] hover:bg-[#AD8C45]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#AD8C45]"
+              >
+                Credits
+              </button>
+            </div>
             <div className="flex items-center justify-center gap-3">
               <button
                 type="button"
