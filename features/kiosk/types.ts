@@ -20,7 +20,7 @@ export interface SceneHandle {
   /**
    * Reset the idle countdown. The Processing build got this for free because
    * `DisplayManager.Click()` saw every tap; here a scene reports its own
-   * interaction so auto-advance does not fire mid-use.
+   * interaction so the session does not time out mid-use.
    */
   reportActivity: () => void;
   /** Advance the carousel (`DisplayManager.NextScene(false)`). */
@@ -29,6 +29,8 @@ export interface SceneHandle {
   previousScene: () => void;
   /** Abandon the session and return to idle (`DisplayManager.ExitCarousel()`). */
   exitCarousel: () => void;
+  /** Jump straight to a carousel scene by id, as the main menu and `NavMenu` do. */
+  goToScene: (sceneId: string) => void;
 }
 
 export interface SceneComponentProps {
