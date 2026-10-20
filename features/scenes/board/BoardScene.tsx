@@ -51,10 +51,53 @@ export function BoardScene({ bounds }: SceneComponentProps) {
     const context = canvas.getContext("2d");
     if (!context) return;
 
-    canvas.width = canvas.clientWidth;
-    canvas.height = canvas.clientHeight;
-    context.fillStyle = "white";
-    context.fillRect(0, 0, canvas.width, canvas.height);
+    const resizeCanvas = (preservePixels: boolean) => {
+      const nextWidth = canvas.clientWidth;
+      const nextHeight = canvas.clientHeight;
+      if (nextWidth <= 0 || nextHeight <= 0) return;
+      if (
+        preservePixels &&
+        canvas.width === nextWidth &&
+        canvas.height === nextHeight
+      ) return;
+
+      const previousCanvas =
+        preservePixels && canvas.width > 0 && canvas.height > 0
+          ? (() => {
+              const snapshot = document.createElement("canvas");
+              snapshot.width = canvas.width;
+              snapshot.height = canvas.height;
+              snapshot.getContext("2d")?.drawImage(canvas, 0, 0);
+              return snapshot;
+            })()
+          : null;
+
+      canvas.width = nextWidth;
+      canvas.height = nextHeight;
+      context.fillStyle = "white";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+
+      if (previousCanvas) {
+        context.drawImage(previousCanvas, 0, 0, canvas.width, canvas.height);
+      }
+    };
+
+    resizeCanvas(false);
+
+    const handleResize = () => {
+      drawingRef.current = false;
+      lastPointRef.current = null;
+      activePointerIdRef.current = null;
+      resizeCanvas(true);
+    };
+
+    window.addEventListener("resize", handleResize);
+    window.visualViewport?.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.visualViewport?.removeEventListener("resize", handleResize);
+    };
   }, []);
 
   function canvasPoint(event: React.PointerEvent<HTMLCanvasElement>): Point {
