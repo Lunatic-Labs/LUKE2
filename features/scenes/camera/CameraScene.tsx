@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { SceneFrame } from "@/components/SceneFrame";
 import type { SceneComponentProps } from "@/features/kiosk/types";
-import { captureFrame, uploadPhoto } from "./capture";
+import { captureFrame, idealCaptureSize, uploadPhoto } from "./capture";
 
 /**
  * Take a Picture!
@@ -205,7 +205,20 @@ async function openCamera(): Promise<MediaStream> {
       { name: "InsecureContextError" },
     );
   }
-  return navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+  // Without explicit constraints browsers fall back to a 640x480 default profile,
+  // which pixelates when stretched across the kiosk screen. Asking for the
+  // screen's size as an `ideal` makes the camera give its best profile up to
+  // that, so a weak camera degrades gracefully instead of failing the call.
+  const { width, height } = idealCaptureSize();
+  return navigator.mediaDevices.getUserMedia({
+    video: {
+      facingMode: "user",
+      width: { ideal: width },
+      height: { ideal: height },
+      frameRate: { ideal: 30 },
+    },
+    audio: false,
+  });
 }
 
 function stopStream(stream: MediaStream) {

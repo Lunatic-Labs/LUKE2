@@ -1,9 +1,10 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { SceneHandle } from "@/features/kiosk/types";
-import { captureFrame, uploadPhoto } from "./capture";
+import { captureFrame, idealCaptureSize, uploadPhoto } from "./capture";
 import { CameraScene, COOLDOWN_MS, COUNTDOWN_STEP_MS, THANK_YOU_TEXT } from "./CameraScene";
 
 jest.mock("./capture", () => ({
+  ...jest.requireActual("./capture"),
   captureFrame: jest.fn(),
   uploadPhoto: jest.fn(),
 }));
@@ -26,6 +27,13 @@ function mockCamera(getUserMedia: jest.Mock | undefined) {
 function fakeStream() {
   const track = { stop: jest.fn() };
   return { stream: { getTracks: () => [track] } as unknown as MediaStream, track };
+}
+
+/** Pin the screen metrics `idealCaptureSize` reads; undone by afterEach's deleteProperties. */
+function setScreenSize(width: number, height: number, dpr: number) {
+  Object.defineProperty(window.screen, "width", { configurable: true, value: width });
+  Object.defineProperty(window.screen, "height", { configurable: true, value: height });
+  Object.defineProperty(window, "devicePixelRatio", { configurable: true, value: dpr });
 }
 
 /** Render and let getUserMedia settle; by default the video then delivers its first frame. */
@@ -59,13 +67,41 @@ describe("CameraScene", () => {
   afterEach(() => {
     jest.useRealTimers();
     jest.restoreAllMocks();
+    // Own-property overrides from setScreenSize; deleting restores the getters.
+    Reflect.deleteProperty(window.screen, "width");
+    Reflect.deleteProperty(window.screen, "height");
+    Reflect.deleteProperty(window, "devicePixelRatio");
   });
 
   it("prompts for a picture once the camera is open", async () => {
-    mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+    const getUserMedia = jest.fn().mockResolvedValue(fakeStream().stream);
+    mockCamera(getUserMedia);
     await renderScene();
 
     expect(screen.getByText("Touch to take a picture!")).toBeInTheDocument();
+  });
+
+  it("requests the camera's best profile up to the screen's resolution", async () => {
+    setScreenSize(3840, 2160, 1);
+    const getUserMedia = jest.fn().mockResolvedValue(fakeStream().stream);
+    mockCamera(getUserMedia);
+    await renderScene();
+
+    // The constraint is the screen size itself; the camera caps it from there.
+    expect(getUserMedia).toHaveBeenCalledWith({
+      video: {
+        facingMode: "user",
+        width: { ideal: 3840 },
+        height: { ideal: 2160 },
+        frameRate: { ideal: 30 },
+      },
+      audio: false,
+    });
+  });
+
+  it("falls back to full HD when the screen size is unavailable", async () => {
+    setScreenSize(0, 0, 1);
+    expect(idealCaptureSize()).toEqual({ width: 1920, height: 1080 });
   });
 
   it("waits for the first video frame before accepting a tap", async () => {
