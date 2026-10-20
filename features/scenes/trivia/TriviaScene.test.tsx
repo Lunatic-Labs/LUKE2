@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { SceneHandle } from "@/features/kiosk/types";
 import { QUESTION_SECONDS, scoreForAnswer } from "./engagement";
 import { fetchLeaderboard, submitScore } from "./scores";
-import { SELECTION_HOLD_MS, TriviaScene } from "./TriviaScene";
+import { GHOST_SECONDS, RESULT_IDLE_SECONDS, SELECTION_HOLD_MS, TriviaScene } from "./TriviaScene";
 
 // A fixed round, so tests know which answer is right and where it sits.
 jest.mock("./engagement", () => {
@@ -219,6 +219,78 @@ describe("TriviaScene", () => {
 
     expect(screen.getByText("Time's up!")).toBeInTheDocument();
     expect(screen.getByText("Correct answer: Swang")).toBeInTheDocument();
+  });
+
+  it("shows the score but no timer on a result screen, and doesn't move on by itself", async () => {
+    renderAndStart();
+    fireEvent.click(screen.getByRole("button", { name: "Swang" }));
+    await advance(SELECTION_HOLD_MS);
+
+    expect(screen.getByText(`Score: ${scoreForAnswer(QUESTION_SECONDS)}`)).toBeInTheDocument();
+    expect(screen.queryByText(/seconds?$/)).not.toBeInTheDocument();
+
+    await advance(RESULT_IDLE_SECONDS * 1000 - 1);
+    expect(screen.getByText("Nailed it!")).toBeInTheDocument();
+  });
+
+  it("asks Don't ghost the quiz! once a result screen has been left alone", async () => {
+    renderAndStart();
+    fireEvent.click(screen.getByRole("button", { name: "Swang" }));
+    await advance(SELECTION_HOLD_MS);
+    jest.mocked(handle.reportActivity).mockClear();
+
+    await advance(RESULT_IDLE_SECONDS * 1000);
+
+    expect(screen.getByText("Don't ghost the quiz!")).toBeInTheDocument();
+    expect(screen.getByText(`Score: ${scoreForAnswer(QUESTION_SECONDS)}`)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Keep Going" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "I'm outta here!" })).toBeInTheDocument();
+    // Keeps the kiosk session alive while the question is asked.
+    expect(handle.reportActivity).toHaveBeenCalled();
+  });
+
+  it("asks the same after a timeout's result screen is left alone", async () => {
+    renderAndStart();
+    for (let i = 0; i < QUESTION_SECONDS; i++) await advance(1000);
+
+    await advance(RESULT_IDLE_SECONDS * 1000);
+
+    expect(screen.getByText("Don't ghost the quiz!")).toBeInTheDocument();
+  });
+
+  it("moves to the next question from Keep Going", async () => {
+    renderAndStart();
+    fireEvent.click(screen.getByRole("button", { name: "Swang" }));
+    await advance(SELECTION_HOLD_MS);
+    await advance(RESULT_IDLE_SECONDS * 1000);
+
+    fireEvent.click(screen.getByRole("button", { name: "Keep Going" }));
+
+    expect(screen.getByText("Question 2?")).toBeInTheDocument();
+    expect(screen.getByText(`${QUESTION_SECONDS} seconds`)).toBeInTheDocument();
+  });
+
+  it("goes back to the main menu from I'm outta here!", async () => {
+    renderAndStart();
+    fireEvent.click(screen.getByRole("button", { name: "Swang" }));
+    await advance(SELECTION_HOLD_MS);
+    await advance(RESULT_IDLE_SECONDS * 1000);
+
+    fireEvent.click(screen.getByRole("button", { name: "I'm outta here!" }));
+
+    expect(handle.goToMainMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it("goes back to the main menu by itself if Don't ghost the quiz! is left alone", async () => {
+    renderAndStart();
+    fireEvent.click(screen.getByRole("button", { name: "Swang" }));
+    await advance(SELECTION_HOLD_MS);
+    await advance(RESULT_IDLE_SECONDS * 1000);
+
+    await advance(GHOST_SECONDS * 1000 - 1);
+    expect(handle.goToMainMenu).not.toHaveBeenCalled();
+    await advance(1);
+    expect(handle.goToMainMenu).toHaveBeenCalledTimes(1);
   });
 
   it("moves to the next question from Next up", async () => {

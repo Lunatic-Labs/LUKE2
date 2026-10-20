@@ -7,12 +7,21 @@ import { pickRound, QUESTION_SECONDS, scoreForAnswer, type Engagement } from "./
 import { TRIVIA_QUESTIONS } from "./questions";
 import { DEFAULT_TAG, fetchLeaderboard, shiftLetter, submitScore, type Leaderboard } from "./scores";
 
-const ANSWERED_RESULT_SECONDS = 40;
-const TIMEOUT_RESULT_SECONDS = 15;
+/**
+ * How long a result screen waits, untouched, before asking "Don't ghost the
+ * quiz!". Kept under the kiosk's 60-second `sessionIdleSeconds`, which would
+ * otherwise end the session first and the question would never be asked.
+ */
+export const RESULT_IDLE_SECONDS = 55;
+/**
+ * How long "Don't ghost the quiz!" waits before giving up and going back to
+ * the main menu. Under 60 seconds for the same reason.
+ */
+export const GHOST_SECONDS = 55;
 /** How long a chosen answer stays highlighted before the result screen. */
 export const SELECTION_HOLD_MS = 400;
 
-type Phase = "start" | "initials" | "question" | "result" | "end" | "leaderboard";
+type Phase = "start" | "initials" | "question" | "result" | "ghost" | "end" | "leaderboard";
 type ResultOutcome = "correct" | "wrong" | "timeout";
 
 /**
@@ -22,10 +31,13 @@ type ResultOutcome = "correct" | "wrong" | "timeout";
  * start screen, then (question, result) pairs for five questions, then an end
  * screen — and drove it with a single `currentEngagementIndex`. Here that
  * becomes an explicit `phase`, which reads more clearly in React. It keeps
- * upstream's 40s on a result screen reached by answering, 15s on one reached
- * by timing out (so "Time's up!" doesn't linger as long as "Nailed it!"/"Oops!"
- * does), and `(secondsRemaining * 69) + 100` points for a correct answer.
+ * upstream's `(secondsRemaining * 69) + 100` points for a correct answer.
  * Each question gets `QUESTION_SECONDS` (25s) rather than upstream's 15s.
+ *
+ * Upstream's result screens moved on by themselves after 40s (15s after a
+ * timeout). Here they wait for "Next up"; left alone for
+ * `RESULT_IDLE_SECONDS`, they ask "Don't ghost the quiz!", which returns to
+ * the main menu if it's left alone for `GHOST_SECONDS` too.
  *
  * `TriviaGameManager.pde`'s `Game` class was dead code upstream (nothing ever
  * constructed one) and has no counterpart here — see `engagement.ts`.
@@ -51,45 +63,52 @@ export function TriviaScene({ handle }: SceneComponentProps) {
   const finished = phase === "end";
   const current = round[questionIndex];
 
-  // Ticks whenever a question or a result screen is showing. Keyed on
-  // (phase, questionIndex) rather than `timeLeft` so it restarts exactly once
-  // per screen instead of on every second. It stops while a chosen answer is
+  // Ticks once a second while a question is showing, and shows "Time's up!"
+  // when the clock reaches zero. It stops while a chosen answer is
   // highlighted, so the clock can't run out after the visitor has answered.
   useEffect(() => {
-    if (phase !== "question" && phase !== "result") return;
-    if (selected !== null) return;
+    if (phase !== "question" || selected !== null) return;
 
-    const interval = setInterval(() => {
-      setTimeLeft((previous) => Math.max(0, previous - 1));
+    const tick = setTimeout(() => {
+      if (timeLeft > 1) {
+        setTimeLeft(timeLeft - 1);
+        return;
+      }
+      setTimeLeft(0);
+      setOutcome("timeout");
+      setPhase("result");
     }, 1000);
 
-    return () => clearInterval(interval);
-  }, [phase, questionIndex, selected]);
+    return () => clearTimeout(tick);
+  }, [phase, selected, timeLeft]);
 
   // After the chosen answer has been highlighted, move on to its result.
   useEffect(() => {
     if (selected === null) return;
     const timer = setTimeout(() => {
       setSelected(null);
-      setTimeLeft(ANSWERED_RESULT_SECONDS);
       setPhase("result");
     }, SELECTION_HOLD_MS);
     return () => clearTimeout(timer);
   }, [selected]);
 
+  // A result screen left alone for `RESULT_IDLE_SECONDS` asks whether the
+  // visitor is still there. Keyed on questionIndex so each result gets the
+  // full wait.
   useEffect(() => {
-    if (timeLeft > 0) return;
-    if (phase === "question") {
-      setOutcome("timeout");
-      setTimeLeft(TIMEOUT_RESULT_SECONDS);
-      setPhase("result");
-    } else if (phase === "result") {
-      advance();
-    }
-    // advance() closes over state that's current as of this render; the effect
-    // re-runs whenever any of it changes, so this is safe to omit from deps.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeLeft, phase]);
+    if (phase !== "result") return;
+    const timer = setTimeout(() => setPhase("ghost"), RESULT_IDLE_SECONDS * 1000);
+    return () => clearTimeout(timer);
+  }, [phase, questionIndex]);
+
+  // "Don't ghost the quiz!" restarts the kiosk's idle clock, so the session
+  // lasts long enough to show it, then gives up after `GHOST_SECONDS`.
+  useEffect(() => {
+    if (phase !== "ghost") return;
+    handle.reportActivity();
+    const timer = setTimeout(() => handle.goToMainMenu(), GHOST_SECONDS * 1000);
+    return () => clearTimeout(timer);
+  }, [phase, handle]);
 
   // Load the saved scores whenever the leader board opens. It's cleared when
   // the board is opened, so only the response's state updates happen here.
@@ -212,6 +231,8 @@ export function TriviaScene({ handle }: SceneComponentProps) {
         <ResultScreen outcome={outcome} correctResponse={current.correctResponse} onContinue={continueRound} />
       )}
 
+      {phase === "ghost" && <GhostScreen onContinue={continueRound} onExit={handle.goToMainMenu} />}
+
       {finished && (
         <EndScreen
           score={score}
@@ -231,18 +252,20 @@ export function TriviaScene({ handle }: SceneComponentProps) {
 function ScoreBar({ score, phase, timeLeft }: { score: number; phase: Phase; timeLeft: number }) {
   // Only shown during a round: there's no score before it, and the end
   // screen shows the final score itself.
-  if (phase !== "question" && phase !== "result") return null;
+  if (phase !== "question" && phase !== "result" && phase !== "ghost") return null;
 
-  // Question and result screens: a purple card at the top, from the quiz
-  // mockup, with the score over a clock and the seconds left.
+  // A purple card at the top, from the quiz mockup, with the score. Questions
+  // also show a clock and the seconds left; result screens have no clock.
   return (
     <div className="flex shrink-0 justify-center pt-[clamp(0.75rem,2.5dvh,2rem)]">
       <div className="flex flex-col items-center rounded-[clamp(0.75rem,2dvh,1.5rem)] bg-[var(--luke-purple)] px-[clamp(1.5rem,10vw,5rem)] py-[clamp(0.375rem,1.25dvh,1rem)] text-[clamp(0.875rem,4vw,2rem)] leading-snug font-bold text-[var(--luke-gold)]">
         <span>Score: {score}</span>
-        <span className="flex items-center gap-[0.3em]">
-          <ClockIcon />
-          {timeLeft} {timeLeft === 1 ? "second" : "seconds"}
-        </span>
+        {phase === "question" && (
+          <span className="flex items-center gap-[0.3em]">
+            <ClockIcon />
+            {timeLeft} {timeLeft === 1 ? "second" : "seconds"}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -436,7 +459,33 @@ function ResultScreen({
   );
 }
 
-/** Bold purple heading text shared by the start, question, end and leader board screens. */
+/**
+ * Shown when a result screen has been left alone for `RESULT_IDLE_SECONDS`,
+ * from the "ghost" mockup: a heading, a ghost, and two buttons. "Keep Going"
+ * moves on as "Next up" would, and "I'm outta here!" goes back to the main
+ * menu.
+ */
+function GhostScreen({ onContinue, onExit }: { onContinue: () => void; onExit: () => void }) {
+  return (
+    <div className="flex flex-1 flex-col items-center px-[8%] pt-[clamp(2rem,7dvh,5rem)]">
+      <p className={`text-center ${HEADING_TEXT}`}>Don&apos;t ghost the quiz!</p>
+      <p aria-hidden="true" className="mt-[clamp(0.5rem,1.5dvh,1rem)] text-[clamp(2.5rem,13vw,6rem)] leading-none">
+        👻
+      </p>
+      <div className="mt-[clamp(0.75rem,2.5dvh,2rem)] flex w-full flex-col items-center gap-[clamp(0.75rem,2.5dvh,2rem)]">
+        <PillButton onClick={onContinue}>
+          <span className="inline-flex items-center gap-[0.35em]">
+            Keep Going
+            <ArrowRightIcon />
+          </span>
+        </PillButton>
+        <PillButton onClick={onExit}>I&apos;m outta here!</PillButton>
+      </div>
+    </div>
+  );
+}
+
+/** Bold purple heading text shared by the start, initials, question, ghost, end and leader board screens. */
 const HEADING_TEXT = "text-[clamp(1.25rem,6.5vw,3.25rem)] leading-tight font-bold text-[var(--luke-purple)]";
 
 /** The purple pill with gold text used for every button outside the answer grid. */

@@ -13,8 +13,11 @@ the original and in the redesign.
 ```
 start ──Let's go!──▶ initials ──Game on!──▶ question ──answer──▶ result ──Next up──▶ question …
   │ ▲                   │                       │                    ▲
-  │ └───────Back────────┘                       └──25s runs out──────┘
-  └──Score Board──▶ leader board ──Back──▶ start
+  │ └───────Back────────┘                       └──25s runs out──────┘  │ 55s untouched
+  └──Score Board──▶ leader board ──Back──▶ start                              ▼
+                                                  Don't ghost the quiz! ──Keep Going──▶ next question
+                                                       ├──I'm outta here!──▶ kiosk main menu
+                                                       └──55s untouched────▶ kiosk main menu
                                             after question 5 ──▶ end ──Play again?──▶ start
                                                                   │ ├──Exit──▶ kiosk main menu
                                                                   │ └──Leader Board──▶ leader board
@@ -37,7 +40,16 @@ start ──Let's go!──▶ initials ──Game on!──▶ question ──a
    result appears. Only the first tap counts.
 4. **Result:** "Nailed it!" after a right answer. After a wrong answer it
    shows "Oops!", or "Time's up!" if the clock ran out, with "Correct
-   answer: …" underneath. Each has a "Next up →" button.
+   answer: …" underneath. Each has a "Next up →" button. The score card
+   shows the score only, with no timer, and the screen waits for a tap.
+   - **Don't ghost the quiz!:** if a result screen is left alone for 55
+     seconds (`RESULT_IDLE_SECONDS`), it's replaced by "Don't ghost the
+     quiz!" with a ghost (👻), the score card, and two buttons. **Keep Going
+     →** moves on exactly as "Next up" would (to the next question, or to
+     the end screen after question 5). **I'm outta here!** goes back to the
+     kiosk's main menu. Left alone for another 55 seconds (`GHOST_SECONDS`),
+     it goes back to the main menu by itself. Leaving this way doesn't save
+     the round's score, since the round wasn't finished.
 5. Steps 3 and 4 repeat for five questions.
 6. **End:** the score is saved, and the screen shows "Thank you for
    playing!", "🦬 That's a wrap, Bison!", the visitor's score, and three
@@ -60,21 +72,23 @@ start ──Let's go!──▶ initials ──Game on!──▶ question ──a
 | ------------------------------ | -------------------------------------- |
 | Question                       | 25 seconds, then "Time's up!"          |
 | Chosen answer highlighted      | 0.4 seconds; the clock is paused       |
-| Result after answering         | 40 seconds                             |
-| Result after the clock ran out | 15 seconds                             |
+| Result (after answering or a timeout) | 55 seconds, then "Don't ghost the quiz!" |
+| Don't ghost the quiz!          | 55 seconds, then the kiosk's main menu |
 | Start, initials, end, leader board | Never; they wait for a tap         |
 
-The two result timers are `ANSWERED_RESULT_SECONDS` and
-`TIMEOUT_RESULT_SECONDS` in `TriviaScene.tsx`; the question timer is
-`QUESTION_SECONDS` in `engagement.ts`.
+The two 55-second waits are `RESULT_IDLE_SECONDS` and `GHOST_SECONDS` in
+`TriviaScene.tsx`; the question timer is `QUESTION_SECONDS` in
+`engagement.ts`.
 
-The kiosk's own idle clock still applies on top of this: a scene left alone
-for 30 seconds advances the carousel (see `features/kiosk/KioskShell`). Each
-tap in the scene calls `handle.reportActivity()` to reset it. The
-25-second question clock is shorter than that, so an untouched question
-always reaches "Time's up!". A result screen after an answer waits 40
-seconds, though, so if nobody touches it, the kiosk moves on to the next
-page before the game moves on to the next question.
+The kiosk's own idle clock still applies on top of this: a session left
+alone for 60 seconds (`sessionIdleSeconds`) ends and the welcome screen
+returns (see `features/kiosk/KioskShell`). Each tap in the scene calls
+`handle.reportActivity()` to reset it. That's why both waits are 55 seconds
+rather than a full minute: a 60-second wait on a result screen would lose
+the race with the kiosk's clock, and "Don't ghost the quiz!" would never
+appear. "Don't ghost the quiz!" also calls `handle.reportActivity()` when it
+appears, so the kiosk's clock starts again and the screen gets its full 55
+seconds.
 
 ### Scoring
 
@@ -176,12 +190,15 @@ authentication.
 
 The screen itself. Upstream drove the round with one flat array of screens
 and an index into it; here a `phase` state (`start`, `initials`, `question`,
-`result`, `end`, `leaderboard`) says which screen is showing. A `tag` state
-holds the visitor's initials. Two effects run the clock: one ticks
-`timeLeft` down every second on question and result screens, the other acts
-when it reaches zero. A `selected` state holds the answer just tapped; while
-it's set, the clock is paused, and a third effect moves to the result screen
-after `SELECTION_HOLD_MS`.
+`result`, `ghost`, `end`, `leaderboard`) says which screen is showing. A
+`tag` state holds the visitor's initials. One effect runs the question clock,
+ticking `timeLeft` down every second and showing "Time's up!" when it
+reaches zero. A `selected` state holds the answer just tapped; while it's
+set, the clock is paused, and a second effect moves to the result screen
+after `SELECTION_HOLD_MS`. Two more effects handle a visitor walking away:
+one moves a result screen to `ghost` after `RESULT_IDLE_SECONDS`, and the
+other, on `ghost`, resets the kiosk's idle clock and calls
+`handle.goToMainMenu()` after `GHOST_SECONDS`.
 
 It is split into small components, one per part of the screen:
 
@@ -190,18 +207,23 @@ It is split into small components, one per part of the screen:
 - **`InitialsScreen`:** "Enter your initials", the three `LetterBox`es with
   an `ArrowButton` above and below each, "Game on!" and "Back". The arrows
   call `shiftLetter()` from `scores.ts` with -1 (upper) or +1 (lower).
-- **`ScoreBar`:** a purple card with gold text: "Score: N" above a clock
-  icon and "N seconds". Only shown on question and result screens.
+- **`ScoreBar`:** a purple card with gold text: "Score: N", with a clock
+  icon and "N seconds" under it on question screens only. Shown on question,
+  result and "Don't ghost the quiz!" screens.
 - **`QuestionScreen`** and **`AnswerGrid`:** the question and its four
   answers as lavender cards with thick purple outlines. The tapped card turns
   yellow and the other three are disabled.
 - **`ResultScreen`:** the result after each question: a heading from
   `RESULT_HEADINGS`, the correct answer after a miss, and the "Next up"
   button.
+- **`GhostScreen`:** "Don't ghost the quiz!", the ghost, "Keep Going →"
+  (which calls the same `continueRound()` as "Next up") and "I'm outta
+  here!" (which calls `handle.goToMainMenu()`).
 - **`PillButton`:** the purple pill with gold text used for every button
   outside the answer grid: "Let's go!", "Score Board", "Game on!", "Next
-  up", the end screen's three buttons and both "Back" buttons. `HEADING_TEXT` is the bold purple heading style used
-  by the start, question, end and leader board screens. The result screen's
+  up", "Keep Going", "I'm outta here!", the end screen's three buttons and
+  both "Back" buttons. `HEADING_TEXT` is the bold purple heading style used
+  by the start, initials, question, ghost, end and leader board screens. The result screen's
   text uses the same size, written out in `ResultScreen`.
 - **`EndScreen`:** the thank-you heading, the final score and the three
   buttons. "Play again?" sets the phase back to `start`; "Leader Board" sets
@@ -314,10 +336,11 @@ reasons, is in the repo's [`CSS.md`](../../../CSS.md).
   outline and a thinner purple line inside it, and a gold triangle with a
   purple outline above and below. "Game on!" and "Back" pill buttons are
   stacked underneath.
-- **Score card:** on question and result screens, the score and timer sit
-  in a purple card with rounded corners and bold gold text, centred at the
-  top, with a clock icon before the seconds. It's not shown on the start,
-  end or leader board screens.
+- **Score card:** the score sits in a purple card with rounded corners and
+  bold gold text, centred at the top. On question screens the timer sits
+  under it, with a clock icon before the seconds; result and "Don't ghost
+  the quiz!" screens show the score alone. It's not shown on the start,
+  initials, end or leader board screens.
 - **Question screen:** the question is in the same bold purple as the start
   heading. The answers are a 2×2 grid of lavender cards with thick purple
   outlines and rounded corners, in the lower part of the scene. The tapped
@@ -362,6 +385,14 @@ reasons, is in the repo's [`CSS.md`](../../../CSS.md).
   - a right answer shows "Nailed it!" without the correct answer, a wrong
     one shows "Oops!" with it, and a timeout shows "Time's up!" with it;
   - "Next up" moves to the next question with the clock reset;
+  - a result screen shows the score with no timer and doesn't move on by
+    itself;
+  - a result screen left alone for `RESULT_IDLE_SECONDS`, after an answer
+    or a timeout, shows "Don't ghost the quiz!" and resets the kiosk's idle
+    clock;
+  - "Keep Going" moves to the next question, "I'm outta here!" calls
+    `goToMainMenu`, and so does leaving the screen alone for
+    `GHOST_SECONDS`;
   - the end screen saves the score once, under `AAA` if the initials
     weren't changed, and the round still ends
     normally if saving fails. Saving is faked here;
@@ -413,12 +444,11 @@ Run them with `npx jest features/scenes/trivia app/api/scores`.
   …" and "Time is UP!" became "Nailed it!", "Oops! / Correct answer: …" and
   "Time's up! / Correct answer: …". A timeout now shows the correct answer
   too. "Tap to Continue" became "Next up →".
+- Upstream's result screens moved on to the next question by themselves
+  after 40 seconds (15 after a timeout). They now wait for "Next up", and a
+  visitor who walks away gets "Don't ghost the quiz!", then the main menu.
 
 ## Status
 
 Every screen has been redesigned from the mockups, and the scene is no
-longer marked `placeholder: true` in `features/kiosk/registry.ts`. Still to
-do:
-
-- Decide whether the 40-second result screen after an answer should be
-  shorter than the kiosk's 30-second idle timeout (see "Timing").
+longer marked `placeholder: true` in `features/kiosk/registry.ts`.
