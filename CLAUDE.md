@@ -27,7 +27,7 @@ docker compose up --build                       # production image
 
 This is a Next.js (App Router) + React 19 + TypeScript (strict) + Tailwind v4 app hosting **L.U.K.E.** (Lipscomb University Kiosk Experience), ported from the Processing/Java sketch at https://github.com/Lunatic-Labs/Kiosk (`src/luke_java/`). The shell architecture is ported; most individual scenes are registered placeholders awaiting implementation.
 
-The kiosk is one full-screen route that swaps scenes client-side, mirroring the original single-window sketch — not a route per scene. `features/kiosk/KioskShell` is the `DisplayManager.pde` equivalent: it owns the carousel, the idle clock (a scene untouched for 30s advances; a session idle for 60s or one that wraps the whole carousel returns to the attract screen), and per-scene dwell logging.
+The kiosk is one full-screen route that swaps scenes client-side, mirroring the original single-window sketch — not a route per scene. `features/kiosk/KioskShell` is the `DisplayManager.pde` equivalent: it owns the carousel, the idle clock (a session idle for 60s returns to the attract screen; scenes never advance on their own), and per-scene dwell logging.
 
 To implement a scene, replace its component in `features/scenes/<name>/` and drop `placeholder: true` from its entry in `features/kiosk/registry.ts`. Doc comments in each file name the Processing source they came from.
 
