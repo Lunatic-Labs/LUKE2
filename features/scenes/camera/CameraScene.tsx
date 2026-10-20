@@ -206,19 +206,29 @@ async function openCamera(): Promise<MediaStream> {
     );
   }
   // Without explicit constraints browsers fall back to a 640x480 default profile,
-  // which pixelates when stretched across the kiosk screen. Asking for the
-  // screen's size as an `ideal` makes the camera give its best profile up to
-  // that, so a weak camera degrades gracefully instead of failing the call.
+  // which pixelates when stretched across the kiosk screen.
   const { width, height } = idealCaptureSize();
-  return navigator.mediaDevices.getUserMedia({
-    video: {
-      facingMode: "user",
-      width: { ideal: width },
-      height: { ideal: height },
-      frameRate: { ideal: 30 },
-    },
-    audio: false,
-  });
+  const audio = false;
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: "user",
+        width: { max: width },
+        height: { max: height },
+      },
+      audio,
+    });
+  } catch (error) {
+    if (!(error instanceof DOMException) || error.name !== "OverconstrainedError") throw error;
+    return navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: "user",
+        width: { ideal: width },
+        height: { ideal: height },
+      },
+      audio,
+    });
+  }
 }
 
 function stopStream(stream: MediaStream) {

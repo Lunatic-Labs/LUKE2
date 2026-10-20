@@ -81,7 +81,7 @@ describe("CameraScene", () => {
     expect(screen.getByText("Touch to take a picture!")).toBeInTheDocument();
   });
 
-  it("requests the camera's best profile up to the screen's resolution", async () => {
+  it("requests camera constraints that cap capture at the screen's resolution", async () => {
     setScreenSize(3840, 2160, 1);
     const getUserMedia = jest.fn().mockResolvedValue(fakeStream().stream);
     mockCamera(getUserMedia);
@@ -91,9 +91,35 @@ describe("CameraScene", () => {
     expect(getUserMedia).toHaveBeenCalledWith({
       video: {
         facingMode: "user",
-        width: { ideal: 3840 },
-        height: { ideal: 2160 },
-        frameRate: { ideal: 30 },
+        width: { max: 3840 },
+        height: { max: 2160 },
+      },
+      audio: false,
+    });
+  });
+
+  it("falls back to ideal constraints when max constraints are unsupported", async () => {
+    setScreenSize(1920, 1080, 1);
+    const getUserMedia = jest
+      .fn()
+      .mockRejectedValueOnce(new DOMException("unsupported", "OverconstrainedError"))
+      .mockResolvedValueOnce(fakeStream().stream);
+    mockCamera(getUserMedia);
+    await renderScene();
+
+    expect(getUserMedia).toHaveBeenNthCalledWith(1, {
+      video: {
+        facingMode: "user",
+        width: { max: 1920 },
+        height: { max: 1080 },
+      },
+      audio: false,
+    });
+    expect(getUserMedia).toHaveBeenNthCalledWith(2, {
+      video: {
+        facingMode: "user",
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
       },
       audio: false,
     });
