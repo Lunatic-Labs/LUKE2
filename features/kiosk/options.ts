@@ -13,11 +13,6 @@ export interface KioskOptions {
   screenWidth: number;
   screenHeight: number;
   /**
-   * Seconds a scene may sit untouched before the carousel advances.
-   * `DisplayManager.Draw()` used a hard-coded 30.
-   */
-  sceneIdleSeconds: number;
-  /**
    * Seconds before the session is abandoned outright and the idle screen returns.
    * `DisplayManager.Draw()` used a hard-coded 60.
    */
@@ -28,7 +23,6 @@ export const DEFAULT_OPTIONS: KioskOptions = {
   isFullscreen: false,
   screenWidth: 360,
   screenHeight: 640,
-  sceneIdleSeconds: 30,
   sessionIdleSeconds: 60,
 };
 
@@ -66,7 +60,6 @@ export function parseOptions(source: string): KioskOptions {
     isFullscreen: readNumber(parsed.isFullscreen, DEFAULT_OPTIONS.isFullscreen ? 1 : 0) !== 0,
     screenWidth: readNumber(parsed.ScreenWidth, DEFAULT_OPTIONS.screenWidth),
     screenHeight: readNumber(parsed.ScreenHeight, DEFAULT_OPTIONS.screenHeight),
-    sceneIdleSeconds: readNumber(parsed.SceneIdleSeconds, DEFAULT_OPTIONS.sceneIdleSeconds),
     sessionIdleSeconds: readNumber(parsed.SessionIdleSeconds, DEFAULT_OPTIONS.sessionIdleSeconds),
   };
 }
