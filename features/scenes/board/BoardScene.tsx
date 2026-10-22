@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SceneFrame } from "@/components/SceneFrame";
 import type { SceneComponentProps } from "@/features/kiosk/types";
 
@@ -12,6 +12,9 @@ import type { SceneComponentProps } from "@/features/kiosk/types";
  * with the erase toggle drawing white 30px segments over them; releasing the
  * pointer reset the segment chain, and `Enable()` cleared the canvas white. The
  * scene remounts on scene change here, so a fresh mount is the cleared board.
+ *
+ * One addition over upstream: a Clear button that wipes the whole canvas at
+ * once, so visitors don't have to scrub every stroke with the erase toggle.
  */
 
 // Upstream colors: fill(51, 30, 84) purple, stroke(244, 170, 0) gold.
@@ -31,7 +34,17 @@ export function BoardScene({ bounds }: SceneComponentProps) {
   const lastPointRef = useRef<Point | null>(null);
   const [eraseMode, setEraseMode] = useState(false);
 
-  // `Enable()` did `background(255)` — fill the canvas white as it mounts.
+  const clearCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+
+    // Upstream `Enable()` did `background(255)`.
+    context.fillStyle = "white";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+  }, []);
+
+  // Size the canvas to its layout box and start from a clean board.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -42,7 +55,11 @@ export function BoardScene({ bounds }: SceneComponentProps) {
       const nextWidth = canvas.clientWidth;
       const nextHeight = canvas.clientHeight;
       if (nextWidth <= 0 || nextHeight <= 0) return;
-      if (canvas.width === nextWidth && canvas.height === nextHeight) return;
+      if (
+        preservePixels &&
+        canvas.width === nextWidth &&
+        canvas.height === nextHeight
+      ) return;
 
       const previousCanvas =
         preservePixels && canvas.width > 0 && canvas.height > 0
@@ -162,6 +179,23 @@ export function BoardScene({ bounds }: SceneComponentProps) {
           }}
         >
           {eraseMode ? "Draw" : "Erase"}
+        </button>
+
+        <button
+          type="button"
+          onClick={clearCanvas}
+          className="absolute rounded border"
+          style={{
+            left: "24%",
+            top: "92%",
+            width: "20%",
+            height: "7%",
+            backgroundColor: PURPLE,
+            borderColor: GOLD,
+            color: GOLD,
+          }}
+        >
+          Clear
         </button>
       </div>
     </SceneFrame>

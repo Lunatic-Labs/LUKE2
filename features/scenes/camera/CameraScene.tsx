@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { SceneFrame } from "@/components/SceneFrame";
 import type { SceneComponentProps } from "@/features/kiosk/types";
-import { captureFrame, uploadPhoto } from "./capture";
+import { captureFrame, idealCaptureSize, uploadPhoto } from "./capture";
 
 /**
  * Take a Picture!
@@ -361,7 +361,30 @@ async function openCamera(): Promise<MediaStream> {
       { name: "InsecureContextError" },
     );
   }
-  return navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+  // Without explicit constraints browsers fall back to a 640x480 default profile,
+  // which pixelates when stretched across the kiosk screen.
+  const { width, height } = idealCaptureSize();
+  const audio = false;
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: "user",
+        width: { max: width },
+        height: { max: height },
+      },
+      audio,
+    });
+  } catch (error) {
+    if (!(error instanceof DOMException) || error.name !== "OverconstrainedError") throw error;
+    return navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: "user",
+        width: { ideal: width },
+        height: { ideal: height },
+      },
+      audio,
+    });
+  }
 }
 
 function stopStream(stream: MediaStream) {
