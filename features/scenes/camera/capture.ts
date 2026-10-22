@@ -18,9 +18,12 @@ export function idealCaptureSize(): { width: number; height: number } {
   if (!width || !height) return { width: 1920, height: 1080 };
   return { width, height };
 }
-
-/** Draw the video's current frame, at the camera's native resolution, to a JPEG. */
-export function captureFrame(video: HTMLVideoElement): Promise<Blob> {
+/**
+ * Draw the video's current frame, at the camera's native resolution, to a JPEG.
+ * `filter` is a CSS filter string, the same one the preview shows, so the
+ * saved photo looks like what the visitor saw.
+ */
+export function captureFrame(video: HTMLVideoElement, filter = "none"): Promise<Blob> {
   const canvas = document.createElement("canvas");
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
@@ -29,6 +32,7 @@ export function captureFrame(video: HTMLVideoElement): Promise<Blob> {
   if (!context || canvas.width === 0 || canvas.height === 0) {
     return Promise.reject(new Error("Camera has no frame to capture yet"));
   }
+  context.filter = filter;
   context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
   return new Promise((resolve, reject) => {
