@@ -5,7 +5,7 @@
 
 const JPEG_QUALITY = 0.9;
 
-
+/**
  * The largest capture worth asking the camera for: the screen it will be
  * stretched across. getUserMedia treats `ideal` as a soft preference, so the
  * camera delivers its best profile up to this size — the effective resolution
