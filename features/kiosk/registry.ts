@@ -52,10 +52,7 @@ export const SCENES: SceneDefinition[] = [
   { id: "board", name: "Draw", Component: BoardScene},
   { id: "trivia", name: "Test Your Knowledge", Component: TriviaScene },
   { id: "feedback", name: "Leave Some Feedback?", Component: FeedbackScene},
-  { id: "board", name: "Draw", Component: BoardScene },
-  { id: "trivia", name: "Test Your Knowledge", Component: TriviaScene, placeholder: true },
-  { id: "feedback", name: "Leave Some Feedback?", Component: FeedbackScene },
-  { id: "directory", name: "L.U.K.E. Directory", Component: DirectoryScene, placeholder: true },
+  { id: "directory", name: "L.U.K.E. Directory", Component: DirectoryScene},
 ];
 
 export { MENU_ITEMS } from "./menu-items";
