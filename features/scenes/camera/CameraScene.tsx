@@ -133,6 +133,7 @@ export function CameraScene({ handle }: SceneComponentProps) {
         })
         .then(
           (photo) => {
+            if (videoRef.current !== video) return;
             setLastPhoto(URL.createObjectURL(photo));
             setMessage(THANK_YOU_TEXT[Math.floor(Math.random() * THANK_YOU_TEXT.length)]);
           },
