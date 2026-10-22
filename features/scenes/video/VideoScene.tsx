@@ -68,13 +68,13 @@ type VideoPlayerProps = {
 };
 
 function videoSrc(video: KioskVideo) {
-  return `/videos/${video.file}`;
+  return `/videos/${encodeURIComponent(video.file)}`;
 }
 
 function VideoPlayer({ videos, handle }: VideoPlayerProps) {
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [autoplaying, setAutoplaying] = useState(false);
+  const [autoplaying, setAutoplaying] = useState(true);
   const [failedFile, setFailedFile] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -91,17 +91,30 @@ function VideoPlayer({ videos, handle }: VideoPlayerProps) {
     return () => window.clearInterval(timer);
   }, [playing, autoplaying, handle]);
 
+  function restartOrAdvance(step: number) {
+    if (count === 1) {
+      const video = videoRef.current;
+      if (video) {
+        video.pause();
+        video.currentTime = 0;
+        video.play()?.catch(() => setPlaying(false));
+      }
+    } else {
+      setIndex((i) => (i + step + count) % count);
+    }
+  }
+
   function changeVideo(step: number) {
     handle.reportActivity();
     setAutoplaying(false);
     setPlaying(false);
-    setIndex((i) => (i + step + count) % count);
+    restartOrAdvance(step);
   }
 
   function handleEnded() {
     setAutoplaying(true);
     setPlaying(false);
-    setIndex((i) => (i + 1) % count);
+    restartOrAdvance(1);
   }
 
   function togglePlay() {
@@ -153,7 +166,10 @@ function VideoPlayer({ videos, handle }: VideoPlayerProps) {
               onPlay={() => setPlaying(true)}
               onPause={() => setPlaying(false)}
               onEnded={handleEnded}
-              onError={() => setFailedFile(current.file)}
+              onError={() => {
+                setPlaying(false);
+                setFailedFile(current.file);
+              }}
               className="h-full w-full object-contain"
             />
           )}
