@@ -11,6 +11,7 @@ describe("VideoScene", () => {
     nextScene: jest.fn(),
     previousScene: jest.fn(),
     exitCarousel: jest.fn(),
+    goToScene: jest.fn(),
   };
   const originalFetch = global.fetch;
 
