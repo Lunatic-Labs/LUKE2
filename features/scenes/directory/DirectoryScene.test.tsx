@@ -24,10 +24,10 @@ describe("DirectoryScene", () => {
     expect(categoryFilter).toHaveAttribute("aria-expanded", "false");
 
     expect(screen.getByText("Amy Algood")).toBeInTheDocument();
-    expect(screen.getByText("1 / 6")).toBeInTheDocument();
+    expect(screen.getByText("1 / 7")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     expect(screen.getByText("Bryan Crawley")).toBeInTheDocument();
-    expect(screen.getByText("2 / 6")).toBeInTheDocument();
+    expect(screen.getByText("2 / 7")).toBeInTheDocument();
   });
 
   it("shows Jacob Dyer under both engineering categories", () => {
@@ -43,7 +43,7 @@ describe("DirectoryScene", () => {
     fireEvent.click(categoryFilter);
     fireEvent.click(screen.getByRole("button", { name: "Computer Engineering" }));
     expect(screen.getByText("Jacob Dyer")).toBeInTheDocument();
-    expect(screen.getByText("1 / 1")).toBeInTheDocument();
+    expect(screen.getByText("1 / 3")).toBeInTheDocument();
   });
 
   it("opens the credits and returns to the directory", () => {
