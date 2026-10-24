@@ -7,8 +7,9 @@ services:
     # here and leave the restriction to the host side of the mapping.
     command: sh -c "npm install && npx next dev -H 0.0.0.0"
     ports:
-      # Localhost only: /api/photos (upload and serving) has no auth, so other
-      # machines on the network must not be able to reach it.
+      # Localhost only: /api/photos (upload and serving) and /api/scores have
+      # no auth, so other machines on the network must not be able to reach
+      # them.
       - "127.0.0.1:3000:3000"
     environment:
       - NODE_ENV=development

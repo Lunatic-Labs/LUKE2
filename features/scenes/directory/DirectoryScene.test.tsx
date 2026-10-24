@@ -8,6 +8,7 @@ describe("DirectoryScene", () => {
     previousScene: jest.fn(),
     exitCarousel: jest.fn(),
     goToScene: jest.fn(),
+    goToMainMenu: jest.fn(),
   };
 
   it("renders the faculty and staff directory and filters by category", () => {
