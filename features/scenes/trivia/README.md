@@ -35,9 +35,9 @@ start ──Let's go!──▶ initials ──Game on!──▶ question ──a
    The initials are kept for "Play again?", so a returning player doesn't
    have to enter them again.
 3. **Question:** the question with four answers in a 2×2 grid, under a
-   purple card showing the score and a 25-second countdown. The tapped
-   answer turns yellow for 0.4 seconds (`SELECTION_HOLD_MS`) before the
-   result appears. Only the first tap counts.
+   purple card showing the score and a 25-second countdown. An answer
+   darkens slightly while pressed, and the tapped answer stays darkened for
+   0.4 seconds (`SELECTION_HOLD_MS`) before the result appears. Only the first tap counts.
 4. **Result:** "Nailed it!" after a right answer. After a wrong answer it
    shows "Oops!", or "Time's up!" if the clock ran out, with "Correct
    answer: …" underneath. Each has a "Next up →" button. The score card
@@ -211,8 +211,9 @@ It is split into small components, one per part of the screen:
   icon and "N seconds" under it on question screens only. Shown on question,
   result and "Don't ghost the quiz!" screens.
 - **`QuestionScreen`** and **`AnswerGrid`:** the question and its four
-  answers as lavender cards with thick purple outlines. The tapped card turns
-  yellow and the other three are disabled.
+  answers as lavender cards with thick purple outlines. A card darkens
+  slightly while pressed (`active:brightness-90`); the tapped card stays
+  darkened (`brightness-90`) and the other three are disabled.
 - **`ResultScreen`:** the result after each question: a heading from
   `RESULT_HEADINGS`, the correct answer after a miss, and the "Next up"
   button.
@@ -324,6 +325,17 @@ Re-exports `TriviaScene` for `features/kiosk/registry.ts`.
 The redesign follows the trivia mockups. The full list of style changes, with
 reasons, is in the repo's [`CSS.md`](../../../CSS.md).
 
+- **Portrait and landscape:** the page is designed for the kiosk's portrait
+  screen, and every screen also fits in landscape with all its buttons
+  visible. Sizes scale with the scene rather than the browser window: two CSS
+  units on the scene, `--u` and `--v`, follow its width in portrait and its
+  height when it's too short (landscape). In portrait they match the
+  original `vw`/`dvh` sizes exactly; in landscape the same layout is scaled
+  down into a centred column. When changing a size, write it in these units
+  (`calc(var(--u)*N)` for widths and text, `calc(var(--v)*N)` for vertical
+  spacing), not in `vw` or `dvh`, or landscape will overflow again. See
+  "Sizing" in `CSS.md` for the details.
+
 - **Background:** a light grey (`#d9d9d9`) covered in tilted lavender-grey
   question marks, tiled from `trivia-pattern.svg`. Tiles are sized to 40% of
   the scene's width, so there are always five columns of marks. The
@@ -343,8 +355,9 @@ reasons, is in the repo's [`CSS.md`](../../../CSS.md).
   initials, end or leader board screens.
 - **Question screen:** the question is in the same bold purple as the start
   heading. The answers are a 2×2 grid of lavender cards with thick purple
-  outlines and rounded corners, in the lower part of the scene. The tapped
-  card turns a soft yellow (`#e7cb7d`).
+  outlines and rounded corners, in the lower part of the scene. A card
+  darkens slightly while pressed, like the kiosk's other buttons, and the
+  tapped card stays darkened until the result appears.
 - **Result screen:** under the score card, a bold purple heading in the
   upper part of the scene, then a "Next up →" pill button styled like
   "Let's go! →". After a right answer the heading is "Nailed it!", the same

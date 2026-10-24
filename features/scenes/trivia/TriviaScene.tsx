@@ -214,37 +214,51 @@ export function TriviaScene({ handle }: SceneComponentProps) {
     // Tiled question-mark pattern from the trivia mockup. Each tile holds two
     // columns, so 40% gives five columns across at any screen width. Opaque,
     // so it also covers the shell's skyline here.
-    <SceneFrame className="bg-[#d9d9d9] bg-[url('/images/trivia-pattern.svg')] bg-[length:40%_auto] bg-repeat">
-      <ScoreBar score={score} phase={phase} timeLeft={timeLeft} />
+    //
+    // Every size below is in `--u` or `--v` rather than vw/dvh, so the screens
+    // scale with the scene itself (a size container). `--u` is 1% of the
+    // scene's width, unless the scene is too short for that: then it follows
+    // the height instead, at 0.817cqh, the ratio of the 360×440 scene the
+    // layout was designed in. Portrait looks exactly as designed; landscape
+    // gets the same layout, scaled down to fit. `--v` stands in for dvh, and
+    // equals 1dvh on the 360×640 kiosk screen.
+    <SceneFrame className="bg-[#d9d9d9] bg-[url('/images/trivia-pattern.svg')] bg-[length:40%_auto] bg-repeat [container-type:size] [--u:min(1cqw,0.817cqh)] [--v:calc(var(--u)*16/9)]">
+      {/* A portrait-shaped column: the full width in portrait, centred in
+          landscape, so percentage widths keep their portrait proportions. It
+          scrolls only as a last resort, if a long question wraps further
+          than the layout allows for. */}
+      <div className="mx-auto flex min-h-0 w-full max-w-[calc(var(--u)*100)] flex-1 flex-col overflow-y-auto">
+        <ScoreBar score={score} phase={phase} timeLeft={timeLeft} />
 
-      {phase === "start" && <StartScreen onStart={openInitials} onLeaderboard={() => openLeaderboard("start")} />}
+        {phase === "start" && <StartScreen onStart={openInitials} onLeaderboard={() => openLeaderboard("start")} />}
 
-      {phase === "initials" && (
-        <InitialsScreen tag={tag} onShift={shiftInitial} onStart={startRound} onBack={closeInitials} />
-      )}
+        {phase === "initials" && (
+          <InitialsScreen tag={tag} onShift={shiftInitial} onStart={startRound} onBack={closeInitials} />
+        )}
 
-      {phase === "question" && current && (
-        <QuestionScreen engagement={current} selected={selected} onAnswer={answer} />
-      )}
+        {phase === "question" && current && (
+          <QuestionScreen engagement={current} selected={selected} onAnswer={answer} />
+        )}
 
-      {phase === "result" && outcome && current && (
-        <ResultScreen outcome={outcome} correctResponse={current.correctResponse} onContinue={continueRound} />
-      )}
+        {phase === "result" && outcome && current && (
+          <ResultScreen outcome={outcome} correctResponse={current.correctResponse} onContinue={continueRound} />
+        )}
 
-      {phase === "ghost" && <GhostScreen onContinue={continueRound} onExit={handle.goToMainMenu} />}
+        {phase === "ghost" && <GhostScreen onContinue={continueRound} onExit={handle.goToMainMenu} />}
 
-      {finished && (
-        <EndScreen
-          score={score}
-          onPlayAgain={playAgain}
-          onLeaderboard={() => openLeaderboard("end")}
-          onExit={handle.goToMainMenu}
-        />
-      )}
+        {finished && (
+          <EndScreen
+            score={score}
+            onPlayAgain={playAgain}
+            onLeaderboard={() => openLeaderboard("end")}
+            onExit={handle.goToMainMenu}
+          />
+        )}
 
-      {phase === "leaderboard" && (
-        <LeaderboardScreen leaderboard={leaderboard} failed={leaderboardFailed} onBack={closeLeaderboard} />
-      )}
+        {phase === "leaderboard" && (
+          <LeaderboardScreen leaderboard={leaderboard} failed={leaderboardFailed} onBack={closeLeaderboard} />
+        )}
+      </div>
     </SceneFrame>
   );
 }
@@ -257,8 +271,8 @@ function ScoreBar({ score, phase, timeLeft }: { score: number; phase: Phase; tim
   // A purple card at the top, from the quiz mockup, with the score. Questions
   // also show a clock and the seconds left; result screens have no clock.
   return (
-    <div className="flex shrink-0 justify-center pt-[clamp(0.75rem,2.5dvh,2rem)]">
-      <div className="flex flex-col items-center rounded-[clamp(0.75rem,2dvh,1.5rem)] bg-[var(--luke-purple)] px-[clamp(1.5rem,10vw,5rem)] py-[clamp(0.375rem,1.25dvh,1rem)] text-[clamp(0.875rem,4vw,2rem)] leading-snug font-bold text-[var(--luke-gold)]">
+    <div className="flex shrink-0 justify-center pt-[min(2rem,calc(var(--v)*2.5))]">
+      <div className="flex flex-col items-center rounded-[min(1.5rem,calc(var(--v)*2))] bg-[var(--luke-purple)] px-[min(5rem,calc(var(--u)*10))] py-[min(1rem,calc(var(--v)*1.25))] text-[length:min(2rem,calc(var(--u)*4))] leading-snug font-bold text-[var(--luke-gold)]">
         <span>Score: {score}</span>
         {phase === "question" && (
           <span className="flex items-center gap-[0.3em]">
@@ -296,9 +310,9 @@ function ClockIcon() {
  */
 function StartScreen({ onStart, onLeaderboard }: { onStart: () => void; onLeaderboard: () => void }) {
   return (
-    <div className="flex flex-1 flex-col items-center px-[12%] pt-[clamp(2rem,10dvh,7rem)]">
+    <div className="flex flex-1 flex-col items-center px-[12%] pt-[min(7rem,calc(var(--v)*10))]">
       <p className={`text-center ${HEADING_TEXT}`}>Think you got what it takes to ace this Lipscomb Trivia?</p>
-      <div className="mt-[clamp(2rem,7dvh,5rem)] flex w-full flex-col items-center gap-[clamp(0.75rem,2.5dvh,2rem)]">
+      <div className="mt-[min(5rem,calc(var(--v)*7))] flex w-full flex-col items-center gap-[min(2rem,calc(var(--v)*2.5))]">
         <PillButton onClick={onStart}>
           <span className="inline-flex items-center gap-[0.35em]">
             Let&apos;s go!
@@ -329,15 +343,15 @@ function InitialsScreen({
   onBack: () => void;
 }) {
   return (
-    <div className="flex flex-1 flex-col items-center px-[8%] pt-[clamp(1.5rem,7dvh,5rem)]">
+    <div className="flex flex-1 flex-col items-center px-[8%] pt-[min(5rem,calc(var(--v)*7))]">
       <p className={`text-center ${HEADING_TEXT}`}>Enter your initials</p>
-      <div className="mt-[clamp(0.75rem,2.5dvh,2rem)] flex justify-center gap-[clamp(0.5rem,3vw,1.5rem)]">
+      <div className="mt-[min(2rem,calc(var(--v)*2.5))] flex justify-center gap-[min(1.5rem,calc(var(--u)*3))]">
         {[...tag].map((letter, position) => (
           <div
             key={position}
             role="group"
             aria-label={`Initial ${position + 1}`}
-            className="flex flex-col items-center gap-[clamp(0.25rem,1dvh,0.75rem)]"
+            className="flex flex-col items-center gap-[min(0.75rem,calc(var(--v)*1))]"
           >
             <ArrowButton
               direction="up"
@@ -353,7 +367,7 @@ function InitialsScreen({
           </div>
         ))}
       </div>
-      <div className="mt-[clamp(1.5rem,5dvh,4rem)] flex w-full flex-col items-center gap-[clamp(0.75rem,2.5dvh,2rem)]">
+      <div className="mt-[min(4rem,calc(var(--v)*5))] flex w-full flex-col items-center gap-[min(2rem,calc(var(--v)*2.5))]">
         <PillButton onClick={onStart}>Game on!</PillButton>
         <PillButton onClick={onBack}>Back</PillButton>
       </div>
@@ -367,10 +381,10 @@ function InitialsScreen({
  */
 function LetterBox({ letter }: { letter: string }) {
   return (
-    <div className="rounded-[clamp(0.75rem,2.5dvh,1.75rem)] border-[clamp(3px,0.8vw,6px)] border-[var(--luke-purple)] bg-[var(--luke-lavender)] p-[clamp(2px,0.6vw,4px)]">
+    <div className="rounded-[min(1.75rem,calc(var(--v)*2.5))] border-[length:clamp(3px,calc(var(--u)*0.8),6px)] border-[var(--luke-purple)] bg-[var(--luke-lavender)] p-[clamp(2px,calc(var(--u)*0.6),4px)]">
       <div
         aria-live="polite"
-        className="flex h-[clamp(4rem,22vw,10rem)] w-[clamp(3.25rem,18vw,8rem)] items-center justify-center rounded-[clamp(0.5rem,1.75dvh,1.25rem)] border-[clamp(1.5px,0.4vw,3px)] border-[var(--luke-purple)] text-[clamp(2rem,11vw,5.5rem)] font-medium text-[var(--luke-purple)]"
+        className="flex h-[min(10rem,calc(var(--u)*22))] w-[min(8rem,calc(var(--u)*18))] items-center justify-center rounded-[min(1.25rem,calc(var(--v)*1.75))] border-[length:clamp(1.5px,calc(var(--u)*0.4),3px)] border-[var(--luke-purple)] text-[length:min(5.5rem,calc(var(--u)*11))] font-medium text-[var(--luke-purple)]"
       >
         {letter}
       </div>
@@ -393,7 +407,7 @@ function ArrowButton({
       type="button"
       aria-label={label}
       onClick={onClick}
-      className="w-[clamp(2.5rem,13vw,6rem)] transition-[filter] active:brightness-90"
+      className="w-[min(6rem,calc(var(--u)*13))] transition-[filter] active:brightness-90"
     >
       <svg viewBox="0 0 40 30" className="block w-full" aria-hidden="true">
         <polygon
@@ -433,20 +447,20 @@ function ResultScreen({
 
   return (
     <div
-      className={`flex flex-1 flex-col items-center px-[8%] pt-[clamp(2rem,7dvh,5rem)] ${
-        missed ? "gap-[clamp(0.75rem,2.5dvh,2rem)]" : "gap-[clamp(2rem,7dvh,5rem)]"
+      className={`flex flex-1 flex-col items-center px-[8%] pt-[min(5rem,calc(var(--v)*7))] ${
+        missed ? "gap-[min(2rem,calc(var(--v)*2.5))]" : "gap-[min(5rem,calc(var(--v)*7))]"
       }`}
     >
-      <div className="flex flex-col items-center gap-[clamp(0.25rem,1.5dvh,1.25rem)] text-center font-bold text-[var(--luke-purple)]">
+      <div className="flex flex-col items-center gap-[min(1.25rem,calc(var(--v)*1.5))] text-center font-bold text-[var(--luke-purple)]">
         <p
           className={`leading-tight ${
-            missed ? "text-[clamp(1.75rem,9vw,4.5rem)]" : "text-[clamp(1.25rem,6.5vw,3.25rem)]"
+            missed ? "text-[length:min(4.5rem,calc(var(--u)*9))]" : "text-[length:min(3.25rem,calc(var(--u)*6.5))]"
           }`}
         >
           {RESULT_HEADINGS[outcome]}
         </p>
         {missed && (
-          <p className="text-[clamp(1.25rem,6.5vw,3.25rem)] leading-tight">Correct answer: {correctResponse}</p>
+          <p className="text-[length:min(3.25rem,calc(var(--u)*6.5))] leading-tight">Correct answer: {correctResponse}</p>
         )}
       </div>
       <PillButton onClick={onContinue}>
@@ -467,12 +481,12 @@ function ResultScreen({
  */
 function GhostScreen({ onContinue, onExit }: { onContinue: () => void; onExit: () => void }) {
   return (
-    <div className="flex flex-1 flex-col items-center px-[8%] pt-[clamp(2rem,7dvh,5rem)]">
+    <div className="flex flex-1 flex-col items-center px-[8%] pt-[min(5rem,calc(var(--v)*7))]">
       <p className={`text-center ${HEADING_TEXT}`}>Don&apos;t ghost the quiz!</p>
-      <p aria-hidden="true" className="mt-[clamp(0.5rem,1.5dvh,1rem)] text-[clamp(2.5rem,13vw,6rem)] leading-none">
+      <p aria-hidden="true" className="mt-[min(1rem,calc(var(--v)*1.5))] text-[length:min(6rem,calc(var(--u)*13))] leading-none">
         👻
       </p>
-      <div className="mt-[clamp(0.75rem,2.5dvh,2rem)] flex w-full flex-col items-center gap-[clamp(0.75rem,2.5dvh,2rem)]">
+      <div className="mt-[min(2rem,calc(var(--v)*2.5))] flex w-full flex-col items-center gap-[min(2rem,calc(var(--v)*2.5))]">
         <PillButton onClick={onContinue}>
           <span className="inline-flex items-center gap-[0.35em]">
             Keep Going
@@ -486,7 +500,7 @@ function GhostScreen({ onContinue, onExit }: { onContinue: () => void; onExit: (
 }
 
 /** Bold purple heading text shared by the start, initials, question, ghost, end and leader board screens. */
-const HEADING_TEXT = "text-[clamp(1.25rem,6.5vw,3.25rem)] leading-tight font-bold text-[var(--luke-purple)]";
+const HEADING_TEXT = "text-[length:min(3.25rem,calc(var(--u)*6.5))] leading-tight font-bold text-[var(--luke-purple)]";
 
 /** The purple pill with gold text used for every button outside the answer grid. */
 function PillButton({ onClick, children }: { onClick?: () => void; children: React.ReactNode }) {
@@ -494,7 +508,7 @@ function PillButton({ onClick, children }: { onClick?: () => void; children: Rea
     <button
       type="button"
       onClick={onClick}
-      className="w-[60%] rounded-full bg-[var(--luke-purple)] py-[clamp(0.5rem,1.75dvh,1.25rem)] text-center text-[clamp(1.125rem,5.5vw,2.75rem)] font-bold text-[var(--luke-gold)] transition-[filter] active:brightness-125"
+      className="w-[60%] rounded-full bg-[var(--luke-purple)] py-[min(1.25rem,calc(var(--v)*1.75))] text-center text-[length:min(2.75rem,calc(var(--u)*5.5))] font-bold text-[var(--luke-gold)] transition-[filter] active:brightness-125"
     >
       {children}
     </button>
@@ -529,8 +543,8 @@ function QuestionScreen({
   onAnswer: (index: number) => void;
 }) {
   return (
-    <div className="flex flex-1 flex-col px-[7%] pb-[clamp(1rem,4dvh,3rem)]">
-      <p className={`px-[5%] pt-[clamp(1rem,4dvh,3rem)] text-center ${HEADING_TEXT}`}>
+    <div className="flex flex-1 flex-col px-[7%] pb-[min(3rem,calc(var(--v)*4))]">
+      <p className={`px-[5%] pt-[min(3rem,calc(var(--v)*4))] text-center ${HEADING_TEXT}`}>
         {engagement.prompt}
       </p>
       <AnswerGrid responses={engagement.responses} selected={selected} onSelect={onAnswer} />
@@ -540,8 +554,9 @@ function QuestionScreen({
 
 /**
  * The 2x2 answer grid, from the quiz mockup: lavender cards with a thick
- * purple outline and rounded corners. The tapped card turns yellow while it's
- * held on screen, and the others are disabled. `onSelect` receives the
+ * purple outline and rounded corners. A card darkens slightly while pressed,
+ * like the kiosk's other buttons, and the tapped card stays darkened while
+ * it's held on screen; the others are disabled. `onSelect` receives the
  * button's index in `responses`, matching the quadrant-to-answer mapping of
  * upstream's `Click()`, which checkerboarded the four buttons purple and gold.
  *
@@ -560,7 +575,7 @@ function AnswerGrid({
   onSelect: (index: number) => void;
 }) {
   return (
-    <div className="mt-auto grid shrink-0 grid-cols-2 gap-[clamp(0.75rem,4vw,2rem)] pt-[clamp(1.5rem,6dvh,4rem)]">
+    <div className="mt-auto grid shrink-0 grid-cols-2 gap-[min(2rem,calc(var(--u)*4))] pt-[min(4rem,calc(var(--v)*6))]">
       {responses.map((response, index) => (
         <button
           key={index}
@@ -568,8 +583,8 @@ function AnswerGrid({
           onClick={() => onSelect(index)}
           aria-pressed={selected === index}
           disabled={selected !== null && selected !== index}
-          className={`flex min-h-[clamp(4rem,11dvh,9rem)] items-center justify-center rounded-[clamp(0.75rem,2.5dvh,1.75rem)] border-[clamp(3px,0.8vw,6px)] border-[var(--luke-purple)] px-2 py-2 text-center text-[clamp(1rem,5vw,2.5rem)] leading-tight text-[var(--luke-purple)] ${
-            selected === index ? "bg-[#e7cb7d]" : "bg-[var(--luke-lavender)]"
+          className={`flex min-h-[min(9rem,calc(var(--v)*11))] items-center justify-center rounded-[min(1.75rem,calc(var(--v)*2.5))] border-[length:clamp(3px,calc(var(--u)*0.8),6px)] border-[var(--luke-purple)] bg-[var(--luke-lavender)] px-2 py-2 text-center text-[length:min(2.5rem,calc(var(--u)*5))] leading-tight text-[var(--luke-purple)] transition-[filter] active:brightness-90 ${
+            selected === index ? "brightness-90" : ""
           }`}
         >
           {response}
@@ -597,15 +612,15 @@ function EndScreen({
   onExit: () => void;
 }) {
   return (
-    <div className="flex flex-1 flex-col items-center px-[8%] pt-[clamp(1.5rem,5dvh,4rem)]">
+    <div className="flex flex-1 flex-col items-center px-[8%] pt-[min(4rem,calc(var(--v)*5))]">
       <p className={`text-center ${HEADING_TEXT}`}>Thank you for playing!</p>
-      <div className="mt-[clamp(0.75rem,2.5dvh,2rem)] text-center text-[clamp(1rem,4.75vw,2.5rem)] leading-snug font-bold text-[var(--luke-purple)]">
+      <div className="mt-[min(2rem,calc(var(--v)*2.5))] text-center text-[length:min(2.5rem,calc(var(--u)*4.75))] leading-snug font-bold text-[var(--luke-purple)]">
         <p>
           <span aria-hidden="true">🦬</span> That&apos;s a wrap, Bison!
         </p>
         <p>Your score was: {score}</p>
       </div>
-      <div className="mt-[clamp(1rem,3.5dvh,3rem)] flex w-full flex-col items-center gap-[clamp(0.75rem,2.5dvh,2rem)]">
+      <div className="mt-[min(3rem,calc(var(--v)*3.5))] flex w-full flex-col items-center gap-[min(2rem,calc(var(--v)*2.5))]">
         <PillButton onClick={onPlayAgain}>Play again?</PillButton>
         <PillButton onClick={onLeaderboard}>Leader Board</PillButton>
         <PillButton onClick={onExit}>Exit</PillButton>
@@ -629,9 +644,9 @@ function LeaderboardScreen({
   onBack: () => void;
 }) {
   return (
-    <div className="flex flex-1 flex-col items-center px-[8%] pt-[clamp(1rem,4dvh,3rem)] pb-[clamp(1.5rem,5dvh,4rem)]">
+    <div className="flex flex-1 flex-col items-center px-[8%] pt-[min(3rem,calc(var(--v)*4))] pb-[min(4rem,calc(var(--v)*5))]">
       <p className={`text-center ${HEADING_TEXT}`}>Leader Board</p>
-      <div className="mt-[clamp(0.75rem,2dvh,1.5rem)] h-[clamp(11rem,45dvh,32rem)] w-[65%] rounded-[clamp(0.75rem,2.5dvh,1.75rem)] border-[clamp(3px,0.8vw,6px)] border-[var(--luke-purple)] bg-[var(--luke-lavender)] px-[6%] py-[clamp(0.5rem,2dvh,1.5rem)] text-center text-[clamp(1.125rem,6vw,3rem)] leading-tight font-bold text-[var(--luke-purple)]">
+      <div className="mt-[min(1.5rem,calc(var(--v)*2))] h-[min(32rem,calc(var(--v)*45))] w-[65%] rounded-[min(1.75rem,calc(var(--v)*2.5))] border-[length:clamp(3px,calc(var(--u)*0.8),6px)] border-[var(--luke-purple)] bg-[var(--luke-lavender)] px-[6%] py-[min(1.5rem,calc(var(--v)*2))] text-center text-[length:min(3rem,calc(var(--u)*6))] leading-tight font-bold text-[var(--luke-purple)]">
         {failed ? (
           <p className="text-[0.6em]">Sorry, the leader board couldn&apos;t be loaded.</p>
         ) : leaderboard === null ? (
@@ -648,7 +663,7 @@ function LeaderboardScreen({
           </ol>
         )}
       </div>
-      <div className="mt-auto flex w-full justify-center pt-[clamp(1rem,3dvh,2rem)]">
+      <div className="mt-auto flex w-full justify-center pt-[min(2rem,calc(var(--v)*3))]">
         <PillButton onClick={onBack}>Back</PillButton>
       </div>
     </div>
