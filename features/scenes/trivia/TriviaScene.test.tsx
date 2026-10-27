@@ -371,6 +371,37 @@ describe("TriviaScene", () => {
     expect(submitScore).toHaveBeenCalledTimes(1);
   });
 
+  it("lists every score in order, with the top three set apart from the rest", async () => {
+    const scores = ["AAA", "BBB", "CCC", "DDD", "EEE", "FFF"].map((tag, i) => ({ tag, score: 600 - i * 100 }));
+    jest.mocked(fetchLeaderboard).mockResolvedValue({ scores, yours: null });
+    render(<TriviaScene bounds={{ width: 360, height: 640 }} handle={handle} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Score Board" }));
+    await act(async () => {});
+
+    const lists = screen.getAllByRole("list");
+    expect(lists).toHaveLength(2);
+    expect(lists[1]).toHaveAttribute("start", "4");
+    expect(screen.getAllByRole("listitem").map((row) => row.textContent)).toEqual([
+      "AAA - 600",
+      "BBB - 500",
+      "CCC - 400",
+      "DDD - 300",
+      "EEE - 200",
+      "FFF - 100",
+    ]);
+  });
+
+  it("has no second list when there are three scores or fewer", async () => {
+    renderAndStart();
+    await playRound(0);
+
+    fireEvent.click(screen.getByRole("button", { name: "Leader Board" }));
+    await act(async () => {});
+
+    expect(screen.getAllByRole("list")).toHaveLength(1);
+  });
+
   it("says so when there are no scores yet", async () => {
     jest.mocked(fetchLeaderboard).mockResolvedValue({ scores: [], yours: null });
     renderAndStart();

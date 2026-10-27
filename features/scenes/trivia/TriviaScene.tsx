@@ -630,9 +630,22 @@ function EndScreen({
 }
 
 /**
- * The saved top scores, from the leader board mockup: a heading, a lavender
- * box with a thick purple outline listing each score as `TAG - score`, and a
- * Back button at the bottom that returns to the end screen.
+ * Lettering for the top three scores, from the leader board mockup: gold,
+ * silver and bronze with a purple outline. `paint-order` draws the outline
+ * behind the fill, so it thickens the letters instead of eating into them.
+ */
+const PODIUM_TEXT = [
+  "text-[var(--luke-gold)]",
+  "text-[#b4b3bd]",
+  "text-[#b0773a]",
+].map((colour) => `${colour} [-webkit-text-stroke:0.12em_var(--luke-purple)] [paint-order:stroke_fill]`);
+
+/**
+ * The saved top scores, from the leader board mockup: a large heading, a
+ * lavender box with a thick purple outline listing each score as
+ * `TAG - score`, and a Back button at the bottom that returns to whichever
+ * screen opened it. The top three are in gold, silver and bronze, with a
+ * purple bar under them, and the box scrolls to reach the rest.
  */
 function LeaderboardScreen({
   leaderboard,
@@ -645,22 +658,44 @@ function LeaderboardScreen({
 }) {
   return (
     <div className="flex flex-1 flex-col items-center px-[8%] pt-[min(3rem,calc(var(--v)*4))] pb-[min(4rem,calc(var(--v)*5))]">
-      <p className={`text-center ${HEADING_TEXT}`}>Leader Board</p>
-      <div className="mt-[min(1.5rem,calc(var(--v)*2))] h-[min(32rem,calc(var(--v)*45))] w-[65%] rounded-[min(1.75rem,calc(var(--v)*2.5))] border-[length:clamp(3px,calc(var(--u)*0.8),6px)] border-[var(--luke-purple)] bg-[var(--luke-lavender)] px-[6%] py-[min(1.5rem,calc(var(--v)*2))] text-center text-[length:min(3rem,calc(var(--u)*6))] leading-tight font-bold text-[var(--luke-purple)]">
+      {/* Larger and heavier than the other headings, as in the mockup. */}
+      <p className="text-center text-[length:min(5rem,calc(var(--u)*11))] leading-tight font-black text-[var(--luke-purple)]">
+        Leader Board
+      </p>
+      <div className="mt-[min(1rem,calc(var(--v)*1.5))] h-[min(28rem,calc(var(--v)*40))] w-[65%] overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden rounded-[min(1.75rem,calc(var(--v)*2.5))] border-[length:clamp(3px,calc(var(--u)*0.8),6px)] border-[var(--luke-purple)] bg-[var(--luke-lavender)] py-[min(1.5rem,calc(var(--v)*2))] text-center text-[length:min(3rem,calc(var(--u)*6))] leading-tight font-extrabold text-[var(--luke-purple)]">
         {failed ? (
-          <p className="text-[0.6em]">Sorry, the leader board couldn&apos;t be loaded.</p>
+          <p className="px-[9%] text-[0.6em]">Sorry, the leader board couldn&apos;t be loaded.</p>
         ) : leaderboard === null ? (
-          <p className="text-[0.6em]">Loading&hellip;</p>
+          <p className="px-[9%] text-[0.6em]">Loading&hellip;</p>
         ) : leaderboard.scores.length === 0 ? (
-          <p className="text-[0.6em]">No scores yet. Be the first!</p>
+          <p className="px-[9%] text-[0.6em]">No scores yet. Be the first!</p>
         ) : (
-          <ol>
-            {leaderboard.scores.map(({ tag, score }, i) => (
-              <li key={i}>
-                {tag} - {score}
-              </li>
-            ))}
-          </ol>
+          <>
+            <ol>
+              {leaderboard.scores.slice(0, 3).map(({ tag, score }, i) => (
+                <li key={i} className={PODIUM_TEXT[i]}>
+                  {tag} - {score}
+                </li>
+              ))}
+            </ol>
+            {leaderboard.scores.length > 3 && (
+              <>
+                {/* The purple bar between the top three and the rest: a
+                    solid rule across the whole box. */}
+                <div
+                  aria-hidden="true"
+                  className="my-[0.25em] h-[clamp(3px,calc(var(--u)*0.9),7px)] bg-[var(--luke-purple)]"
+                />
+                <ol start={4}>
+                  {leaderboard.scores.slice(3).map(({ tag, score }, i) => (
+                    <li key={i}>
+                      {tag} - {score}
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )}
+          </>
         )}
       </div>
       <div className="mt-auto flex w-full justify-center pt-[min(2rem,calc(var(--v)*3))]">

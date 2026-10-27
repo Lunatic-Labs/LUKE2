@@ -143,11 +143,14 @@ Restyled to match the camera mockup, and given two new controls from it: a filte
   - "Thank you for playing!" in the shared `HEADING_TEXT` style, near the top (`pt-[clamp(1.5rem,5dvh,4rem)]`).
   - "🦬 That's a wrap, Bison!" and "Your score was: N", centred, bold and purple, a step smaller than the heading (`clamp(1rem, 4.75vw, 2.5rem)`). The bison emoji is `aria-hidden`, so screen readers skip it.
   - Three `PillButton`s stacked down the middle with even gaps (`clamp(0.75rem, 2.5dvh, 2rem)`): "Play again?", "Leader Board" and "Exit". All three look the same.
-- **Leader board screen:** new, from the leader board mockup, opened from the end screen:
-  - "Leader Board" in the shared `HEADING_TEXT` style at the top.
-  - A box 65% of the scene's width and `clamp(11rem, 45dvh, 32rem)` tall, with the answer cards' look: lavender fill (`--luke-lavender`), a thick purple outline (`clamp(3px, 0.8vw, 6px)`) and rounded corners. The scores are listed in it, centred, in bold purple at `clamp(1.125rem, 6vw, 3rem)`, one per line as `TAG - score`. The loading, empty and error messages use 60% of that size.
+- **Leader board screen:** new, from the leader board mockups, opened from the start screen's "Score Board" and the end screen's "Leader Board":
+  - "Leader Board" at the top, larger and heavier than the shared heading, as in the mockup: `font-black` at `min(11vw, 5rem)`.
+  - A box 65% of the scene's width and `min(40dvh, 28rem)` tall, with the answer cards' look: lavender fill (`--luke-lavender`), a thick purple outline (`clamp(3px, 0.8vw, 6px)`) and rounded corners. The scores are listed in it, centred, in extra-bold purple (`font-extrabold`) at `min(6vw, 3rem)`, one per line as `TAG - score`. The loading, empty and error messages use 60% of that size.
+  - **Top three:** gold (`--luke-gold`), silver (`#b4b3bd`) and bronze (`#b0773a`) lettering with a purple outline (`-webkit-text-stroke: 0.12em`, with `paint-order: stroke fill` so the outline sits behind the letters instead of thinning them, like the camera's overlay text). The silver and bronze are written inline, like the other one-off colours on this page.
+  - **Purple bar:** under the top three, when there are more than three scores, a solid purple line runs across the whole box (`clamp(3px, 0.9vw, 7px)` thick, `bg-[var(--luke-purple)]`). The box has no side padding, so the line reaches both edges. It replaced a dashed line, made to look like the mockup's row of dashes.
+  - **Scrolling:** the box lists the top 50 (`LEADERBOARD_SIZE`) and scrolls (`overflow-y-auto`, `overscroll-contain` so a swipe at the end doesn't move the page). The scrollbar is hidden (`[scrollbar-width:none]` for Firefox and current Chrome, `[&::-webkit-scrollbar]:hidden` for older Chrome and Safari); the box still scrolls by swipe, mouse wheel or keyboard, and the cut-off row at the bottom shows there is more. About eight rows show at once on the 360×640 screen.
   - A "Back" `PillButton` pushed to the bottom of the scene (`mt-auto`), as in the mockup.
-  - The box has a fixed height, so it doesn't jump when the scores arrive, and the top five always fit.
+  - The box has a fixed height, so it doesn't jump when the scores arrive. It went from 45dvh to 40dvh to make room for the bigger heading, keeping "Back" on screen.
 
 **Why:**
 - The background is opaque, so it also covers the shell's skyline on this page, as in the mockup.

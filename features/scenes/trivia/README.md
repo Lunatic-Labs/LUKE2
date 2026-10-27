@@ -59,8 +59,11 @@ start ──Let's go!──▶ initials ──Game on!──▶ question ──a
    - **Exit** goes back to the kiosk's main menu (the page of all kiosk
      pages). The visitor's session carries on; it doesn't return to the
      welcome screen.
-7. **Leader Board:** "Leader Board" over a box listing the top five saved
-   scores as `TAG - score` (for example `TST - 1025`), highest first, and a
+7. **Leader Board:** a large "Leader Board" heading over a box listing the
+   top 50 saved scores as `TAG - score` (for example `TST - 1025`), highest
+   first. The top three are in gold, silver and bronze lettering with a
+   purple outline, with a solid purple line between them and the rest. The
+   box shows about eight rows and scrolls to reach the others. Under it is a
    "Back" button that returns to whichever screen opened it: the start
    screen or the end screen. The scores are loaded fresh
    each time it opens, so the visitor's just-saved score is included. Going
@@ -113,7 +116,7 @@ round ends ──submitScore──▶ POST /api/scores ──saveScore──▶ 
                                                                      │
 Leader Board ──fetchLeaderboard──▶ GET /api/scores ◀──readScores─────┘
      ▲                                  │
-     └──────────── top 5 ───────────────┘
+     └──────────── top 50 ──────────────┘
 ```
 
 **Where:** `data/trivia-scores/scores.csv`, relative to the folder the app
@@ -147,11 +150,12 @@ are skipped rather than breaking the board.
 
 **The leaderboard:** the start screen's "Score Board" button and the end
 screen's "Leader Board" button open it. It
-loads `GET /api/scores`, which returns the top five scores
-(`LEADERBOARD_SIZE`), highest first, and shows each as `TAG - score`. Equal
+loads `GET /api/scores`, which returns the top 50 scores
+(`LEADERBOARD_SIZE`), highest first, and shows each as `TAG - score`. The
+box scrolls, so the list can be longer than the box. Equal
 scores keep the order they were saved in, so an earlier score stays above a
 later one that ties it. Every round is kept in the file, not only the top
-five, so the board size can change later without losing scores. (After a
+50, so the board size can change later without losing scores. (After a
 save, the server's response also says where the new score landed, `yours`;
 the screen doesn't use it yet, but it could mark the visitor's row.)
 
@@ -265,7 +269,7 @@ call to save a score. Safe to import anywhere.
 - `isValidTag()` and `isValidScore()`: the rules for a row (three capital
   letters, A-Z; a whole number from 0 to `MAX_SCORE`).
 - `DEFAULT_TAG` (`"AAA"`, the initials screen's starting letters),
-  `LEADERBOARD_SIZE` (5) and `MAX_SCORE` (9,125).
+  `LEADERBOARD_SIZE` (50) and `MAX_SCORE` (9,125).
 - `shiftLetter()`: the letter one step forward or back from another,
   wrapping from Z to A and from A to Z. The initials screen's arrows use it.
 - `buildLeaderboard()`: picks the top scores from the table and works out
@@ -369,10 +373,14 @@ reasons, is in the repo's [`CSS.md`](../../../CSS.md).
   purple, then three purple pill buttons stacked down the middle: "Play
   again?", "Leader Board" and "Exit". The score card is hidden here, since
   the score is shown in the text.
-- **Leader board:** "Leader Board" in the shared heading style, then a tall
-  lavender box with a thick purple outline and rounded corners, 65% of the
-  scene's width, listing the scores in large bold purple text, centred.
-  The "Back" pill button sits near the bottom of the scene.
+- **Leader board:** a "Leader Board" heading larger and heavier than the
+  other headings, then a tall lavender box with a thick purple outline and
+  rounded corners, 65% of the scene's width, listing the scores in large
+  extra-bold purple text, centred. The top three rows are gold, silver and
+  bronze with a purple outline, and a solid purple line runs across the box
+  under them. The box scrolls when there are more scores than fit, with no
+  visible scrollbar. The
+  "Back" pill button sits near the bottom of the scene.
 
 ## Tests
 
@@ -416,6 +424,9 @@ reasons, is in the repo's [`CSS.md`](../../../CSS.md).
   - "Leader Board" shows "Loading…", then the scores as `TAG - score`,
     with no score card;
   - "Back" returns to the end screen without saving the score again;
+  - the leader board lists every score in order, as two lists (the top
+    three, then the rest from 4th) when there are more than three, and as
+    one list otherwise;
   - the leader board's empty and failed-to-load messages.
 - **[scores.test.ts](scores.test.ts):** which tags and scores are valid,
   `shiftLetter()` stepping and wrapping, and how the leaderboard is ranked

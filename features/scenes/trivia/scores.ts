@@ -40,8 +40,11 @@ export function shiftLetter(letter: string, step: number): string {
   return String.fromCharCode(FIRST_LETTER + shifted);
 }
 
-/** How many scores the end screen shows. */
-export const LEADERBOARD_SIZE = 5;
+/**
+ * How many scores the leader board lists. More than its box shows at once;
+ * the box scrolls to reach the rest.
+ */
+export const LEADERBOARD_SIZE = 50;
 
 /** Every question answered correctly the instant it appears. */
 export const MAX_SCORE = ROUND_LENGTH * scoreForAnswer(QUESTION_SECONDS);
