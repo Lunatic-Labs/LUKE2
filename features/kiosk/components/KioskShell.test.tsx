@@ -31,12 +31,21 @@ function startSession() {
 }
 
 describe("KioskShell", () => {
+  const originalFetch = global.fetch;
+
   beforeEach(() => {
     jest.useFakeTimers();
     jest.clearAllMocks();
+    // The video scene, first in the carousel, loads its playlist from
+    // /api/videos when it opens. jsdom has no fetch, so serve an empty one.
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ files: [] }),
+    }) as unknown as typeof fetch;
   });
 
   afterEach(() => {
+    global.fetch = originalFetch;
     jest.useRealTimers();
   });
 
