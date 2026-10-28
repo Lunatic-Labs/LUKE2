@@ -10,6 +10,7 @@ This restyle brings the kiosk in line with the design mockup: a purple branded h
 | `--luke-lavender`  | `#C9C3D5` | Content background, navigation buttons             |
 | `--luke-lilac`     | `#8F7EB3` | Header title and menu button, welcome-screen tint  |
 | `--luke-gold`      | `#F4AA00` | Unchanged; the shield and map highlights use it   |
+| `--luke-grey`      | `#D9D9D9` | unused                                            |
 
 The welcome screen's gradients also use `#3E364D`, a dark purple-grey. It appears only in that one gradient, so it is written inline rather than added as a token.
 
@@ -61,7 +62,6 @@ The welcome screen's gradients also use `#3E364D`, a dark purple-grey. It appear
 - The purple strip keeps the welcome screen's layout identical to the other pages, so nothing jumps when a session starts. It is a plain `div` rather than a `<nav>`, so tests that check the welcome screen has no navigation still hold.
 - The shell owns the menu state, not the header, because the shell is what changes scenes and ends sessions, and both need to close the menu.
 - The menu can't appear on the welcome screen, for two reasons: `endSession` resets `menuOpen`, and the panel only renders while `sessionActive` is true. The next visitor always starts with it shut.
-- **Known behaviour:** the automatic advance after `sceneIdleSeconds` calls `goTo` directly rather than `goNext`, so it does not close the menu. If the menu is left open, the scene changes underneath it.
 
 ### `components/SceneFrame.tsx`
 
@@ -85,6 +85,25 @@ The old "Hi, I'm L.U.K.E.!" text and its floating animation are gone, since the 
 - The gradient colors and stop positions come from the Figma file. The direction and layer opacities weren't visible there, so top-to-bottom, 50% and 25% are estimates that match the mockup's colors. If the Figma values turn up, adjust the `opacity-50` and `opacity-25` classes.
 - The shell draws its skyline underneath scenes, so the opaque photo would hide it. Drawing a second copy inside the scene puts it back on top.
 - The `luke-float` keyframes in `globals.css` are no longer used by anything. They were left in place in case another scene wants the effect.
+
+### `features/scenes/camera/CameraScene.tsx`
+
+Restyled to match the camera mockup, and given two new controls from it: a filters button and a thumbnail of the last photo. The capture button is still the only way to take a picture, and the overlay text, countdown and thank-you line are as before. How the filters and thumbnail work is covered in `features/scenes/camera/README.md`.
+
+- **Background:** the scene is `bg-[var(--luke-purple)]` instead of lavender, with `px-[2%] pt-[2%]` padding.
+- **Preview:** a card with rounded corners on all four sides (`rounded-[clamp(0.5rem,1.5dvh,1.25rem)]`). The purple border and bottom-only rounding are gone, since the purple padding now frames it.
+- **Capture button:** the colours are swapped. It is now a lavender ring around a lavender disc (`--luke-lavender`), with the purple background showing through the gap between them. Size, the press-to-shrink effect and the dimmed disabled state are unchanged.
+- **Controls row:** the capture button now sits in the middle of a three-column grid (`grid-cols-3`, items centred), with two new controls either side, each `clamp(2.5rem, 12vw, 5.5rem)` across, a little smaller than the capture button:
+  - **Filters button** (left): a solid lavender circle with a purple three-star sparkles icon (inline SVG, 60% of the button). It dims to 50% opacity while disabled, like the capture button, and darkens slightly while pressed (`active:brightness-90`), like the bottom bar's arrows. The chosen filter is applied to the preview as an inline `style={{ filter }}`, because the value comes from a list at runtime rather than a fixed class.
+  - **Last-photo thumbnail** (right): until a photo is taken, a lilac circle (`--luke-lilac`) with a thin lavender ring (`border-[clamp(1.5px,0.5vw,3px)]`) and a purple head-and-shoulders outline icon (inline SVG, 60% of the circle). After that, the photo cropped to a circle (`rounded-full overflow-hidden`, `object-cover`) with no ring, as in the mockup. With a photo it is a button: it darkens slightly while pressed and dims to 50% while disabled, like the filters button.
+- **Enlarged photo:** tapping the thumbnail opens the gallery scene's enlarged view, copied class for class: a full-screen `bg-black/60` button holding a `70vh × 70vw` (`max-w-2xl`) white box with an 8px gold border and rounded corners, the photo inside `object-contain`. A tap anywhere closes it. It adds `z-30`, so it also covers `NavMenu` (`z-20`) if that is open.
+
+**Why:**
+- In the mockup, the header, the scene and the bottom bar form one continuous purple surface, with the photo as the only light area. A purple scene background gives that look without changing the shell.
+- The scene background is opaque, so it covers the shell's skyline on this page. That matches the mockup, which shows no skyline here.
+- A lavender button reads clearly on purple and matches the lavender arrow buttons in the bottom bar right below it.
+- The enlarged view matches the gallery's so the two pages behave the same. It is copied rather than shared because the gallery uses `next/image` and the thumbnail is a blob URL, which `next/image` can't load. If a third page needs it, it's worth moving into `components/`.
+- Equal grid columns keep the capture button exactly centred, whether or not the thumbnail holds a photo, so nothing shifts when the first picture is taken.
 
 ### `features/kiosk/registry.ts`
 
@@ -139,7 +158,7 @@ The drop-down scene menu, matching the navbar mockup: an off-white panel (`--luk
 - **Animation:** the panel stays mounted and grows down from the header when opened, and shrinks back up when closed (`grid-template-rows` 0fr ↔ 1fr, ease-out, off for reduced-motion users). Its height is what animates, so the purple bottom edge and rounded corner stay visible throughout while the buttons are uncovered behind them. At the same time the buttons slide in from the left edge of the screen in a wave, top first, each arriving as the panel's edge reaches it; closing runs the wave bottom first. The panel and the whole wave take `NAV_MENU_ANIMATION_MS` (400ms), each button 200ms of it, and the buttons ignore taps until the opening animation has finished. While closed it is `invisible`, `inert` and `aria-hidden`, so its buttons can't be tapped or focused.
 - **Buttons:** one pill per page (`rounded-full`, lavender fill, 2px purple border, bold purple text, drop shadow `0 4px 4px` black at 25%), full panel width. Text size matches the header title (`clamp(0.875rem, 4.3vw, 2rem)`), and gaps and padding scale with screen height. The panel's height comes from its buttons.
 - **Order and labels:** set by `MENU_ITEMS` in `features/kiosk/menu-items.ts` (re-exported from `registry.ts`), which follows the mockup's order rather than carousel order. The labels are short versions of the scene names, e.g. "Faculty" for the directory. The camera page was labelled "Selfie" in the navbar mockup and is now "Camera", to match the main menu. A test checks that the menu lists every scene exactly once.
-- **Choosing a page:** jumps straight to that scene, resets the idle clock, and closes the menu. The bottom bar's arrows and the end of a session also close it; the automatic scene advance does not. The page on screen is marked with `aria-current="page"`; it has no visual highlight, since the mockup doesn't show one.
+- **Choosing a page:** jumps straight to that scene, resets the idle clock, and closes the menu. The bottom bar's arrows and the end of a session also close it. The page on screen is marked with `aria-current="page"`; it has no visual highlight, since the mockup doesn't show one.
 - **Generic component:** `NavMenu` takes a list of `{ id, label }` items and an `onSelect` callback and knows nothing about scenes, so it stays in `components/`.
 - **Not a `<nav>`:** the bottom bar is the page's only `navigation` landmark, and the shell tests rely on that.
 

@@ -20,7 +20,8 @@ GalleryScene ◀── <Image src="/api/photos/screen-….jpg"> ◀── GET /a
       └──── GET /api/gallery (lists public/gallery + CAMERA_DIR)
 ```
 
-1. The visitor taps, the countdown runs, and `CameraScene` grabs a frame.
+1. The visitor taps the capture button, the countdown runs, and
+   `CameraScene` grabs a frame.
 2. The frame is sent to `POST /api/photos`, which saves it in `CAMERA_DIR`.
 3. The next time anyone opens the gallery scene, it asks `GET /api/gallery`
    for its picture list. That list now includes the new photo.
@@ -38,9 +39,9 @@ The screen always shows one of six states:
 
 | State         | What's on screen                                          |
 | ------------- | --------------------------------------------------------- |
-| `starting`    | Waiting for the webcam to open and send its first frame   |
-| `ready`       | Live preview plus "Touch to take a picture!"              |
-| `countdown`   | Gold "Ready", then "Set", then "Pose!", one per second    |
+| `starting`    | Waiting for the webcam; capture button dimmed             |
+| `ready`       | Live preview with "Take A Picture"; capture button active |
+| `countdown`   | Gold "Ready.", "Set.", "Pose!" stacking, one per second   |
 | `saving`      | White flash while the photo is captured and sent          |
 | `done`        | A thank-you line (or an error message) for 1 second       |
 | `unavailable` | "Camera unavailable" with the reason                      |
@@ -49,12 +50,53 @@ It has three effects (blocks of code that run on their own timing):
 
 - **Camera on/off:** opens the webcam when the scene appears and stops it when
   the visitor leaves. This is upstream's `video.start()` / `video.stop()`.
-- **Countdown:** moves through Ready/Set/Pose! and then takes the picture.
+- **Countdown:** moves through Ready./Set./Pose! and then takes the picture.
 - **Cooldown:** after 1 second in `done`, goes back to `ready`. This is
   upstream's `delay(1000)`.
 
-`handleTap()` starts the countdown, but only from `ready`. That's the job the
-old `canTakePicture` flag did.
+The layout follows the camera mockup. The scene is purple, continuing the
+header and bottom bar, and the live preview fills most of it as a card with
+rounded corners and a thin purple margin. Below it, just above the bottom bar,
+is a row of three controls:
+
+- **Filters button** (left): a lavender circle with a sparkles icon. Each tap
+  switches to the next entry in `FILTERS` (no filter, black and white, sepia,
+  vivid, cool), wrapping round after the last. The filter is a CSS filter on
+  the live preview, and `captureFrame` draws the same filter into the saved
+  photo, so the photo matches what the visitor saw. The button is disabled
+  during the countdown and while saving, because the photo uses the filter on
+  screen at "Pose!". Its accessible name says which filter is on, e.g.
+  "Change filter, now Sepia".
+- **Capture button** (centre): a camera-app style shutter, drawn as a lavender
+  ring around a lavender disc with a purple gap between them. The disc shrinks
+  slightly while pressed. Its accessible name is "Take picture".
+- **Last photo** (right): a round thumbnail of the last photo saved on this
+  visit to the scene. Before the first one it is a placeholder: a lilac
+  circle with a lavender ring and a purple person icon, which does nothing
+  when tapped. Only photos that saved successfully appear. Tapping the
+  thumbnail opens the photo enlarged, using the same view as the gallery
+  scene: the photo in a gold frame over a dimmed screen, closed by tapping
+  anywhere. The thumbnail is disabled during the countdown and while saving,
+  so the enlarged view can't cover a picture in progress. The thumbnail uses an object URL for
+  the JPEG already in memory, so it costs no extra request. The URL is freed
+  when a newer photo replaces it and when the scene unmounts. Leaving the
+  scene, including at the end of a session, empties the thumbnail, so the
+  next visitor never sees someone else's photo.
+
+The text over the preview follows the mockup's frames: heavy sans-serif with a
+thick dark purple outline. "Take A Picture" sits at the top while the camera is
+ready. The gold countdown starts just below the middle and stacks downward
+("Ready.", then "Ready. Set.", then "Ready. Set. Pose!"). The thank-you line,
+picked at random from `THANK_YOU_TEXT`, appears lower down, around two thirds
+of the way down the preview.
+
+The capture button is the only way to take a picture: tapping the preview
+does nothing, so a visitor touching the screen for another reason can't set
+off the camera. The button stays on screen at all times but is disabled and
+dimmed outside `ready`, so it never jumps around.
+
+`handleTakePicture()` starts the countdown, but only from `ready`. That's the
+job the old `canTakePicture` flag did.
 
 The camera uses `getUserMedia`, which browsers only allow on `https://` pages
 or `localhost`. Opening the kiosk by IP address over plain `http` shows
@@ -64,8 +106,9 @@ or `localhost`. Opening the kiosk by IP address over plain `http` shows
 
 The two browser-side steps of taking a picture:
 
-- `captureFrame(video)` draws the current video frame onto a hidden canvas and
-  turns it into a JPEG.
+- `captureFrame(video, filter)` draws the current video frame onto a hidden
+  canvas, with the CSS `filter` applied (default `"none"`), and turns it into
+  a JPEG.
 - `uploadPhoto(blob)` sends that JPEG to `/api/photos`.
 
 These two together replace Processing's `saveFrame()`. They're in their own
@@ -208,10 +251,20 @@ Ignores `/data/`, so photos of visitors never get committed by accident.
 
 Uses a fake webcam and fake timers to check:
 
-- the prompt appears once the camera opens
-- the full countdown → capture → thank-you → back-to-ready flow
+- the capture button is disabled until the camera's first frame arrives,
+  then enabled
+- tapping the preview doesn't take a picture
+- the full countdown → capture → thank-you → back-to-ready flow, with the
+  button disabled until it's over
 - taps are ignored mid-countdown
-- a failed save shows an error
+- a failed save shows an error and leaves the thumbnail empty
+- a saved photo appears as the thumbnail, and its object URL is freed when
+  the scene unmounts; the empty placeholder isn't tappable
+- tapping the thumbnail opens the enlarged view and tapping again closes it
+- the thumbnail is disabled mid-countdown
+- the filters button cycles through `FILTERS` and wraps round, applies the
+  filter to the preview, is disabled mid-countdown, and the photo is captured
+  with the filter that was on screen
 - a blocked camera, or a browser with no camera support, shows
   "Camera unavailable"
 - the camera is turned off when the visitor leaves the scene
@@ -267,6 +320,12 @@ thing preventing that. Don't change these bindings to `0.0.0.0` or remove
   at once for about a frame.
 - The thank-you lines (`thankYouText[]`) were written but disabled upstream;
   they're shown during the 1-second hold.
-- "Touch to take a picture!" appears right away rather than after 10 seconds.
-- A generic serif font replaces `ACaslonPro-Regular.otf`, a licensed Adobe font.
+- A capture button below the preview replaces upstream's
+  tap-anywhere-to-shoot, and the "Touch to take a picture!" prompt became
+  "Take A Picture".
+- A heavy sans-serif with a purple outline replaces `ACaslonPro-Regular.otf`, a
+  licensed Adobe font, following the camera mockup. The countdown words gained
+  periods ("Ready.", "Set.") to match it.
 - The preview isn't mirrored, same as the original.
+- The filters button and the last-photo thumbnail are new; upstream had
+  neither.
