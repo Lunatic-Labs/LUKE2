@@ -26,7 +26,7 @@
   {
     "id": "allen-bell-tower",
     "name": "Allen Bell Tower",
-    "aliases": ["the bell tower"],
+    "aliases": ["the bell tower", "bell tower", "tower"],
     "map": { "x": 0.27622, "y": 0.54854 }
   },
   {
@@ -44,37 +44,37 @@
   {
     "id": "bennett-campus-center",
     "name": "Bennett Campus Center",
-    "aliases": ["bennett", "the campus center", "the stu", "the caf"],
+    "aliases": ["bennett", "the campus center", "campus center","the stu", "the caf"],
     "map": { "x": 0.41711, "y": 0.38167 }
   },
   {
     "id": "bison-hall-and-bison-inn",
     "name": "Bison Hall & Bison Inn",
-    "aliases": ["bison"],
+    "aliases": ["bison", "dorm"],
     "map": { "x": 0.35149, "y": 0.15229 }
   },
   {
     "id": "bison-square-and-osman-fountain",
     "name": "Bison Square & Osman Fountain",
-    "aliases": ["the square"],
+    "aliases": ["the square", "the fountain"],
     "map": { "x": 0.36908, "y": 0.40437 }
   },
   {
     "id": "collins-alumni-auditorium",
     "name": "Collins Alumni Auditorium",
-    "aliases": ["collins"],
+    "aliases": ["collins", "the auditorium", "auditorium"],
     "map": { "x": 0.31546, "y": 0.39333 }
   },
   {
     "id": "contemporary-music-house",
     "name": "Contemporary Music House",
-    "aliases": [],
+    "aliases": ["Imagine House"],
     "map": { "x": 0.6558, "y": 0.43625 }
   },
   {
     "id": "crisman-administration-building",
     "name": "Crisman Administration Building",
-    "aliases": ["crisman", "the administration building"],
+    "aliases": ["crisman", "the administration building", "offices"],
     "map": { "x": 0.24383, "y": 0.31375 }
   },
   {
@@ -92,19 +92,19 @@
   {
     "id": "elam-hall",
     "name": "Elam Hall",
-    "aliases": ["elam"],
+    "aliases": ["Elam", "girls dorm"],
     "map": { "x": 0.41668, "y": 0.28125 }
   },
   {
     "id": "ezell-center",
     "name": "Ezell Center",
-    "aliases": ["ezell", "psychology department", "bible and theology department", "education department", "history department", "english department"],
+    "aliases": ["Ezell", "psychology department", "bible and theology department", "education department", "history, politics, and philosophy department", "english department"],
     "map": { "x": 0.20437, "y": 0.58167 }
   },
   {
     "id": "fanning-hall",
     "name": "Fanning Hall",
-    "aliases": ["fanning"],
+    "aliases": ["fanning", "girls dorm"],
     "map": { "x": 0.30603, "y": 0.28813 }
   },
   {
@@ -116,7 +116,7 @@
   {
     "id": "flatt-amphitheater",
     "name": "Flatt Amphitheater",
-    "aliases": [],
+    "aliases": ["Flatt", "the amphitheater"],
     "map": { "x": 0.41647, "y": 0.41833 }
   },
   {
@@ -146,7 +146,7 @@
   {
     "id": "high-rise-hall",
     "name": "High Rise Hall",
-    "aliases": ["high rise"],
+    "aliases": ["high rise", "freshman boys dorm"],
     "map": { "x": 0.5149, "y": 0.57875 }
   },
   {
@@ -176,7 +176,7 @@
   {
     "id": "johnson-hall",
     "name": "Johnson Hall",
-    "aliases": ["johnson"],
+    "aliases": ["johnson", "girls dorm"],
     "map": { "x": 0.37701, "y": 0.48896 }
   },
   {
@@ -236,7 +236,7 @@
   {
     "id": "sewell-hall",
     "name": "Sewell Hall",
-    "aliases": ["sewell"],
+    "aliases": ["Sewell", "dorm"],
     "map": { "x": 0.48252, "y": 0.48812 }
   },
   {
@@ -254,13 +254,13 @@
   {
     "id": "student-activities-center",
     "name": "Student Activities Center",
-    "aliases": ["activities center", "gym", "the sac", "sac"],
+    "aliases": ["activities center", "gym", "the SAC", "SAC"],
     "map": { "x": 0.28394, "y": 0.60354 }
   },
   {
     "id": "swang-business-center",
     "name": "Swang Business Center",
-    "aliases": ["business department", "business building", "swang"],
+    "aliases": ["business department", "business building", "Swang"],
     "map": { "x": 0.30431, "y": 0.48896 }
   },
   {
@@ -296,7 +296,7 @@
   {
     "id": "ward-hall",
     "name": "Ward Hall",
-    "aliases": [],
+    "aliases": ["Ward"],
     "map": { "x": 0.21252, "y": 0.27333 }
   }
 ]
