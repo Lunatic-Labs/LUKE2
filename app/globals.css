@@ -37,6 +37,7 @@ body {
   --luke-gold: #f4aa00;
   --luke-off-white: #faf9fc;
   --luke-cream: #f1e7cf;
+  --luke-grey: #D9D9D9;
 }
 
 /* IdleScene's prompt drifted up and down a few pixels per frame in

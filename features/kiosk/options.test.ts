@@ -34,7 +34,7 @@ describe("parseOptions", () => {
   it("falls back to defaults for absent and non-numeric values", () => {
     const options = parseOptions("ScreenHeight=not-a-number");
     expect(options.screenHeight).toBe(DEFAULT_OPTIONS.screenHeight);
-    expect(options.sceneIdleSeconds).toBe(DEFAULT_OPTIONS.sceneIdleSeconds);
+    expect(options.sessionIdleSeconds).toBe(DEFAULT_OPTIONS.sessionIdleSeconds);
   });
 });
 

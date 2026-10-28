@@ -1,9 +1,10 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import type { SceneHandle } from "@/features/kiosk/types";
-import { captureFrame, uploadPhoto } from "./capture";
-import { CameraScene, COOLDOWN_MS, COUNTDOWN_STEP_MS, THANK_YOU_TEXT } from "./CameraScene";
+import { captureFrame, idealCaptureSize, uploadPhoto } from "./capture";
+import { CameraScene, COOLDOWN_MS, COUNTDOWN_STEP_MS, FILTERS, THANK_YOU_TEXT } from "./CameraScene";
 
 jest.mock("./capture", () => ({
+  ...jest.requireActual("./capture"),
   captureFrame: jest.fn(),
   uploadPhoto: jest.fn(),
 }));
@@ -28,6 +29,13 @@ function fakeStream() {
   return { stream: { getTracks: () => [track] } as unknown as MediaStream, track };
 }
 
+/** Pin the screen metrics `idealCaptureSize` reads; undone by afterEach's deleteProperties. */
+function setScreenSize(width: number, height: number, dpr: number) {
+  Object.defineProperty(window.screen, "width", { configurable: true, value: width });
+  Object.defineProperty(window.screen, "height", { configurable: true, value: height });
+  Object.defineProperty(window, "devicePixelRatio", { configurable: true, value: dpr });
+}
+
 /** Render and let getUserMedia settle; by default the video then delivers its first frame. */
 async function renderScene({ frameArrives = true } = {}) {
   const result = render(<CameraScene bounds={{ width: 360, height: 640 }} handle={handle} />);
@@ -47,6 +55,11 @@ async function advance(ms: number, times = 1) {
   }
 }
 
+/** The capture button is an icon; "Take picture" is its accessible name. */
+function takePictureButton() {
+  return screen.getByRole("button", { name: "Take picture" });
+}
+
 describe("CameraScene", () => {
   beforeEach(() => {
     jest.useFakeTimers();
@@ -54,44 +67,115 @@ describe("CameraScene", () => {
     jest.spyOn(console, "error").mockImplementation(() => {});
     (captureFrame as jest.Mock).mockResolvedValue(new Blob(["jpeg"]));
     (uploadPhoto as jest.Mock).mockResolvedValue(undefined);
+    // jsdom has no object URLs; the thumbnail needs them.
+    URL.createObjectURL = jest.fn(() => "blob:last-photo");
+    URL.revokeObjectURL = jest.fn();
   });
 
   afterEach(() => {
     jest.useRealTimers();
     jest.restoreAllMocks();
+    // Own-property overrides from setScreenSize; deleting restores the getters.
+    Reflect.deleteProperty(window.screen, "width");
+    Reflect.deleteProperty(window.screen, "height");
+    Reflect.deleteProperty(window, "devicePixelRatio");
   });
 
   it("prompts for a picture once the camera is open", async () => {
-    mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+    const getUserMedia = jest.fn().mockResolvedValue(fakeStream().stream);
+    mockCamera(getUserMedia);
     await renderScene();
 
-    expect(screen.getByText("Touch to take a picture!")).toBeInTheDocument();
+    expect(takePictureButton()).toBeEnabled();
+    expect(screen.getByText("Take A Picture")).toBeInTheDocument();
+  });
+
+  it("requests camera constraints that cap capture at the screen's resolution", async () => {
+    setScreenSize(3840, 2160, 1);
+    const getUserMedia = jest.fn().mockResolvedValue(fakeStream().stream);
+    mockCamera(getUserMedia);
+    await renderScene();
+
+    // The constraint is the screen size itself; the camera caps it from there.
+    expect(getUserMedia).toHaveBeenCalledWith({
+      video: {
+        facingMode: "user",
+        width: { max: 3840 },
+        height: { max: 2160 },
+      },
+      audio: false,
+    });
+  });
+
+  it("falls back to ideal constraints when max constraints are unsupported", async () => {
+    setScreenSize(1920, 1080, 1);
+    const getUserMedia = jest
+      .fn()
+      .mockRejectedValueOnce(new DOMException("unsupported", "OverconstrainedError"))
+      .mockResolvedValueOnce(fakeStream().stream);
+    mockCamera(getUserMedia);
+    await renderScene();
+
+    expect(getUserMedia).toHaveBeenNthCalledWith(1, {
+      video: {
+        facingMode: "user",
+        width: { max: 1920 },
+        height: { max: 1080 },
+      },
+      audio: false,
+    });
+    expect(getUserMedia).toHaveBeenNthCalledWith(2, {
+      video: {
+        facingMode: "user",
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+      },
+      audio: false,
+    });
+  });
+
+  it("falls back to full HD when the screen size is unavailable", async () => {
+    setScreenSize(0, 0, 1);
+    expect(idealCaptureSize()).toEqual({ width: 1920, height: 1080 });
   });
 
   it("waits for the first video frame before accepting a tap", async () => {
     mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
     const { container } = await renderScene({ frameArrives: false });
 
-    expect(screen.queryByText("Touch to take a picture!")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Take a picture" }));
+    expect(takePictureButton()).toBeDisabled();
+    fireEvent.click(takePictureButton());
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
 
     fireEvent.loadedData(container.querySelector("video")!);
-    expect(screen.getByText("Touch to take a picture!")).toBeInTheDocument();
+    expect(takePictureButton()).toBeEnabled();
+  });
+
+  it("does not take a picture when the preview is tapped", async () => {
+    mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+    const { container } = await renderScene();
+
+    fireEvent.click(container.querySelector("video")!);
+    await advance(COUNTDOWN_STEP_MS, 3);
+
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    expect(captureFrame).not.toHaveBeenCalled();
   });
 
   it("counts down, saves the photo, thanks the visitor, then resets", async () => {
     mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
     await renderScene();
 
-    fireEvent.click(screen.getByRole("button", { name: "Take a picture" }));
+    fireEvent.click(takePictureButton());
     expect(handle.reportActivity).toHaveBeenCalled();
+    expect(takePictureButton()).toBeDisabled();
     // Each word is announced on its own, not the growing on-screen stack.
-    expect(screen.getByRole("status")).toHaveTextContent(/^Ready$/);
-    expect(screen.queryByText("Set")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/^Ready\.$/);
+    expect(screen.queryByText("Set.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Take A Picture")).not.toBeInTheDocument();
 
     await advance(COUNTDOWN_STEP_MS);
-    expect(screen.getByRole("status")).toHaveTextContent(/^Set$/);
+    expect(screen.getByRole("status")).toHaveTextContent(/^Set\.$/);
     await advance(COUNTDOWN_STEP_MS);
     expect(screen.getByRole("status")).toHaveTextContent(/^Pose!$/);
     expect(captureFrame).not.toHaveBeenCalled();
@@ -100,9 +184,12 @@ describe("CameraScene", () => {
     expect(captureFrame).toHaveBeenCalledTimes(1);
     expect(uploadPhoto).toHaveBeenCalledTimes(1);
     expect(THANK_YOU_TEXT).toContain(screen.getByRole("status").textContent);
+    // Shown on screen too, not only announced.
+    expect(screen.getAllByText(screen.getByRole("status").textContent!)).toHaveLength(2);
 
     await advance(COOLDOWN_MS);
-    expect(screen.getByText("Touch to take a picture!")).toBeInTheDocument();
+    expect(takePictureButton()).toBeEnabled();
+    expect(screen.getByText("Take A Picture")).toBeInTheDocument();
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
   });
 
@@ -110,12 +197,12 @@ describe("CameraScene", () => {
     mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
     await renderScene();
 
-    const target = screen.getByRole("button", { name: "Take a picture" });
+    const target = takePictureButton();
     fireEvent.click(target);
     await advance(COUNTDOWN_STEP_MS);
     fireEvent.click(target);
 
-    expect(screen.getByRole("status")).toHaveTextContent(/^Set$/);
+    expect(screen.getByRole("status")).toHaveTextContent(/^Set\.$/);
     await advance(COUNTDOWN_STEP_MS, 2);
     expect(captureFrame).toHaveBeenCalledTimes(1);
   });
@@ -125,10 +212,79 @@ describe("CameraScene", () => {
     (uploadPhoto as jest.Mock).mockRejectedValue(new Error("disk full"));
     await renderScene();
 
-    fireEvent.click(screen.getByRole("button", { name: "Take a picture" }));
+    fireEvent.click(takePictureButton());
     await advance(COUNTDOWN_STEP_MS, 3);
 
     expect(screen.getByRole("status")).toHaveTextContent("didn't save");
+    // A photo that didn't save isn't shown as the last photo.
+    expect(screen.queryByAltText("Your last photo")).not.toBeInTheDocument();
+  });
+
+  it("shows the last saved photo as a thumbnail, and frees it on the way out", async () => {
+    mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+    const { unmount } = await renderScene();
+
+    expect(screen.queryByAltText("Your last photo")).not.toBeInTheDocument();
+    // The empty placeholder isn't a button.
+    expect(screen.queryByRole("button", { name: "Enlarge your last photo" })).not.toBeInTheDocument();
+
+    fireEvent.click(takePictureButton());
+    await advance(COUNTDOWN_STEP_MS, 3);
+
+    expect(screen.getByAltText("Your last photo")).toHaveAttribute("src", "blob:last-photo");
+
+    unmount();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:last-photo");
+  });
+
+  it("enlarges the last photo on a tap, like the gallery, and closes on another", async () => {
+    mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+    await renderScene();
+    fireEvent.click(takePictureButton());
+    await advance(COUNTDOWN_STEP_MS, 3);
+    await advance(COOLDOWN_MS);
+    jest.mocked(handle.reportActivity).mockClear();
+
+    fireEvent.click(screen.getByRole("button", { name: "Enlarge your last photo" }));
+    const close = screen.getByRole("button", { name: "Close enlarged photo" });
+    expect(close.querySelector("img")).toHaveAttribute("src", "blob:last-photo");
+    expect(handle.reportActivity).toHaveBeenCalled();
+
+    fireEvent.click(close);
+    expect(screen.queryByRole("button", { name: "Close enlarged photo" })).not.toBeInTheDocument();
+  });
+
+  it("locks the thumbnail while a picture is being taken", async () => {
+    mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+    await renderScene();
+    fireEvent.click(takePictureButton());
+    await advance(COUNTDOWN_STEP_MS, 3);
+    await advance(COOLDOWN_MS);
+
+    fireEvent.click(takePictureButton());
+    expect(screen.getByRole("button", { name: "Enlarge your last photo" })).toBeDisabled();
+  });
+
+  it("cycles filters on the preview and saves the photo with the one shown", async () => {
+    mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+    const { container } = await renderScene();
+    const video = container.querySelector("video")!;
+    const filterButton = () => screen.getByRole("button", { name: /^Change filter/ });
+
+    expect(filterButton()).toHaveAccessibleName(`Change filter, now ${FILTERS[0].name}`);
+    fireEvent.click(filterButton());
+    expect(filterButton()).toHaveAccessibleName(`Change filter, now ${FILTERS[1].name}`);
+    expect(video.style.filter).toBe(FILTERS[1].css);
+
+    fireEvent.click(takePictureButton());
+    expect(filterButton()).toBeDisabled();
+    await advance(COUNTDOWN_STEP_MS, 3);
+    expect(captureFrame).toHaveBeenCalledWith(video, FILTERS[1].css);
+
+    // Wraps back to the first filter after the last.
+    await advance(COOLDOWN_MS);
+    for (let i = 1; i < FILTERS.length; i++) fireEvent.click(filterButton());
+    expect(filterButton()).toHaveAccessibleName(`Change filter, now ${FILTERS[0].name}`);
   });
 
   it("explains when camera access is denied", async () => {
