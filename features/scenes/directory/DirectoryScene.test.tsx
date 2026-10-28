@@ -8,6 +8,7 @@ describe("DirectoryScene", () => {
     nextScene: jest.fn(),
     previousScene: jest.fn(),
     exitCarousel: jest.fn(),
+    goToScene: jest.fn(),
   };
 
   function renderDirectory() {
