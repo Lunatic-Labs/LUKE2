@@ -2,10 +2,13 @@ import fs from "fs";
 import path from "path";
 import {
   CAMPUS_BUILDINGS,
+  CAMPUS_PLACES,
   findNearestBuilding,
   fitToAspectRatio,
   KIOSK_LOCATION,
   MAP_ASPECT_RATIO,
+  validatePlaces,
+  type CampusPlace,
 } from "./buildings";
 
 const MAP_ASSETS = path.join(__dirname, "../../../public/map");
@@ -103,6 +106,138 @@ describe("findNearestBuilding", () => {
       expect(building.y).toBeGreaterThanOrEqual(0);
       expect(building.y).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+describe("CAMPUS_PLACES", () => {
+  /**
+   * Aliases deliberately given to more than one place. Search offers every
+   * place listed, so each entry is a decision rather than an accident; add to
+   * this list only on purpose.
+   */
+  const SHARED_ALIASES: Record<string, string[]> = {
+    "health sciences building": [
+      "a-m-burton-health-sciences-center",
+      "nursing-and-health-sciences-center",
+    ],
+    dining: ["bennett-campus-center", "student-activities-center"],
+    food: ["bennett-campus-center", "student-activities-center"],
+    eat: ["bennett-campus-center", "student-activities-center"],
+    // Placeholder until we know whether these are boys' or girls' halls.
+    dorm: ["bison-hall-and-bison-inn", "sewell-hall"],
+    "girls dorm": ["elam-hall", "fanning-hall", "johnson-hall"],
+  };
+
+  it("passes validation", () => {
+    expect(validatePlaces(CAMPUS_PLACES)).toEqual([]);
+  });
+
+  it("matches CAMPUS_BUILDINGS entry for entry", () => {
+    // Both lists exist until CAMPUS_BUILDINGS is derived from places.json;
+    // until then they must not drift apart.
+    expect(
+      CAMPUS_PLACES.map((place) => ({
+        id: place.id,
+        name: place.name,
+        x: place.map.x,
+        y: place.map.y,
+      })),
+    ).toEqual(CAMPUS_BUILDINGS);
+  });
+
+  it("shares an alias between places only where listed in SHARED_ALIASES", () => {
+    const owners = new Map<string, string[]>();
+    for (const place of CAMPUS_PLACES) {
+      for (const alias of place.aliases) {
+        owners.set(alias, [...(owners.get(alias) ?? []), place.id]);
+      }
+    }
+    const shared = Object.fromEntries(
+      [...owners].filter(([, ids]) => ids.length > 1).map(([alias, ids]) => [alias, ids.sort()]),
+    );
+    expect(shared).toEqual(SHARED_ALIASES);
+  });
+});
+
+describe("validatePlaces", () => {
+  const place = (overrides: Partial<CampusPlace> = {}): CampusPlace => ({
+    id: "test-hall",
+    name: "Test Hall",
+    aliases: [],
+    map: { x: 0.5, y: 0.5 },
+    ...overrides,
+  });
+  const entrance = { id: "front", geo: { lat: 36.1, lng: -86.8 } };
+
+  it("accepts a valid place", () => {
+    expect(validatePlaces([place()])).toEqual([]);
+  });
+
+  it("rejects duplicate ids and names", () => {
+    expect(validatePlaces([place(), place()])).toEqual([
+      '"test-hall": id is used more than once',
+      '"test-hall": name "Test Hall" is used more than once',
+    ]);
+  });
+
+  it("rejects ids that aren't lowercase and dash-separated", () => {
+    expect(validatePlaces([place({ id: "Test Hall" })])).toHaveLength(1);
+  });
+
+  it("rejects a kind or category outside the allowed lists", () => {
+    const bad = place({ kind: "dorm" as CampusPlace["kind"], category: "dining" as CampusPlace["category"] });
+    expect(validatePlaces([bad])).toEqual([
+      '"test-hall": unknown kind "dorm"',
+      '"test-hall": unknown category "dining"',
+    ]);
+  });
+
+  it("rejects aliases search could never match", () => {
+    const problems = validatePlaces([place({ aliases: ["Test", " test ", "", "x", "x", "test hall"] })]);
+    expect(problems).toEqual([
+      '"test-hall": alias "Test" must be lowercase with no outer spaces',
+      '"test-hall": alias " test " must be lowercase with no outer spaces',
+      '"test-hall": has an empty alias',
+      '"test-hall": alias "x" is listed twice',
+      '"test-hall": alias "test hall" just repeats the name',
+    ]);
+  });
+
+  it("rejects a marker outside the map image", () => {
+    expect(validatePlaces([place({ map: { x: 1.2, y: 0.5 } })])).toEqual([
+      '"test-hall": map x and y must be numbers from 0 to 1',
+    ]);
+  });
+
+  it("checks withinBuildingId points to another place, from an office", () => {
+    const office = place({ id: "test-office", name: "Test Office", kind: "office" });
+    expect(validatePlaces([place(), { ...office, withinBuildingId: "test-hall" }])).toEqual([]);
+    expect(validatePlaces([{ ...office, withinBuildingId: "missing" }])).toEqual([
+      '"test-office": withinBuildingId "missing" is not a place',
+    ]);
+    expect(validatePlaces([place({ kind: "building", withinBuildingId: "test-hall" })])).toEqual([
+      '"test-hall": withinBuildingId points to itself',
+      '"test-hall": only an office can have withinBuildingId',
+    ]);
+  });
+
+  it("requires exactly one primary entrance, with valid coordinates", () => {
+    expect(validatePlaces([place({ entrances: [{ ...entrance, primary: true }] })])).toEqual([]);
+    expect(validatePlaces([place({ entrances: [entrance] })])).toEqual([
+      '"test-hall": needs exactly one primary entrance, has 0',
+    ]);
+    expect(
+      validatePlaces([place({ entrances: [{ ...entrance, primary: true, geo: { lat: 136, lng: 0 } }] })]),
+    ).toEqual(['"test-hall" entrance "front": geo needs a valid lat and lng']);
+  });
+
+  it("rejects an empty entrance list and repeated entrance ids", () => {
+    expect(validatePlaces([place({ entrances: [] })])).toEqual([
+      '"test-hall": entrances is empty; leave it out until there is one',
+    ]);
+    expect(
+      validatePlaces([place({ entrances: [{ ...entrance, primary: true }, entrance] })]),
+    ).toEqual(['"test-hall" entrance "front": id is used more than once']);
   });
 });
 

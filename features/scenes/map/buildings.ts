@@ -1,3 +1,5 @@
+import placesData from "./data/places.json";
+
 /**
  * Campus map markers.
  *
@@ -32,22 +34,25 @@ export interface CampusBuilding {
  * building; a venue or field is somewhere people go that isn't an enclosed
  * building (an amphitheater, a square, a ballpark).
  */
-export type PlaceKind = "building" | "office" | "venue" | "field";
+export const PLACE_KINDS = ["building", "office", "venue", "field"] as const;
+export type PlaceKind = (typeof PLACE_KINDS)[number];
 
 /**
  * The section a place is listed under on the Find screen. One per place, so
  * every place appears exactly once in the grouped list; a search for a
  * generic word like "dorm" can match a whole category.
  */
-export type PlaceCategory =
-  | "admissions-visitors"
-  | "academics"
-  | "student-life"
-  | "athletics"
-  | "housing"
-  | "admin"
-  | "arts"
-  | "health";
+export const PLACE_CATEGORIES = [
+  "admissions-visitors",
+  "academics",
+  "student-life",
+  "athletics",
+  "housing",
+  "admin",
+  "arts",
+  "health",
+] as const;
+export type PlaceCategory = (typeof PLACE_CATEGORIES)[number];
 
 export interface CampusPlace {
   id: string;
@@ -77,6 +82,129 @@ export interface Entrance {
   primary?: boolean;
   /** Deferred until accessibility data is collected. */
   accessible?: boolean;
+}
+
+/**
+ * Every place in `data/places.json`, in file order.
+ *
+ * TypeScript types a JSON file's strings as plain `string`, so `"kind":
+ * "building"` can't be checked against `PlaceKind` at compile time and the
+ * file has to be cast. `validatePlaces` is what makes that cast safe: the
+ * tests run it over this list, so a typo in the JSON fails `npm test` rather
+ * than reaching the kiosk.
+ */
+export const CAMPUS_PLACES = placesData as CampusPlace[];
+
+const PLACE_ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+function isFraction(value: unknown): boolean {
+  return typeof value === "number" && value >= 0 && value <= 1;
+}
+
+function isNumberIn(value: unknown, min: number, max: number): boolean {
+  return typeof value === "number" && value >= min && value <= max;
+}
+
+/**
+ * Everything wrong with a list of places, one readable message per problem;
+ * an empty list means the data is valid. Checks what the types can't: values
+ * from the allowed lists, unique ids and names, aliases written the way
+ * search expects, positions on the map, and references between places.
+ *
+ * Whether an alias may be shared by two places is a judgment call, so that
+ * check lives in the tests next to the list of deliberate exceptions.
+ */
+export function validatePlaces(places: CampusPlace[]): string[] {
+  const problems: string[] = [];
+  const ids = new Set<string>();
+  const names = new Set<string>();
+
+  for (const place of places) {
+    if (!PLACE_ID.test(place.id)) {
+      problems.push(`"${place.id}": id must be lowercase words joined by dashes`);
+    }
+    if (ids.has(place.id)) problems.push(`"${place.id}": id is used more than once`);
+    ids.add(place.id);
+
+    const name = place.name?.trim() ?? "";
+    if (!name) problems.push(`"${place.id}": name is empty`);
+    if (names.has(name)) problems.push(`"${place.id}": name "${name}" is used more than once`);
+    names.add(name);
+  }
+
+  for (const place of places) {
+    const where = `"${place.id}"`;
+
+    if (place.kind !== undefined && !(PLACE_KINDS as readonly string[]).includes(place.kind)) {
+      problems.push(`${where}: unknown kind "${place.kind}"`);
+    }
+    if (
+      place.category !== undefined &&
+      !(PLACE_CATEGORIES as readonly string[]).includes(place.category)
+    ) {
+      problems.push(`${where}: unknown category "${place.category}"`);
+    }
+
+    if (place.withinBuildingId !== undefined) {
+      if (place.withinBuildingId === place.id) {
+        problems.push(`${where}: withinBuildingId points to itself`);
+      } else if (!ids.has(place.withinBuildingId)) {
+        problems.push(`${where}: withinBuildingId "${place.withinBuildingId}" is not a place`);
+      }
+      if (place.kind !== "office") {
+        problems.push(`${where}: only an office can have withinBuildingId`);
+      }
+    }
+
+    if (!Array.isArray(place.aliases)) {
+      problems.push(`${where}: aliases must be a list`);
+    } else {
+      const seen = new Set<string>();
+      for (const alias of place.aliases) {
+        if (typeof alias !== "string" || !alias.trim()) {
+          problems.push(`${where}: has an empty alias`);
+          continue;
+        }
+        // Search compares lowercase text, so anything else would never match.
+        if (alias !== alias.trim().toLowerCase()) {
+          problems.push(`${where}: alias "${alias}" must be lowercase with no outer spaces`);
+        }
+        if (seen.has(alias)) problems.push(`${where}: alias "${alias}" is listed twice`);
+        seen.add(alias);
+        if (alias === place.name?.toLowerCase()) {
+          problems.push(`${where}: alias "${alias}" just repeats the name`);
+        }
+      }
+    }
+
+    if (!isFraction(place.map?.x) || !isFraction(place.map?.y)) {
+      problems.push(`${where}: map x and y must be numbers from 0 to 1`);
+    }
+
+    if (place.entrances !== undefined) {
+      if (place.entrances.length === 0) {
+        problems.push(`${where}: entrances is empty; leave it out until there is one`);
+      }
+      const entranceIds = new Set<string>();
+      for (const entrance of place.entrances) {
+        const door = `${where} entrance "${entrance.id}"`;
+        if (entranceIds.has(entrance.id)) problems.push(`${door}: id is used more than once`);
+        entranceIds.add(entrance.id);
+        if (!isNumberIn(entrance.geo?.lat, -90, 90) || !isNumberIn(entrance.geo?.lng, -180, 180)) {
+          problems.push(`${door}: geo needs a valid lat and lng`);
+        }
+        if (entrance.map !== undefined && (!isFraction(entrance.map.x) || !isFraction(entrance.map.y))) {
+          problems.push(`${door}: map x and y must be numbers from 0 to 1`);
+        }
+      }
+      const primaries = place.entrances.filter((entrance) => entrance.primary).length;
+      if (place.entrances.length > 0 && primaries !== 1) {
+        problems.push(`${where}: needs exactly one primary entrance, has ${primaries}`);
+      }
+    }
+  }
+
+  return problems;
 }
 
 export const CAMPUS_BUILDINGS: CampusBuilding[] = [
