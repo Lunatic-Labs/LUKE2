@@ -19,9 +19,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Body too large" }, { status: 413 });
   }
 
-  const text = await request.text();
-  if (text.length > MAX_BODY_BYTES) {
-    return NextResponse.json({ error: "Body too large" }, { status: 413 });
+  const reader = request.body?.getReader();
+  const decoder = new TextDecoder();
+  let bytes = 0;
+  let text = "";
+  if (reader) {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > MAX_BODY_BYTES) {
+        await reader.cancel();
+        return NextResponse.json({ error: "Body too large" }, { status: 413 });
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    text += decoder.decode();
   }
 
   let body: { tag?: unknown; score?: unknown };
