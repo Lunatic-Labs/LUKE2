@@ -6,6 +6,7 @@ import { SceneFrame } from "@/components/SceneFrame";
 import type { SceneComponentProps } from "@/features/kiosk/types";
 import { CreditsView } from "./CreditsView";
 import { MajorsView } from "./MajorsView";
+import { BuildingView } from "./BuildingView";
 
 interface StaffRecord {
   name: string;
@@ -263,6 +264,7 @@ export function DirectoryScene({ handle }: SceneComponentProps) {
   const [failedImage, setFailedImage] = useState<string | null>(null);
   const [showCredits, setShowCredits] = useState(false);
   const [showMajors, setShowMajors] = useState(false);
+  const [showBuilding, setShowBuilding] = useState(false);
 
   const visiblePeople = useMemo(() => {
     if (selectedCategory === "All Staff") {
@@ -307,6 +309,15 @@ export function DirectoryScene({ handle }: SceneComponentProps) {
     return (
       <SceneFrame className="bg-white text-black">
         <MajorsView onBack={() => setShowMajors(false)} onActivity={() => handle.reportActivity()} />
+      </SceneFrame>
+    );
+  }
+
+  
+  if (showBuilding) {
+    return (
+      <SceneFrame className="bg-white text-black">
+        <BuildingView onBack={() => setShowBuilding(false)} onActivity={() => handle.reportActivity()} />
       </SceneFrame>
     );
   }
@@ -374,6 +385,18 @@ export function DirectoryScene({ handle }: SceneComponentProps) {
               >
                 Our Majors
               </button>
+
+                              <button
+                type="button"
+                onClick={() => {
+                  handle.reportActivity();
+                  setShowBuilding(true);
+                }}
+                className="rounded-md border border-[#2B0A54]/40 bg-white px-5 py-2 text-sm font-medium text-[#2B0A54] transition-colors hover:border-[#AD8C45] hover:bg-[#AD8C45]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#AD8C45]"
+              >
+                Our Building
+              </button>
+
               <button
                 type="button"
                 onClick={() => {
