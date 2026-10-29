@@ -7,7 +7,7 @@
  * and the registry imports that scene.
  */
 export const MENU_ITEMS: { sceneId: string; label: string }[] = [
-  { sceneId: "directory", label: "Faculty" },
+  { sceneId: "directory", label: "Directory" },
   { sceneId: "video", label: "Video" },
   { sceneId: "map", label: "Map" },
   { sceneId: "camera", label: "Camera" },
