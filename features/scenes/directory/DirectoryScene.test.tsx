@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { DirectoryScene } from "./DirectoryScene";
 
+// The staff-page tests live in FacultyView.test.tsx; these cover the home menu.
 describe("DirectoryScene", () => {
   const handle = {
     reportActivity: jest.fn(),
@@ -10,48 +11,64 @@ describe("DirectoryScene", () => {
     goToScene: jest.fn(),
   };
 
-  it("renders the faculty and staff directory and filters by category", () => {
+  function renderDirectory() {
     render(<DirectoryScene bounds={{ width: 1200, height: 800 }} handle={handle} />);
+  }
 
-    expect(screen.getByText("Our Faculty and Staff")).toBeInTheDocument();
+  function expectHome() {
+    expect(screen.getByRole("heading", { name: "Welcome to the L.U.K.E. Directory!" })).toBeInTheDocument();
+  }
+
+  afterEach(() => handle.reportActivity.mockClear());
+
+  it("opens on a menu of the four sections", () => {
+    renderDirectory();
+
+    expectHome();
+    expect(screen.getByRole("button", { name: /^Our Majors/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Our Faculty and Staff/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Our Building/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Credits/ })).toBeInTheDocument();
+  });
+
+  it("opens the faculty and staff and returns to the menu", () => {
+    renderDirectory();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Our Faculty and Staff/ }));
     expect(screen.getByText("David Elrod II")).toBeInTheDocument();
+    expect(handle.reportActivity).toHaveBeenCalled();
 
-    const categoryFilter = screen.getByRole("button", { name: /Filter by category/i });
-    fireEvent.click(categoryFilter);
-    expect(categoryFilter).toHaveAttribute("aria-expanded", "true");
-    fireEvent.click(screen.getByRole("button", { name: "School of Computing" }));
-    expect(categoryFilter).toHaveAttribute("aria-expanded", "false");
-
-    expect(screen.getByText("Amy Algood")).toBeInTheDocument();
-    expect(screen.getByText("1 / 7")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(screen.getByText("Bryan Crawley")).toBeInTheDocument();
-    expect(screen.getByText("2 / 7")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expectHome();
   });
 
-  it("shows Jacob Dyer under both engineering categories", () => {
-    render(<DirectoryScene bounds={{ width: 1200, height: 800 }} handle={handle} />);
+  it("opens the majors and returns to the menu", () => {
+    renderDirectory();
 
-    const categoryFilter = screen.getByRole("button", { name: /Filter by category/i });
-    fireEvent.click(categoryFilter);
-    expect(screen.queryByRole("button", { name: "Electrical & Computer Engineering" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Electrical Engineering" }));
-    expect(screen.getByText("Jacob Dyer")).toBeInTheDocument();
-    expect(screen.getByText("1 / 3")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Our Majors/ }));
+    expect(screen.getByRole("heading", { name: "Civil Engineering" })).toBeInTheDocument();
 
-    fireEvent.click(categoryFilter);
-    fireEvent.click(screen.getByRole("button", { name: "Computer Engineering" }));
-    expect(screen.getByText("Jacob Dyer")).toBeInTheDocument();
-    expect(screen.getByText("1 / 3")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expectHome();
   });
 
-  it("opens the credits and returns to the directory", () => {
-    render(<DirectoryScene bounds={{ width: 1200, height: 800 }} handle={handle} />);
+  it("opens the building and returns to the menu", () => {
+    renderDirectory();
 
-    fireEvent.click(screen.getByRole("button", { name: "Credits" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Our Building/ }));
+    expect(screen.getByRole("heading", { name: "Fields Engineering Center" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expectHome();
+  });
+
+  it("opens the credits and returns to the menu", () => {
+    renderDirectory();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Credits/ }));
     expect(screen.getByText("About L.U.K.E.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(screen.getByText("Our Faculty and Staff")).toBeInTheDocument();
+    expectHome();
   });
 });
