@@ -4,7 +4,14 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { DEFAULT_SCORES_DIR, readScores, saveScore, SCORES_FILE, scoresDir } from "./score-store";
+import {
+  DEFAULT_SCORES_DIR,
+  readScores,
+  saveScore,
+  saveScoreAndRead,
+  SCORES_FILE,
+  scoresDir,
+} from "./score-store";
 
 describe("score-store", () => {
   let dir: string;
@@ -35,6 +42,33 @@ describe("score-store", () => {
       { tag: "TST", score: 100 },
       { tag: "XYZ", score: 300 },
     ]);
+  });
+
+  it("saves and reads back with the new score at the returned index, even when saves overlap", async () => {
+    const results = await Promise.all([
+      saveScoreAndRead({ tag: "AAA", score: 100 }, dir),
+      saveScore({ tag: "BBB", score: 200 }, dir),
+      saveScoreAndRead({ tag: "CCC", score: 300 }, dir),
+    ]);
+
+    expect(results[0]).toEqual({ entries: [{ tag: "AAA", score: 100 }], index: 0 });
+    expect(results[2]).toEqual({
+      entries: [
+        { tag: "AAA", score: 100 },
+        { tag: "BBB", score: 200 },
+        { tag: "CCC", score: 300 },
+      ],
+      index: 2,
+    });
+  });
+
+  it("keeps saving after a refused score", async () => {
+    await expect(saveScoreAndRead({ tag: "T1T", score: 100 }, dir)).rejects.toThrow();
+
+    expect(await saveScoreAndRead({ tag: "TST", score: 100 }, dir)).toEqual({
+      entries: [{ tag: "TST", score: 100 }],
+      index: 0,
+    });
   });
 
   it("refuses an invalid tag or score instead of writing it", async () => {

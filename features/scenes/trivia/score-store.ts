@@ -27,11 +27,44 @@ export function scoresDir(): string {
 }
 
 /**
+ * Writes to the table run one at a time, each starting after the last
+ * finishes, so a save and the read that follows it can't have another save
+ * land between them. One queue for the process is enough: the kiosk runs a
+ * single server.
+ */
+let writes: Promise<unknown> = Promise.resolve();
+
+function serialized<T>(task: () => Promise<T>): Promise<T> {
+  const result = writes.then(task, task);
+  writes = result.catch(() => {});
+  return result;
+}
+
+/**
  * Adds a score as the table's last row, creating the folder and the file
  * (with its header) the first time. Throws on an invalid tag or score, so
  * nothing but `tag,score` rows ever reaches the file.
  */
-export async function saveScore(entry: ScoreEntry, dir: string = scoresDir()): Promise<void> {
+export function saveScore(entry: ScoreEntry, dir: string = scoresDir()): Promise<void> {
+  return serialized(() => appendScore(entry, dir));
+}
+
+/**
+ * Saves a score and reads the table back with no other save in between, so
+ * the new score is known to be the last entry, at `index`.
+ */
+export function saveScoreAndRead(
+  entry: ScoreEntry,
+  dir: string = scoresDir(),
+): Promise<{ entries: ScoreEntry[]; index: number }> {
+  return serialized(async () => {
+    await appendScore(entry, dir);
+    const entries = await readScores(dir);
+    return { entries, index: entries.length - 1 };
+  });
+}
+
+async function appendScore(entry: ScoreEntry, dir: string): Promise<void> {
   if (!isValidTag(entry.tag) || !isValidScore(entry.score)) {
     throw new Error("Invalid score entry");
   }

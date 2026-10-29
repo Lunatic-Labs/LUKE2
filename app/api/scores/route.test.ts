@@ -45,6 +45,18 @@ describe("/api/scores", () => {
     expect(await readFile(path.join(dir, SCORES_FILE), "utf8")).toBe("tag,score\nTST,300\nTST,100\n");
   });
 
+  it("marks each request's own score when several arrive at once", async () => {
+    const tags = ["AAA", "BBB", "CCC", "DDD", "EEE"];
+    const responses = await Promise.all(
+      tags.map((tag, i) => post(JSON.stringify({ tag, score: (i + 1) * 100 }))),
+    );
+
+    for (const [i, response] of responses.entries()) {
+      const board = await response.json();
+      expect(board.scores[board.yours]).toEqual({ tag: tags[i], score: (i + 1) * 100 });
+    }
+  });
+
   it("returns the current board on GET, empty before any scores", async () => {
     expect(await (await GET()).json()).toEqual({ scores: [], yours: null });
 

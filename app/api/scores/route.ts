@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { readScores, saveScore } from "@/features/scenes/trivia/score-store";
+import { readScores, saveScoreAndRead } from "@/features/scenes/trivia/score-store";
 import { buildLeaderboard, isValidScore, isValidTag } from "@/features/scenes/trivia/scores";
 
 /** `{"tag":"TST","score":9125}` is about 30 bytes; anything near this isn't a score. */
@@ -39,8 +39,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Score is not one a round can produce" }, { status: 400 });
   }
 
-  await saveScore({ tag, score });
-  const entries = await readScores();
-  // The score just saved is the table's last row.
-  return NextResponse.json(buildLeaderboard(entries, undefined, entries.length - 1), { status: 201 });
+  const { entries, index } = await saveScoreAndRead({ tag, score });
+  return NextResponse.json(buildLeaderboard(entries, undefined, index), { status: 201 });
 }

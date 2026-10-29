@@ -289,6 +289,9 @@ it. Keep it out of `index.ts` so it's never bundled for the browser.
   `data/trivia-scores`.
 - `saveScore()`: appends a row, creating the folder and the file with its
   header the first time. Refuses an invalid tag or score.
+- `saveScoreAndRead()`: saves a score and reads the table back, returning
+  the entries and the new row's index. Saves run one at a time, so no other
+  save can land between the write and the read and be mistaken for this one.
 - `readScores()`: every valid row, oldest first. A missing file is an empty
   table.
 
