@@ -10,9 +10,9 @@ Rules the menu follows:
 
 | Rule | How it's enforced |
 | --- | --- |
-| Shown only after the welcome screen | `beginSession()` in `KioskShell` sets `onMainMenu`; nothing else sets it back to true. |
+| Shown after the welcome screen | `beginSession()` in `KioskShell` sets `onMainMenu`. The only other way back is a scene calling `handle.goToMainMenu()`, which trivia's Exit button does (added later, on `L20-31`). |
 | No link to itself or to the welcome screen | Its buttons come from `MENU_ITEMS`, which lists carousel scenes only. |
-| The navbar can't navigate to it | `main-menu` isn't in `MENU_ITEMS`. The header's menu button is also hidden while the menu is on screen. |
+| The navbar's "Home" item returns to it | Added later, on `L20-31`. The shell puts "Home" at the top of the header drop-down (`NAV_MENU_ITEMS`); it isn't in `MENU_ITEMS`, so the menu's own grid has no button for itself. The drop-down is also available on the menu itself, with "Home" marked as the current page. |
 | The carousel never cycles to it | It's held outside `SCENES` (like `IDLE_SCENE`), so the arrows and auto-advance can't reach it. |
 | No arrows on the bottom bar | The shell renders the plain purple strip used by the welcome screen instead of `BottomBar`, so there are no arrows on screen. |
 | No accidental taps | Its buttons ignore taps for `MENU_INPUT_DELAY_MS` (0.5s) after it appears, so a quick double-tap on the welcome screen can't land on a page. They look the same during the delay. |
@@ -43,14 +43,14 @@ Rules the menu follows:
   - `beginSession` turns `onMainMenu` on; `goToScene` and `endSession` turn it off
   - the idle tick skips auto-advance while on the menu
   - the scene on screen is chosen as idle → main menu → carousel
-  - the header's menu button, `NavMenu` and `BottomBar` only appear when `inCarousel` is true; otherwise the bottom is a plain purple strip
+  - `BottomBar` only appears when `inCarousel` is true; otherwise the bottom is a plain purple strip. (Originally the header's menu button and `NavMenu` were limited the same way; since `L20-31` they're available on the main menu too.)
   - `goToScene` is passed to scenes through the handle
 
 ### Tests
 
 - `features/kiosk/components/KioskShell.test.tsx`: existing tests start sessions through a new `startSession()` helper, which taps the welcome screen, waits out the menu's input delay (`openMainMenu()`), and then picks "Video" from the menu. New tests cover:
   - a tap on the welcome screen opens the main menu
-  - on the menu, there are no bottom bar arrows and the header's menu button is hidden
+  - on the menu, there are no bottom bar arrows (the header's menu button was hidden here at first; since `L20-31` it's shown)
   - taps on the menu are ignored until its 0.5s input delay has passed
   - picking a page enters the carousel at that page
   - the menu doesn't auto-advance after 30s
