@@ -27,6 +27,58 @@ export interface CampusBuilding {
   y: number;
 }
 
+/**
+ * What sort of place an entry is. An office is a destination inside another
+ * building; a venue or field is somewhere people go that isn't an enclosed
+ * building (an amphitheater, a square, a ballpark).
+ */
+export type PlaceKind = "building" | "office" | "venue" | "field";
+
+/**
+ * The section a place is listed under on the Find screen. One per place, so
+ * every place appears exactly once in the grouped list; a search for a
+ * generic word like "dorm" can match a whole category.
+ */
+export type PlaceCategory =
+  | "admissions-visitors"
+  | "academics"
+  | "student-life"
+  | "athletics"
+  | "housing"
+  | "admin"
+  | "arts"
+  | "health";
+
+export interface CampusPlace {
+  id: string;
+  name: string;
+  /** Optional until every entry in `places.json` has one. */
+  kind?: PlaceKind;
+  /** Optional until every entry in `places.json` has one. */
+  category?: PlaceCategory;
+  /** For an office inside another place: that place's id. Unset for standalone offices. */
+  withinBuildingId?: string;
+  aliases: string[];
+  map: { x: number; y: number };
+  entrances?: Entrance[];
+}
+
+/** A door visitors can use to get into a place. */
+export interface Entrance {
+  /** Unique within its place, e.g. "front" or "north". */
+  id: string;
+  /** How a visitor recognizes it, e.g. "Front entrance, facing Bison Square". */
+  label?: string;
+  /** Real-world position; where QR directions and routes end. */
+  geo: { lat: number; lng: number };
+  /** Position on the map image, as fractions of its width and height. */
+  map?: { x: number; y: number };
+  /** The default door for the place; exactly one per place. */
+  primary?: boolean;
+  /** Deferred until accessibility data is collected. */
+  accessible?: boolean;
+}
+
 export const CAMPUS_BUILDINGS: CampusBuilding[] = [
   { id: "a-m-burton-health-sciences-center", name: "A.M. Burton Health Sciences Center", x: 0.28587, y: 0.395 },
   { id: "acuff-chapel", name: "Acuff Chapel", x: 0.61763, y: 0.23813 },

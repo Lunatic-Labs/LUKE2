@@ -14,6 +14,7 @@
   {
     "id": "advancement-office",
     "name": "Advancement Office",
+    "kind": "building",
     "aliases": [],
     "map": { "x": 0.41969, "y": 0.19062 }
   },
@@ -32,6 +33,7 @@
   {
     "id": "alumni-relations",
     "name": "Alumni Relations",
+    "kind": "building",
     "aliases": [],
     "map": { "x": 0.7508, "y": 0.21833 }
   },
@@ -44,7 +46,7 @@
   {
     "id": "bennett-campus-center",
     "name": "Bennett Campus Center",
-    "aliases": ["bennett", "the campus center", "campus center","the stu", "the caf"],
+    "aliases": ["bennett", "the campus center", "campus center", "the stu", "the caf", "dining", "food", "eat"],
     "map": { "x": 0.41711, "y": 0.38167 }
   },
   {
@@ -68,13 +70,13 @@
   {
     "id": "contemporary-music-house",
     "name": "Contemporary Music House",
-    "aliases": ["Imagine House"],
+    "aliases": ["imagine house"],
     "map": { "x": 0.6558, "y": 0.43625 }
   },
   {
     "id": "crisman-administration-building",
     "name": "Crisman Administration Building",
-    "aliases": ["crisman", "the administration building", "offices"],
+    "aliases": ["crisman", "the administration building"],
     "map": { "x": 0.24383, "y": 0.31375 }
   },
   {
@@ -92,13 +94,13 @@
   {
     "id": "elam-hall",
     "name": "Elam Hall",
-    "aliases": ["Elam", "girls dorm"],
+    "aliases": ["elam", "girls dorm"],
     "map": { "x": 0.41668, "y": 0.28125 }
   },
   {
     "id": "ezell-center",
     "name": "Ezell Center",
-    "aliases": ["Ezell", "psychology department", "bible and theology department", "education department", "history, politics, and philosophy department", "english department"],
+    "aliases": ["ezell", "psychology department", "bible and theology department", "education department", "history, politics, and philosophy department", "english department"],
     "map": { "x": 0.20437, "y": 0.58167 }
   },
   {
@@ -116,18 +118,19 @@
   {
     "id": "flatt-amphitheater",
     "name": "Flatt Amphitheater",
-    "aliases": ["Flatt", "the amphitheater"],
+    "aliases": ["flatt", "the amphitheater"],
     "map": { "x": 0.41647, "y": 0.41833 }
   },
   {
     "id": "george-shinn-center",
     "name": "George Shinn Center",
-    "aliases": ["shinn"],
+    "aliases": ["shinn", "campus visit", "visit", "check in", "visitor center", "welcome center"],
     "map": { "x": 0.21789, "y": 0.62583 }
   },
   {
     "id": "graduate-admissions",
     "name": "Graduate Admissions",
+    "kind": "building",
     "aliases": [],
     "map": { "x": 0.40532, "y": 0.16271 }
   },
@@ -152,6 +155,7 @@
   {
     "id": "honors-college",
     "name": "Honors College",
+    "kind": "building",
     "aliases": [],
     "map": { "x": 0.40725, "y": 0.12687 }
   },
@@ -188,6 +192,7 @@
   {
     "id": "lipscomb-online",
     "name": "Lipscomb Online",
+    "kind": "building",
     "aliases": [],
     "map": { "x": 0.38966, "y": 0.18313 }
   },
@@ -236,7 +241,7 @@
   {
     "id": "sewell-hall",
     "name": "Sewell Hall",
-    "aliases": ["Sewell", "dorm"],
+    "aliases": ["sewell", "dorm"],
     "map": { "x": 0.48252, "y": 0.48812 }
   },
   {
@@ -254,13 +259,13 @@
   {
     "id": "student-activities-center",
     "name": "Student Activities Center",
-    "aliases": ["activities center", "gym", "the SAC", "SAC"],
+    "aliases": ["activities center", "gym", "the sac", "sac", "dining", "food", "eat"],
     "map": { "x": 0.28394, "y": 0.60354 }
   },
   {
     "id": "swang-business-center",
     "name": "Swang Business Center",
-    "aliases": ["business department", "business building", "Swang"],
+    "aliases": ["business department", "business building", "swang"],
     "map": { "x": 0.30431, "y": 0.48896 }
   },
   {
@@ -290,13 +295,14 @@
   {
     "id": "veterans-resource-center",
     "name": "Veterans' Resource Center",
+    "kind": "building",
     "aliases": [],
     "map": { "x": 0.41047, "y": 0.22062 }
   },
   {
     "id": "ward-hall",
     "name": "Ward Hall",
-    "aliases": ["Ward"],
+    "aliases": ["ward"],
     "map": { "x": 0.21252, "y": 0.27333 }
   }
 ]
