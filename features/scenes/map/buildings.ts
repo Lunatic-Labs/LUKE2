@@ -16,6 +16,7 @@ import placesData from "./data/places.json";
  * each of the 50 numbered markers was located by color-based blob detection,
  * then matched to its name via `LUKey.jpg`'s legend. `x`/`y` are fractions
  * of the image's own width/height, so they stay correct at any render size.
+ * They live in `data/places.json` as each place's `map` position.
  *
  * Upstream had no per-building description; `display_text()` only ever showed
  * the name ("Currently displaying: " + label), so none is invented here either.
@@ -207,58 +208,17 @@ export function validatePlaces(places: CampusPlace[]): string[] {
   return problems;
 }
 
-export const CAMPUS_BUILDINGS: CampusBuilding[] = [
-  { id: "a-m-burton-health-sciences-center", name: "A.M. Burton Health Sciences Center", x: 0.28587, y: 0.395 },
-  { id: "acuff-chapel", name: "Acuff Chapel", x: 0.61763, y: 0.23813 },
-  { id: "advancement-office", name: "Advancement Office", x: 0.41969, y: 0.19062 },
-  { id: "allen-arena", name: "Allen Arena", x: 0.37701, y: 0.61146 },
-  { id: "allen-bell-tower", name: "Allen Bell Tower", x: 0.27622, y: 0.54854 },
-  { id: "alumni-relations", name: "Alumni Relations", x: 0.7508, y: 0.21833 },
-  { id: "beaman-library", name: "Beaman Library", x: 0.19773, y: 0.50083 },
-  { id: "bennett-campus-center", name: "Bennett Campus Center", x: 0.41711, y: 0.38167 },
-  { id: "bison-hall-and-bison-inn", name: "Bison Hall & Bison Inn", x: 0.35149, y: 0.15229 },
-  { id: "bison-square-and-osman-fountain", name: "Bison Square & Osman Fountain", x: 0.36908, y: 0.40437 },
-  { id: "collins-alumni-auditorium", name: "Collins Alumni Auditorium", x: 0.31546, y: 0.39333 },
-  { id: "contemporary-music-house", name: "Contemporary Music House", x: 0.6558, y: 0.43625 },
-  { id: "crisman-administration-building", name: "Crisman Administration Building", x: 0.24383, y: 0.31375 },
-  { id: "draper-diamond", name: "Draper Diamond", x: 0.22089, y: 0.73625 },
-  { id: "dugan-field", name: "Dugan Field", x: 0.40682, y: 0.75646 },
-  { id: "elam-hall", name: "Elam Hall", x: 0.41668, y: 0.28125 },
-  { id: "ezell-center", name: "Ezell Center", x: 0.20437, y: 0.58167 },
-  { id: "fanning-hall", name: "Fanning Hall", x: 0.30603, y: 0.28813 },
-  { id: "fields-engineering-center", name: "Fields Engineering Center", x: 0.29166, y: 0.10437 },
-  { id: "flatt-amphitheater", name: "Flatt Amphitheater", x: 0.41647, y: 0.41833 },
-  { id: "george-shinn-center", name: "George Shinn Center", x: 0.21789, y: 0.62583 },
-  { id: "graduate-admissions", name: "Graduate Admissions", x: 0.40532, y: 0.16271 },
-  { id: "gymnasium", name: "Gymnasium", x: 0.65323, y: 0.23521 },
-  { id: "harding-hall", name: "Harding Hall", x: 0.54793, y: 0.24229 },
-  { id: "high-rise-hall", name: "High Rise Hall", x: 0.5149, y: 0.57875 },
-  { id: "honors-college", name: "Honors College", x: 0.40725, y: 0.12687 },
-  { id: "huston-marsh-griffith-tennis-center", name: "Huston-Marsh-Griffith Tennis Center", x: 0.28179, y: 0.71208 },
-  { id: "intramural-field", name: "Intramural Field", x: 0.56101, y: 0.38875 },
-  { id: "james-d-hughes-center", name: "James D. Hughes Center", x: 0.23719, y: 0.19104 },
-  { id: "johnson-hall", name: "Johnson Hall", x: 0.37701, y: 0.48896 },
-  { id: "lipscomb-family-therapy-center", name: "Lipscomb Family Therapy Center", x: 0.7062, y: 0.17146 },
-  { id: "lipscomb-online", name: "Lipscomb Online", x: 0.38966, y: 0.18313 },
-  { id: "mccadams-athletic-center", name: "McCadams Athletic Center", x: 0.83809, y: 0.30146 },
-  { id: "mcfarland-science-center", name: "McFarland Science Center", x: 0.17757, y: 0.29375 },
-  { id: "mcquiddy-gym", name: "McQuiddy Gym", x: 0.32275, y: 0.59167 },
-  { id: "music-wing", name: "Music Wing", x: 0.49818, y: 0.24208 },
-  { id: "nursing-and-health-sciences-center", name: "Nursing & Health Sciences Center", x: 0.23333, y: 0.1525 },
-  { id: "pharmaceutical-sciences-research-center", name: "Pharmaceutical Sciences Research Center", x: 0.2389, y: 0.22937 },
-  { id: "reese-smith-athletic-complex", name: "Reese Smith Athletic Complex", x: 0.83959, y: 0.36229 },
-  { id: "sewell-hall", name: "Sewell Hall", x: 0.48252, y: 0.48812 },
-  { id: "shamblin-theatre", name: "Shamblin Theatre", x: 0.47652, y: 0.37771 },
-  { id: "soccer-complex", name: "Soccer Complex", x: 0.20995, y: 0.87021 },
-  { id: "student-activities-center", name: "Student Activities Center", x: 0.28394, y: 0.60354 },
-  { id: "swang-business-center", name: "Swang Business Center", x: 0.30431, y: 0.48896 },
-  { id: "the-village", name: "The Village", x: 0.35921, y: 0.22458 },
-  { id: "thomas-james-mcmeen-music-center", name: "Thomas James McMeen Music Center", x: 0.32018, y: 0.41667 },
-  { id: "university-health-services", name: "University Health Services", x: 0.43491, y: 0.14062 },
-  { id: "university-theatre", name: "University Theatre", x: 0.51319, y: 0.50875 },
-  { id: "veterans-resource-center", name: "Veterans' Resource Center", x: 0.41047, y: 0.22062 },
-  { id: "ward-hall", name: "Ward Hall", x: 0.21252, y: 0.27333 },
-];
+/**
+ * The places as flat (id, name, x, y) markers: the shape the scene and
+ * `findNearestBuilding` were written against. Derived from `CAMPUS_PLACES`,
+ * so `data/places.json` is the only list to edit.
+ */
+export const CAMPUS_BUILDINGS: CampusBuilding[] = CAMPUS_PLACES.map((place) => ({
+  id: place.id,
+  name: place.name,
+  x: place.map.x,
+  y: place.map.y,
+}));
 
 /**
  * Where the kiosk itself stands. `MapScene.Init()` set this independently of

@@ -132,19 +132,6 @@ describe("CAMPUS_PLACES", () => {
     expect(validatePlaces(CAMPUS_PLACES)).toEqual([]);
   });
 
-  it("matches CAMPUS_BUILDINGS entry for entry", () => {
-    // Both lists exist until CAMPUS_BUILDINGS is derived from places.json;
-    // until then they must not drift apart.
-    expect(
-      CAMPUS_PLACES.map((place) => ({
-        id: place.id,
-        name: place.name,
-        x: place.map.x,
-        y: place.map.y,
-      })),
-    ).toEqual(CAMPUS_BUILDINGS);
-  });
-
   it("shares an alias between places only where listed in SHARED_ALIASES", () => {
     const owners = new Map<string, string[]>();
     for (const place of CAMPUS_PLACES) {
