@@ -67,6 +67,8 @@ export interface CampusPlace {
   aliases: string[];
   map: { x: number; y: number };
   entrances?: Entrance[];
+  /** Path under `public/` to a photo of the main entrance. Deferred; unset for now. */
+  photo?: string;
 }
 
 /** A door visitors can use to get into a place. */
