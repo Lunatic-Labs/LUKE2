@@ -23,9 +23,13 @@ canvas and is gone as soon as the visitor leaves the page.
 
 ### [BoardScene.tsx](BoardScene.tsx)
 
-The whole scene. It renders, inside a `SceneFrame`:
+The whole scene. It renders a `SceneFrame` with a white background
+(`bg-white text-black`, the same as the Directory, Feedback and Video
+pages), which covers the shell's lavender and is the whiteboard. Inside it:
 
-- a `<canvas>` filling the scene area, which is the whiteboard
+- a `<canvas>` filling the scene area, sitting on top of the white, which
+  holds the ink. The canvas itself is transparent wherever nothing is
+  drawn, so the page's white shows through.
 - a "Touch to Draw!" heading over the top of the canvas
 - two buttons in the bottom-left corner: **Erase/Draw** and **Clear**
 
@@ -58,13 +62,27 @@ draws instead of scrolling or zooming the page.
 
 #### Pen and eraser
 
-| Mode | Colour | Line width |
+| Mode | What a stroke does | Line width |
 | --- | --- | --- |
-| Draw (default) | purple `rgb(51, 30, 84)` | 2px |
-| Erase | white | 30px |
+| Draw (default) | adds purple `rgb(51, 30, 84)` ink | 2px (`PEN_WIDTH`) |
+| Erase | removes ink | 30px (`ERASER_WIDTH`) |
 
-Erasing is just drawing in thick white lines over the board, as upstream
-did. Lines have rounded ends and joins so strokes look smooth.
+Lines have rounded ends and joins so strokes look smooth.
+
+**How the eraser works.** The eraser draws a stroke like the pen does, but
+with the canvas's `globalCompositeOperation` set to `"destination-out"`.
+In that mode a stroke doesn't add colour: it deletes whatever is already
+on the canvas where it passes, leaving those pixels transparent, so the
+white board behind shows through again. The stroke's own colour doesn't
+matter. Drawing switches the mode back to `"source-over"` (normal
+painting). The mode is set on every move, because the context keeps the
+last setting.
+
+This replaced upstream's eraser, which painted thick white lines over the
+drawing. That only works while ink is drawn on plain white. Removing ink
+instead means the eraser will clear any colour, which matters for the
+planned colour choices, and it would still work if the board ever got a
+background colour or image (set on the box behind the canvas).
 
 The **Erase** button toggles `eraseMode` (React state, since the button's
 label changes). Its label shows the mode you'll switch *to*: "Erase" while
@@ -72,7 +90,8 @@ drawing, "Draw" while erasing.
 
 #### Clear
 
-The **Clear** button (`clearCanvas`) fills the whole canvas white. It
+The **Clear** button (`clearCanvas`) erases the whole canvas at once
+(`clearRect`), leaving only the white board behind it. It
 doesn't change the pen/eraser mode. Upstream had no Clear button; it was
 added here so visitors don't have to scrub every stroke away with the
 eraser.
@@ -84,11 +103,12 @@ pixels it draws into. The effect at the top of the component keeps them
 equal:
 
 - **When the scene appears**, the canvas's pixel size is set to its
-  on-screen size and it's filled white. This is the "clean board"
-  (upstream's `Enable()` did `background(255)`).
+  on-screen size. Setting the size empties the canvas, so it starts
+  transparent over the white board. This is the "clean board" (upstream's
+  `Enable()` did `background(255)`).
 - **When the window or visual viewport is resized**, any stroke in progress
-  is ended, the current drawing is copied aside, the canvas is resized and
-  refilled white, and the copy is drawn back in, stretched to the new size.
+  is ended, the current drawing is copied aside, the canvas is resized
+  (which empties it), and the copy is drawn back in, stretched to the new size.
   So the drawing survives a resize, though it may be stretched or squashed.
   If the size didn't actually change, nothing happens.
 
@@ -169,15 +189,18 @@ renders the scene and passes it two props (defined in
 
 - **[components/SceneFrame.tsx](../../../components/SceneFrame.tsx)** is the
   scene's outer box: full width and height of the scene area, as a flex
-  column. The board passes no background class, so it's the canvas's white
-  fill that you see.
+  column. The board passes it `bg-white text-black`, as the other white
+  pages do, so the whole scene is white with the canvas on top.
 - The scene area sits between the purple header
   ([components/KioskHeader.tsx](../../../components/KioskHeader.tsx)) and the
   bottom bar ([components/BottomBar.tsx](../../../components/BottomBar.tsx)),
   both drawn by the shell. The board's canvas fills only the space between
   them.
 - The shell draws the Nashville skyline underneath every scene. The board's
-  canvas is opaque white, so **the skyline doesn't show on this page**.
+  white background is opaque, so **the skyline doesn't show on this page**.
+  The canvas itself is transparent, so if the `SceneFrame`'s `bg-white` were
+  removed, erased and empty areas would show the shell's lavender and
+  skyline instead.
 - The header's drop-down menu ([components/NavMenu.tsx](../../../components/NavMenu.tsx))
   opens over the top of the board. Taps on the menu don't draw.
 

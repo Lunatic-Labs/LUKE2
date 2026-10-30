@@ -13,13 +13,19 @@ import type { SceneComponentProps } from "@/features/kiosk/types";
  * pointer reset the segment chain, and `Enable()` cleared the canvas white. The
  * scene remounts on scene change here, so a fresh mount is the cleared board.
  *
- * One addition over upstream: a Clear button that wipes the whole canvas at
- * once, so visitors don't have to scrub every stroke with the erase toggle.
+ * Two changes from upstream: a Clear button that wipes the whole canvas at
+ * once, and a real eraser. The canvas holds only ink on a transparent
+ * background, with the white board behind it in CSS, and the eraser removes
+ * ink (`destination-out`) instead of painting white over it, so it erases any
+ * colour.
  */
 
 // Upstream colors: fill(51, 30, 84) purple, stroke(244, 170, 0) gold.
 const PURPLE = "rgb(51, 30, 84)";
 const GOLD = "rgb(244, 170, 0)";
+
+const PEN_WIDTH = 2;
+const ERASER_WIDTH = 30;
 
 interface Point {
   x: number;
@@ -39,9 +45,8 @@ export function BoardScene({ bounds }: SceneComponentProps) {
     const context = canvas?.getContext("2d");
     if (!canvas || !context) return;
 
-    // Upstream `Enable()` did `background(255)`.
-    context.fillStyle = "white";
-    context.fillRect(0, 0, canvas.width, canvas.height);
+    // Upstream `Enable()` did `background(255)`; the white is behind the canvas.
+    context.clearRect(0, 0, canvas.width, canvas.height);
   }, []);
 
   // Size the canvas to its layout box and start from a clean board.
@@ -72,10 +77,9 @@ export function BoardScene({ bounds }: SceneComponentProps) {
             })()
           : null;
 
+      // Resizing a canvas clears it to transparent.
       canvas.width = nextWidth;
       canvas.height = nextHeight;
-      context.fillStyle = "white";
-      context.fillRect(0, 0, canvas.width, canvas.height);
 
       if (previousCanvas) {
         context.drawImage(previousCanvas, 0, 0, canvas.width, canvas.height);
@@ -122,8 +126,11 @@ export function BoardScene({ bounds }: SceneComponentProps) {
     if (!context || !from) return;
 
     const to = canvasPoint(event);
-    context.strokeStyle = eraseMode ? "white" : PURPLE; // White color for erasing
-    context.lineWidth = eraseMode ? 30 : 2;
+    // `destination-out` removes whatever the stroke covers, leaving the canvas
+    // transparent so the white board behind it shows through.
+    context.globalCompositeOperation = eraseMode ? "destination-out" : "source-over";
+    context.strokeStyle = PURPLE;
+    context.lineWidth = eraseMode ? ERASER_WIDTH : PEN_WIDTH;
     context.lineCap = "round";
     context.lineJoin = "round";
     context.beginPath();
@@ -146,7 +153,9 @@ export function BoardScene({ bounds }: SceneComponentProps) {
   }
 
   return (
-    <SceneFrame>
+    // White like the other pages, covering the shell's lavender; the
+    // transparent canvas sits on top, so erased ink reveals this white.
+    <SceneFrame className="bg-white text-black">
       <div className="relative min-h-0 flex-1 touch-none">
         <canvas
           ref={canvasRef}
