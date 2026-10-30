@@ -77,7 +77,7 @@ Rebuilt to match the welcome-screen mockup. From bottom to top, the layers are:
 1. **Photo:** `lipscomb-entrance.png`, filling the scene with `object-cover`.
 2. **Tint:** a top-to-bottom gradient, `#8F7EB3` at 87% to `#3E364D` at 100%, at 50% opacity. It washes the photo lilac and darkens it slightly at the bottom.
 3. **Heading wash:** a top-to-bottom gradient, `#8F7EB3` at 23% to transparent at 39%, at 25% opacity. It adds lilac behind the heading so the text stays readable against the sky.
-4. **Skyline:** its own copy of `nashville-skyline.png`, anchored to the bottom.
+4. **Skyline:** its own copy of `nashville-skyline-v2.png`, anchored to the bottom.
 5. **Text:** "WELCOME!" (extra-bold, `clamp(2.5rem, 15vw, 7rem)`) and "tap to start" (bold, `clamp(1rem, 5vw, 2.25rem)`) in `--luke-purple`, centred near the top.
 
 The old "Hi, I'm L.U.K.E.!" text and its floating animation are gone, since the mockup doesn't have them. Tapping anywhere still starts a session.
@@ -114,7 +114,7 @@ Restyled to match the camera mockup, and given two new controls from it: a filte
   - In landscape, the height limits `--u`, so the same layout is scaled down until it fits. All screens sit in a centred column `calc(var(--u)*100)` wide (the full width in portrait), so percentage widths like the pills' 60% keep their portrait proportions instead of stretching across a wide screen. The column scrolls only as a last resort, for example if a very long question wraps onto more lines than usual.
   - **Reading the sizes below:** they're listed as originally designed in `vw` and `dvh`. In the code, each `N vw` is written `calc(var(--u)*N)` and each `N dvh` is `calc(var(--v)*N)`, with the same upper limits, e.g. `clamp(1.25rem, 6.5vw, 3.25rem)` became `min(3.25rem, calc(var(--u)*6.5))`. The `rem` lower limits were dropped, since none applied at 360×640 and they stopped short landscape screens from fitting. Borders and the letter boxes' inner padding keep their small `px` minimums so they never vanish. `text-[…]` and `border-[…]` values carry a `length:` hint, because Tailwind can't tell a `var()` size from a colour.
   - Checked by screenshot at 360×640 and 768×1024 portrait, and at 1280×720, 1024×600 and 640×360 landscape: every button on every screen (start, initials, question, result, "Don't ghost the quiz!", end, leader board) is fully visible. Before, landscape cut off the lower buttons on most screens, and a 768×1024 tablet cut off the initials screen's "Back".
-- **Background:** the scene's `SceneFrame` now has the trivia mockup's question-mark pattern: `bg-[url('/images/trivia-pattern.svg')]`, repeated, over a `#d9d9d9` grey fallback. `bg-[length:40%_auto]` sizes each tile to 40% of the scene's width. A tile holds two columns of marks, so there are always five columns across, matching the mockup at any screen width.
+- **Background:** the scene's `SceneFrame` now has the trivia mockup's question-mark pattern: `bg-[url('/images/trivia-pattern.svg')]`, repeated, over a white fallback (`bg-white`). `bg-[length:40%_auto]` sizes each tile to 40% of the scene's width. A tile holds two columns of marks, so there are always five columns across, matching the mockup at any screen width. The page was first a `#d9d9d9` grey, as in the mockup; it is now white (`#ffffff`), the same shade as the Directory, Feedback and Video scenes (`bg-white`), so it matches the rest of the kiosk. The SVG tile changed with it, since its own square paints over the fallback.
 - **Start screen:** a new `StartScreen` component replaces the old shared `PromptScreen` on the opening screen, following the start-screen mockup:
   - **Heading:** "Think you got what it takes to ace this Lipscomb Trivia?", bold, centred and in `--luke-purple`, sized `clamp(1.25rem, 6.5vw, 3.25rem)`. It sits in the upper part of the scene (`pt-[clamp(2rem,10dvh,7rem)]`) rather than centred vertically, with `px-[12%]` so it wraps onto three lines as in the mockup.
   - **Buttons:** "Let's go!" followed by a right-arrow icon (inline SVG sized `1em`), then "Score Board", stacked with even gaps (`clamp(0.75rem, 2.5dvh, 2rem)`) a large gap below the heading (`clamp(2rem, 7dvh, 5rem)`). Each is a `rounded-full` purple pill, 60% of the scene's width, with bold gold text (`clamp(1.125rem, 5.5vw, 2.75rem)`). They brighten slightly while pressed (`active:brightness-125`), because darkening barely shows on dark purple. "Let's go!" replaced the old "Game on!" here, which moved to the initials screen.
@@ -223,11 +223,21 @@ Checks that `MENU_ITEMS` lists every carousel scene exactly once, so adding or r
 
 The shield logo, cropped to its visible bounds (372×438). The original had transparent padding that would have thrown off sizing and alignment.
 
-### `public/images/nashville-skyline.png`
+### `public/images/nashville-skyline-v2.png`
 
-The skyline, cropped to 482×119. The source image has "NASHVILLE" cut out of its base as transparent letters, so the crop stops just above them. That leaves a solid purple base that blends into the bottom bar. The source is already exactly `#302052`, so it needed no recoloring.
+The skyline, 2142×495, with a short solid purple base that blends into the bottom bar, as in the welcome screen mockup. No "NASHVILLE" text shows.
 
-**Known limitation:** at 482px wide it looks slightly jagged on large or high-DPI screens. An SVG version would fix that.
+It replaced `nashville-skyline.png`, an earlier 482×119 skyline that looked slightly jagged on large or high-DPI screens. The new source was cleaned up before being added:
+
+- **Recoloured** to exactly `#302052`. The source's purple was close but varied slightly from pixel to pixel (around `#2e194a`–`#301a4f`), which would have left a visible line against the bottom bar.
+- **Solid fill:** the source's fill was about 99% opaque (alpha 253–254), so pixels at alpha 240 or above were made fully opaque. The softened edges of the buildings were kept.
+- **Letters filled:** the source has "NASHVILLE" cut out of its base as transparent letters. Every transparent pixel that can't be reached from the image's edges is a hole inside the base, i.e. a letter, so those were made solid purple, soft edges included, so no faint outline is left.
+- **Cropped** to the outline, removing the source's transparent padding, so the base runs edge to edge.
+- **Base shortened (moved down):** only 24px of solid base is kept below the lowest rooftops (the source had 158px), which drops the buildings about 22px lower on the 360px-wide kiosk screen, to match the mockup. This also removes the rows the letters were in.
+
+**Why a new file name:** Next.js 16 caches its resized copies of an image for 4 hours (`images.minimumCacheTTL`), and browsers cache them too. Overwriting `nashville-skyline.png` in place kept serving the old version with the letters. A new name gets a fresh cache entry. If this image is changed again, give it a new name too (or clear `.next/cache/images` and the browser cache).
+
+Both places that draw it (`KioskShell` and `CampusBackdrop`) give `next/image` its size and `sizes="100vw"`, so the browser downloads a copy sized to the screen instead of the full 2142px file.
 
 ### `features/scenes/trivia/TriviaScene.test.tsx`
 
@@ -235,7 +245,7 @@ The trivia scene's component tests, run against a fixed round with fake timers. 
 
 ### `public/images/trivia-pattern.svg`
 
-One repeating tile of the trivia background, 114×57: a `#D9D9D9` grey square with two bold question marks in lavender-grey `#C4C0D6`, tilted 15°. The second mark sits half a row higher, so neighbouring columns are staggered when the tile repeats.
+One repeating tile of the trivia background, 114×57: a white `#FFFFFF` square (originally the mockup's `#D9D9D9` grey, changed to match the other scenes' `bg-white`) with two bold question marks in lavender-grey `#C4C0D6`, tilted 15°. The second mark sits half a row higher, so neighbouring columns are staggered when the tile repeats.
 
 **Why an SVG rather than the mockup image:** the exported mockup image has a pink line down its left edge, and its edges don't line up, so it would show seams when tiled. A redrawn tile repeats seamlessly and stays sharp at any resolution. The marks use the system's bold Arial, because an SVG used as a CSS background can't load web fonts.
 

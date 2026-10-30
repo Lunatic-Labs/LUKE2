@@ -175,10 +175,11 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
         {/* Backdrop only: its solid base meets the bottom bar so the skyline
             appears to rise out of it. Scenes paint over it and get the taps. */}
         <Image
-          src="/images/nashville-skyline.png"
+          src="/images/nashville-skyline-v2.png"
           alt=""
-          width={482}
-          height={119}
+          width={2142}
+          height={495}
+          sizes="100vw"
           priority
           className="pointer-events-none absolute inset-x-0 bottom-0 h-auto w-full"
         />

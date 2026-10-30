@@ -343,10 +343,14 @@ reasons, is in the repo's [`CSS.md`](../../../CSS.md).
   spacing), not in `vw` or `dvh`, or landscape will overflow again. See
   "Sizing" in `CSS.md` for the details.
 
-- **Background:** a light grey (`#d9d9d9`) covered in tilted lavender-grey
+- **Background:** white (`#ffffff`) covered in tilted lavender-grey
   question marks, tiled from `trivia-pattern.svg`. Tiles are sized to 40% of
   the scene's width, so there are always five columns of marks. The
   background is opaque, so the shell's skyline doesn't show on this page.
+  It was the mockup's light grey (`#d9d9d9`) at first; it's now the same
+  `bg-white` as the Directory, Feedback and Video scenes, so the page
+  matches the rest of the kiosk. Both the scene's `bg-white` and the SVG
+  tile's own square had to change, because the tile covers the fallback.
 - **Start screen:** a bold purple heading in the upper part of the scene,
   with two purple pill-shaped buttons with gold text under it: "Let's go! →"
   and "Score Board". Text sizes scale with the screen.
