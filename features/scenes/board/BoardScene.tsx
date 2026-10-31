@@ -38,7 +38,21 @@ export function BoardScene({ bounds }: SceneComponentProps) {
   const activePointerIdRef = useRef<number | null>(null);
   // Upstream `points`: the previous segment endpoint, -1 when not drawing.
   const lastPointRef = useRef<Point | null>(null);
+  // Grey circle showing the eraser's reach while an erase stroke is under way.
+  const eraserCursorRef = useRef<HTMLDivElement>(null);
   const [eraseMode, setEraseMode] = useState(false);
+
+  // Moved by hand rather than through state, since it follows every pointer move.
+  function moveEraserCursor(point: Point | null) {
+    const cursor = eraserCursorRef.current;
+    if (!cursor) return;
+    if (!point) {
+      cursor.style.visibility = "hidden";
+      return;
+    }
+    cursor.style.transform = `translate(${point.x - ERASER_WIDTH / 2}px, ${point.y - ERASER_WIDTH / 2}px)`;
+    cursor.style.visibility = "visible";
+  }
 
   const clearCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -92,6 +106,7 @@ export function BoardScene({ bounds }: SceneComponentProps) {
       drawingRef.current = false;
       lastPointRef.current = null;
       activePointerIdRef.current = null;
+      if (eraserCursorRef.current) eraserCursorRef.current.style.visibility = "hidden";
       resizeCanvas(true);
     };
 
@@ -115,6 +130,7 @@ export function BoardScene({ bounds }: SceneComponentProps) {
     event.currentTarget.setPointerCapture(event.pointerId);
     drawingRef.current = true;
     lastPointRef.current = canvasPoint(event);
+    if (eraseMode) moveEraserCursor(lastPointRef.current);
   }
 
   function handlePointerMove(event: React.PointerEvent<HTMLCanvasElement>) {
@@ -139,6 +155,7 @@ export function BoardScene({ bounds }: SceneComponentProps) {
     context.stroke();
 
     lastPointRef.current = to;
+    if (eraseMode) moveEraserCursor(to);
   }
 
   // `ClickRelease()` reset the point chain so strokes don't reconnect.
@@ -150,6 +167,7 @@ export function BoardScene({ bounds }: SceneComponentProps) {
     drawingRef.current = false;
     lastPointRef.current = null;
     activePointerIdRef.current = null;
+    moveEraserCursor(null);
   }
 
   return (
@@ -166,6 +184,13 @@ export function BoardScene({ bounds }: SceneComponentProps) {
           className="absolute inset-0 h-full w-full"
         />
 
+        <div
+          ref={eraserCursorRef}
+          aria-hidden="true"
+          className="pointer-events-none invisible absolute top-0 left-0 rounded-full bg-[#d9d9d9]/30"
+          style={{ width: ERASER_WIDTH, height: ERASER_WIDTH }}
+        />
+
         <h2
           className="pointer-events-none absolute inset-x-0 top-0 text-center font-semibold"
           style={{ color: PURPLE, fontSize: bounds.width / 11 }}
@@ -175,7 +200,10 @@ export function BoardScene({ bounds }: SceneComponentProps) {
 
         <button
           type="button"
-          onClick={() => setEraseMode((current) => !current)}
+          onClick={() => {
+            setEraseMode((current) => !current);
+            moveEraserCursor(null);
+          }}
           className="absolute rounded border"
           style={{
             left: "2%",

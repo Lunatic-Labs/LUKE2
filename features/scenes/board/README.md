@@ -78,6 +78,19 @@ matter. Drawing switches the mode back to `"source-over"` (normal
 painting). The mode is set on every move, because the context keeps the
 last setting.
 
+**Eraser circle.** While the visitor is erasing (finger down in erase
+mode), a grey circle follows the finger to show what the eraser covers:
+`#D9D9D9` at 30% opacity, `ERASER_WIDTH` (30px) across, centred on the
+finger. That matches the eraser exactly, because a 30px-wide stroke with
+round ends sweeps a 30px circle along its path. It's a `<div>` over the
+canvas (`eraserCursorRef`) with `pointer-events-none`, so it never blocks
+drawing. It isn't drawn on the canvas, so it never ends up in the
+picture. `moveEraserCursor` positions it directly through the ref
+(`transform`) on every pointer move, rather than through React state, so
+following the finger doesn't re-render the scene. It hides when the
+stroke ends or is cancelled, when the window is resized, and when the
+Erase/Draw button is pressed. In draw mode it never appears.
+
 This replaced upstream's eraser, which painted thick white lines over the
 drawing. That only works while ink is drawn on plain white. Removing ink
 instead means the eraser will clear any colour, which matters for the
