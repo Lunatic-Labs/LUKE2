@@ -70,7 +70,7 @@ draws instead of scrolling or zooming the page.
 
 | Mode | What a stroke does | Line width |
 | --- | --- | --- |
-| Draw (default) | adds purple `rgb(51, 30, 84)` ink | 2px (`PEN_WIDTH`) |
+| Draw (default) | adds ink in the chosen colour (purple by default, see [Colour menu](#colour-menu)) | 2px (`PEN_WIDTH`) |
 | Erase | removes ink | 30px (`ERASER_WIDTH`) |
 
 Lines have rounded ends and joins so strokes look smooth.
@@ -99,8 +99,7 @@ or eraser button is pressed. In pen mode it never appears.
 
 This replaced upstream's eraser, which painted thick white lines over the
 drawing. That only works while ink is drawn on plain white. Removing ink
-instead means the eraser will clear any colour, which matters for the
-planned colour choices, and it would still work if the board ever got a
+instead means the eraser clears any colour from the colour menu, and it would still work if the board ever got a
 background colour or image (set on the box behind the canvas).
 
 The tool in use is the `tool` state (`"pen"` or `"eraser"`, starting on
@@ -108,12 +107,13 @@ the pen). `eraseMode` is just `tool === "eraser"`.
 
 #### Toolbar
 
-A row along the top of the board, from the drawing mockup. Each button is a
-`ToolButton` (defined at the bottom of `BoardScene.tsx`).
+A row along the top of the board, from the drawing mockup. The colour
+button is a `ColourPicker`; the others are `ToolButton`s (both defined at
+the bottom of `BoardScene.tsx`).
 
 | Button | Position | What it does |
 | --- | --- | --- |
-| Colour (filled dot) | left, first | **Nothing yet.** It's there to match the mockup, and is `disabled` until colours are added. The dot shows the pen's current ink colour. |
+| Colour (a dot of the current ink) | left, first | Opens the colour menu (see [Colour menu](#colour-menu)). |
 | Pen (a click pen) | left, second | Selects the pen (`selectTool("pen")`). |
 | Eraser (a block eraser) | left, third | Selects the eraser (`selectTool("eraser")`). |
 | Trash can | right | Clears the board (`clearCanvas`). |
@@ -128,7 +128,7 @@ A row along the top of the board, from the drawing mockup. Each button is a
   thicker outline.) The button's size stays the same; the thicker outline
   grows inwards. Buttons darken slightly while pressed
   (`active:brightness-90`), like the bottom bar's arrows.
-- **Size:** `clamp(2.5rem, 12vw, 4.5rem)` across (about 43px on the 360px
+- **Size:** `clamp(2.5rem, 12vw, 4.5rem)` across (the `--tool` variable) (about 43px on the 360px
   kiosk screen), with an outline of `clamp(2px, 0.6vw, 4px)`. The icons
   fill 60% of the button.
 - **Icons:** the pen and eraser are images, `public/images/board/pen.png`
@@ -137,7 +137,8 @@ A row along the top of the board, from the drawing mockup. Each button is a
   (`mask-image`, `mask-size: contain`) over a block of the text colour
   (`bg-current`), so the icon comes out in the button's `--luke-purple`
   whatever purple the PNG was saved in, and would follow a colour change
-  on the button. The colour dot and the trash can are still inline SVGs.
+  on the button. The trash can is an inline SVG; the colour button shows plain
+  coloured dots.
 - **Pen and eraser are one choice**, not two toggles: selecting one
   deselects the other. Each has `aria-pressed`, so screen readers announce
   which is on. Every button has an `aria-label`, since it shows only an
@@ -147,6 +148,78 @@ A row along the top of the board, from the drawing mockup. Each button is a
   the gaps between and beside them. A stroke that starts on the board and
   passes under a button keeps drawing (the canvas has captured the
   pointer).
+
+#### Colour menu
+
+The leftmost toolbar button picks the pen's ink colour (`ColourPicker`,
+defined near the bottom of `BoardScene.tsx`). It follows the drawing
+mockup closely.
+
+**Colours,** in menu order, top to bottom (`INKS`):
+
+| Colour | Value | Notes |
+| --- | --- | --- |
+| Red | `#E04C46` | sampled from the mockup |
+| Yellow | `#F0CD48` | sampled from the mockup |
+| Green | `#71C467` | sampled from the mockup |
+| Blue | `#5588F6` | sampled from the mockup |
+| Purple | `rgb(51, 30, 84)` (`PURPLE`) | the board's existing ink; **the default** |
+
+**Behaviour:**
+
+- **Closed:** a round button like the others, showing a dot of the current
+  ink.
+- **Tap it:** it opens. The current ink stays on top, with the other four
+  listed below it in the order above, skipping the current one. For
+  example, with yellow selected: yellow on top, then red, green, blue,
+  purple.
+- **Dot sizes:** the current ink's dot is 55% of the button's width; the
+  others are 45%, slightly smaller, as in the mockup.
+- **Tap a colour:** it becomes the ink, the menu closes, and the pen is
+  selected. Picking a colour while the eraser is on switches back to the
+  pen, since a visitor picking a colour wants to draw with it.
+- **Tap the top dot again:** the menu closes, nothing changes.
+- **Start drawing, or press pen or eraser:** the menu closes.
+- The trash can doesn't close it or change the colour.
+
+The ink is the `ink` state, used as the stroke colour in
+`handlePointerMove`. The menu's open state is `colourMenuOpen`. Both live
+in `BoardScene`, and `ColourPicker` only displays them and reports taps.
+Like the drawing, the colour resets to purple whenever the scene remounts
+(each time the visitor comes back to the page).
+
+**Animation:** the menu grows from the circle into a rounded pill, and the
+colours appear one after another as it grows, following the header
+drop-down's pattern (`components/NavMenu.tsx`):
+
+- **The pill** is the same width as the button, with the same outline and
+  lavender fill, and `rounded-full`, so as its height increases the circle
+  stretches into a pill. Its height animates from `var(--tool)` (one
+  button) to `var(--tool) × (1 + 4 × COLOUR_SLOT)` (about 3.46 buttons) over
+  `COLOUR_MENU_ANIMATION_MS` (300ms), easing out. `COLOUR_SLOT` (0.615 of a
+  button) is each colour's row height, measured from the mockup.
+- **Each colour** fades in and slides down from half a row above over
+  `COLOUR_FADE_MS` (150ms). Their start times are staggered (0, 50, 100,
+  150ms) so each one appears as the pill's edge reaches it, and the last
+  finishes as the pill does. On closing, the stagger runs bottom to top,
+  so colours vanish just before the shrinking pill covers them.
+- With the system's "reduce motion" setting, it opens and closes instantly
+  (`motion-reduce:transition-none`).
+
+**Layout:** the button keeps a fixed one-button slot in the toolbar
+(`relative aspect-square w-[var(--tool)]`), and the pill is absolutely
+positioned inside it, growing downwards over the board. So opening it
+doesn't move the other buttons. The pill takes taps
+(`pointer-events-auto`); hidden colours are `disabled` and out of the tab
+order, so they can't be tapped or focused while closed.
+
+**Accessibility:** the top button is labelled with the current ink ("Pen
+colour: Purple") and has `aria-expanded`. Each colour button is labelled
+with its name.
+
+The button size is the CSS variable `--tool`, set on the toolbar row
+(`clamp(2.5rem, 12vw, 4.5rem)`) and used by both `ColourPicker` and
+`ToolButton`, so the picker and the round buttons always match.
 
 #### Clear
 
@@ -275,11 +348,13 @@ The board is partway through its redesign:
   `var(--luke-*)` colours and Tailwind classes. It replaced upstream's
   "Erase/Draw" and "Clear" buttons, which were purple rectangles with gold
   text in the bottom-left corner, and the "Touch to Draw!" heading.
-- **Not done:** the colour button doesn't do anything yet. The ink colour
-  (`PURPLE` at the top of the file, `#331e54`) is still upstream's purple,
-  slightly different from `--luke-purple` (`#302052`). Canvas drawing needs
-  an actual colour value rather than a CSS variable, so when colours are
-  added, they'll likely be a list of colour values in this file.
+- **Done:** the colour menu, from the drawing mockup (see
+  [Colour menu](#colour-menu)).
+- **Note:** the purple ink (`PURPLE`, `#331e54`) is still upstream's
+  purple, slightly different from `--luke-purple` (`#302052`). The canvas
+  needs actual colour values rather than CSS variables, so the inks are a
+  list of values in this file (`INKS`).
+- **Next:** the rest of the toolbar's mockup (the pen and eraser menus).
 
 Record further style changes in the repo's [`CSS.md`](../../../CSS.md), as
 the other scenes do.

@@ -113,14 +113,15 @@ Partly restyled to the drawing mockup. Full details are in the scene's [README](
 - **Background:** the `SceneFrame` is `bg-white text-black`, like the Directory, Feedback and Video scenes, covering the shell's lavender. The canvas sits on top and is transparent where nothing is drawn.
 - **Toolbar:** upstream's "Erase/Draw" and "Clear" buttons (purple rectangles with gold text and border, placed with inline styles in the bottom-left corner) are replaced by a row of round icon buttons along the top, inset 3%: colour, pen and eraser on the left, a trash can on the right. Each is lavender (`--luke-lavender`) with a purple (`--luke-purple`) outline (`clamp(2px, 0.6vw, 4px)`) and a purple icon at 60% of the button, `clamp(2.5rem, 12vw, 4.5rem)` across, with `clamp(0.25rem, 1.5vw, 0.75rem)` gaps. The selected tool gets a thicker outline, `clamp(3.5px, 1.1vw, 7px)`, with the same colours (it was first shown inverted, purple with a lavender icon). Pressed buttons darken slightly (`active:brightness-90`).
 - **Icons:** the pen and eraser are the supplied icons, `public/images/board/pen.png` and `eraser.png`, applied as CSS masks (`mask-image`, `mask-size: contain`) over `bg-current`, so they take the button's `--luke-purple` text colour instead of the PNGs' own purple. The colour dot and trash can are inline SVGs.
-- **Colour button:** shown to match the mockup, but `disabled` until colours are added. Its dot shows the current ink colour.
+- **Colour menu:** the colour button shows a dot of the current ink. Tapped, it grows from a circle into a pill (`rounded-full`, same outline and fill, height animating from `var(--tool)` to `var(--tool) × 3.46` over 300ms, ease-out). The current ink stays on top at 55% of the button's width; the others, in the order red `#E04C46`, yellow `#F0CD48`, green `#71C467`, blue `#5588F6`, purple `rgb(51, 30, 84)` (the default), are listed below at 45%, each row 0.615 of a button tall. Each colour fades in and slides down over 150ms, staggered 50ms apart so it appears as the pill reaches it; closing runs the stagger in reverse. Colours were sampled from the mockup. `motion-reduce` makes it instant.
+- **Button size:** the `--tool` CSS variable on the toolbar row, `clamp(2.5rem, 12vw, 4.5rem)`, shared by the colour menu and the round buttons.
 - **Heading removed:** the "Touch to Draw!" heading is gone. The mockup doesn't have it, and it overlapped the toolbar.
 - **Eraser circle:** while erasing, a `#D9D9D9` circle at 30% opacity, the eraser's width (30px), follows the finger.
 
 **Why:**
 - The selected-tool state isn't in the mockup. It was added so visitors can tell whether they're drawing or erasing.
 - The toolbar row lets taps through (`pointer-events-none`, buttons `pointer-events-auto`), so the board can be drawn on around the buttons.
-- The ink is still upstream's `rgb(51, 30, 84)`, not `--luke-purple`. The canvas needs a colour value, not a CSS variable; this is left for when colours are added.
+- Purple stays the board's existing ink, `rgb(51, 30, 84)` (upstream's), not `--luke-purple`: the canvas needs colour values, not CSS variables, so the inks are listed in the file.
 
 ### `features/scenes/trivia/TriviaScene.tsx`
 
