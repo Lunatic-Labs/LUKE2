@@ -33,8 +33,8 @@ pages), which covers the shell's lavender and is the whiteboard. Inside it:
 - a toolbar of round icon buttons along the top, over the canvas, following
   the drawing mockup: **colour**, **pen** and **eraser** on the left, and a
   **trash can** on the right (see [Toolbar](#toolbar))
-- a grey circle that shows the eraser's reach while erasing (see "Eraser
-  circle" below)
+- a circle that shows where the pen or eraser will reach (see
+  [Tool circle](#tool-circle))
 
 The old "Touch to Draw!" heading was removed; the mockup doesn't have it,
 and it sat where the toolbar now is.
@@ -68,12 +68,22 @@ draws instead of scrolling or zooming the page.
 
 #### Pen and eraser
 
-| Mode | What a stroke does | Line width |
+| Tool | What a stroke does | Line width |
 | --- | --- | --- |
-| Draw (default) | adds ink in the chosen colour (purple by default, see [Colour menu](#colour-menu)) | 2px (`PEN_WIDTH`) |
-| Erase | removes ink | 30px (`ERASER_WIDTH`) |
+| Pen (default) | adds ink in the chosen colour (purple by default, see [Colour menu](#colour-menu)) | the pen's size: 5, 20 or 40px, **20px by default** |
+| Eraser | removes ink | the eraser's size: 10, 20 or 40px, **20px by default** |
 
-Lines have rounded ends and joins so strokes look smooth.
+The sizes come from `SIZES`, which lists each tool's own (the eraser's
+smallest is 10px and the pen's 5px; both started at 2px, which was too
+thin), and
+each tool remembers its choice (`penSize`
+and `eraserSize`, starting at `DEFAULT_SIZE`). See [Size menus](#size-menus)
+for how they're picked. The width in use is `lineWidth`. Lines have
+rounded ends and joins so strokes look smooth.
+
+The pen used to be fixed at 2px and the eraser at 30px. The default of
+20px for both follows the mockup, where the middle size is the one
+selected; changing `DEFAULT_SIZE` changes it.
 
 **How the eraser works.** The eraser draws a stroke like the pen does, but
 with the canvas's `globalCompositeOperation` set to `"destination-out"`.
@@ -84,39 +94,58 @@ matter. Drawing switches the mode back to `"source-over"` (normal
 painting). The mode is set on every move, because the context keeps the
 last setting.
 
-**Eraser circle.** While the visitor is erasing (finger down in erase
-mode), a grey circle follows the finger to show what the eraser covers:
-`#D9D9D9` at 30% opacity, `ERASER_WIDTH` (30px) across, centred on the
-finger. That matches the eraser exactly, because a 30px-wide stroke with
-round ends sweeps a 30px circle along its path. It's a `<div>` over the
-canvas (`eraserCursorRef`) with `pointer-events-none`, so it never blocks
-drawing. It isn't drawn on the canvas, so it never ends up in the
-picture. `moveEraserCursor` positions it directly through the ref
-(`transform`) on every pointer move, rather than through React state, so
-following the finger doesn't re-render the scene. It hides when the
-stroke ends or is cancelled, when the window is resized, and when the pen
-or eraser button is pressed. In pen mode it never appears.
-
 This replaced upstream's eraser, which painted thick white lines over the
 drawing. That only works while ink is drawn on plain white. Removing ink
-instead means the eraser clears any colour from the colour menu, and it would still work if the board ever got a
-background colour or image (set on the box behind the canvas).
+instead means the eraser clears any colour from the colour menu, and it
+would still work if the board ever got a background colour or image (set
+on the box behind the canvas).
 
 The tool in use is the `tool` state (`"pen"` or `"eraser"`, starting on
 the pen). `eraseMode` is just `tool === "eraser"`.
 
+#### Tool circle
+
+A circle on the board shows where the tool will draw or erase, and how
+wide. It's one `<div>` over the canvas (`cursorRef`), always exactly
+`lineWidth` across, so it matches the selected size. A stroke with round
+ends sweeps a circle that size along its path.
+
+| Tool | Looks like | When it shows |
+| --- | --- | --- |
+| Pen | the ink colour at 50% opacity | **always while the pen is in use**: it follows the finger while drawing, and a hovering mouse or stylus. When a finger lifts, it stays where the finger was, ready for the next stroke. |
+| Eraser | `#D9D9D9` at 30% opacity | **only while erasing** (finger down in erase mode). It disappears when the stroke ends. |
+
+- The pen's circle is half opacity so it reads apart from ink already
+  drawn. It changes colour and size straight away when a new colour or
+  size is picked.
+- **Hidden:** before the board is first touched (there's nowhere to show it
+  yet), when the tool changes, when the window is resized, and when a
+  mouse leaves the board. Touch doesn't hide it on leaving, because a
+  finger "leaves" every time it lifts.
+- `moveCursor` positions it directly through the ref (`transform`), rather
+  than through React state, so following the finger doesn't re-render the
+  scene. It's centred on the point with `translate(-50%, -50%)`, so it
+  stays centred whatever its size. Its size and colour do come from React
+  state, since they only change when the visitor picks something.
+- It has `pointer-events-none`, so it never blocks drawing, and it isn't
+  drawn on the canvas, so it never ends up in the picture.
+- At the pen's 5px the circle is a small dot, and the eraser's light grey is faint
+  over the white board. Both show best over ink.
+
 #### Toolbar
 
-A row along the top of the board, from the drawing mockup. The colour
-button is a `ColourPicker`; the others are `ToolButton`s (both defined at
-the bottom of `BoardScene.tsx`).
+A row along the top of the board, from the drawing mockup.
 
 | Button | Position | What it does |
 | --- | --- | --- |
 | Colour (a dot of the current ink) | left, first | Opens the colour menu (see [Colour menu](#colour-menu)). |
-| Pen (a click pen) | left, second | Selects the pen (`selectTool("pen")`). |
-| Eraser (a block eraser) | left, third | Selects the eraser (`selectTool("eraser")`). |
+| Pen (a click pen) | left, second | Selects the pen; once selected, opens and closes its size menu (see [Size menus](#size-menus)). |
+| Eraser (a block eraser) | left, third | Selects the eraser; once selected, opens and closes its size menu. |
 | Trash can | right | Clears the board (`clearCanvas`). |
+
+The colour, pen and eraser buttons are drop-downs (`ColourPicker` and
+`SizePicker`, both built on `PillMenu`). The trash can is a plain
+`ToolButton`. All are defined at the bottom of `BoardScene.tsx`.
 
 - **Look:** round, lavender (`--luke-lavender`) with a purple
   (`--luke-purple`) outline and a purple icon. The selected tool, pen or
@@ -128,21 +157,25 @@ the bottom of `BoardScene.tsx`).
   thicker outline.) The button's size stays the same; the thicker outline
   grows inwards. Buttons darken slightly while pressed
   (`active:brightness-90`), like the bottom bar's arrows.
-- **Size:** `clamp(2.5rem, 12vw, 4.5rem)` across (the `--tool` variable) (about 43px on the 360px
-  kiosk screen), with an outline of `clamp(2px, 0.6vw, 4px)`. The icons
-  fill 60% of the button.
+- **Size:** `clamp(2.5rem, 12vw, 4.5rem)` across (about 43px on the 360px
+  kiosk screen), with an outline of `clamp(2px, 0.6vw, 4px)`. This is the
+  CSS variable `--tool`, set on the toolbar row and used by every button
+  and menu, so they always match. The icons fill 60% of the button.
 - **Icons:** the pen and eraser are images, `public/images/board/pen.png`
   and `eraser.png` (cropped to the shape and scaled to 256px from the
   supplied 1536×1024 originals). `MaskIcon` uses each one as a CSS mask
   (`mask-image`, `mask-size: contain`) over a block of the text colour
   (`bg-current`), so the icon comes out in the button's `--luke-purple`
   whatever purple the PNG was saved in, and would follow a colour change
-  on the button. The trash can is an inline SVG; the colour button shows plain
-  coloured dots.
+  on the button. The trash can is an inline SVG; the colour button and the
+  size options are plain circles.
 - **Pen and eraser are one choice**, not two toggles: selecting one
   deselects the other. Each has `aria-pressed`, so screen readers announce
   which is on. Every button has an `aria-label`, since it shows only an
   icon.
+- **One menu at a time:** the open menu is the `openMenu` state
+  (`"colour"`, `"pen"`, `"eraser"` or none). Opening one closes any other.
+  Touching the board closes whichever is open.
 - **Drawing around the buttons:** the toolbar row is `pointer-events-none`
   and only the buttons themselves take taps, so visitors can still draw in
   the gaps between and beside them. A stroke that starts on the board and
@@ -151,9 +184,8 @@ the bottom of `BoardScene.tsx`).
 
 #### Colour menu
 
-The leftmost toolbar button picks the pen's ink colour (`ColourPicker`,
-defined near the bottom of `BoardScene.tsx`). It follows the drawing
-mockup closely.
+The leftmost toolbar button picks the pen's ink colour (`ColourPicker`).
+It follows the drawing mockup closely.
 
 **Colours,** in menu order, top to bottom (`INKS`):
 
@@ -179,47 +211,99 @@ mockup closely.
   selected. Picking a colour while the eraser is on switches back to the
   pen, since a visitor picking a colour wants to draw with it.
 - **Tap the top dot again:** the menu closes, nothing changes.
-- **Start drawing, or press pen or eraser:** the menu closes.
+- **Start drawing, or open the pen or eraser menu:** the menu closes.
 - The trash can doesn't close it or change the colour.
 
 The ink is the `ink` state, used as the stroke colour in
-`handlePointerMove`. The menu's open state is `colourMenuOpen`. Both live
-in `BoardScene`, and `ColourPicker` only displays them and reports taps.
-Like the drawing, the colour resets to purple whenever the scene remounts
-(each time the visitor comes back to the page).
-
-**Animation:** the menu grows from the circle into a rounded pill, and the
-colours appear one after another as it grows, following the header
-drop-down's pattern (`components/NavMenu.tsx`):
-
-- **The pill** is the same width as the button, with the same outline and
-  lavender fill, and `rounded-full`, so as its height increases the circle
-  stretches into a pill. Its height animates from `var(--tool)` (one
-  button) to `var(--tool) × (1 + 4 × COLOUR_SLOT)` (about 3.46 buttons) over
-  `COLOUR_MENU_ANIMATION_MS` (300ms), easing out. `COLOUR_SLOT` (0.615 of a
-  button) is each colour's row height, measured from the mockup.
-- **Each colour** fades in and slides down from half a row above over
-  `COLOUR_FADE_MS` (150ms). Their start times are staggered (0, 50, 100,
-  150ms) so each one appears as the pill's edge reaches it, and the last
-  finishes as the pill does. On closing, the stagger runs bottom to top,
-  so colours vanish just before the shrinking pill covers them.
-- With the system's "reduce motion" setting, it opens and closes instantly
-  (`motion-reduce:transition-none`).
-
-**Layout:** the button keeps a fixed one-button slot in the toolbar
-(`relative aspect-square w-[var(--tool)]`), and the pill is absolutely
-positioned inside it, growing downwards over the board. So opening it
-doesn't move the other buttons. The pill takes taps
-(`pointer-events-auto`); hidden colours are `disabled` and out of the tab
-order, so they can't be tapped or focused while closed.
+`handlePointerMove` and as the pen circle's colour. Like the drawing, the
+colour (and both sizes) reset whenever the scene remounts (each time the
+visitor comes back to the page).
 
 **Accessibility:** the top button is labelled with the current ink ("Pen
 colour: Purple") and has `aria-expanded`. Each colour button is labelled
 with its name.
 
-The button size is the CSS variable `--tool`, set on the toolbar row
-(`clamp(2.5rem, 12vw, 4.5rem)`) and used by both `ColourPicker` and
-`ToolButton`, so the picker and the round buttons always match.
+#### Size menus
+
+The pen and eraser buttons (`SizePicker`) each open a menu of line widths,
+following the drawing mockup.
+
+**Pressing the button:**
+
+1. **Tool not selected:** the first press selects it. No menu opens.
+2. **Tool selected:** a press opens its size menu.
+3. **Menu open:** the next press closes it.
+
+Pressing keeps alternating between 2 and 3 for as long as the tool stays
+selected. Switching to the other tool closes any open menu (`pressTool`).
+
+**The menu:** the tool's icon stays on top, and the three sizes are listed
+below it, thinnest first, as circles (`SIZES.pen` or `SIZES.eraser`):
+
+| Size | Line width | Circle in the menu |
+| --- | --- | --- |
+| Small | pen 5px, eraser 10px | 31% of the button |
+| Medium | 20px (default) | 46% |
+| Large | 40px | 69% |
+
+- Each circle is a purple outline (`clamp(1.5px, 0.5vw, 3px)`) when it isn't
+  the size in use, and **filled in purple** when it is. The circle sizes
+  are measured from the mockup; they stand for the widths rather than
+  drawing them to scale (a real 5px dot would be too small to tap).
+- **Tap a size:** it becomes that tool's size, the menu closes, and the
+  tool circle on the board changes to match. The pen and eraser keep
+  separate sizes.
+- The pill keeps the selected tool's thicker outline while open.
+- **Accessibility:** the top button keeps its `aria-pressed` (tool in use)
+  and adds `aria-expanded`. Each size is labelled, for example "Pen size:
+  Large", with `aria-pressed` on the one in use.
+
+#### Drop-down menus (`PillMenu`)
+
+The colour and size menus share one component, `PillMenu`, so they look and
+move the same.
+
+- **Closed:** a round button like the others.
+- **The pill:** the same width as the button, with the same outline and
+  lavender fill, and `rounded-full`, so as its height increases the circle
+  stretches into a pill. Its height animates from `var(--tool)` (one
+  button) to its open height over `MENU_ANIMATION_MS` (300ms), easing out.
+  The open height is one button plus a row per option:
+  - **Size menus:** `MENU_OPEN_HEIGHT` (3.46 buttons, measured from the
+    mockup), shared by their three rows, so each row is 0.82 of a button.
+  - **Colour menu:** laid out from the colour menu reference image. Rows
+    are `COLOUR_SLOT` (0.64 of a button) apart, set through `PillMenu`'s
+    `slot` prop, so it opens to 1 + 4 × 0.64 = 3.56 buttons. The colours
+    are pulled up `COLOUR_LIFT` (0.17 of a button) under the top button
+    through the `lift` prop (a negative top margin on the first colour),
+    which puts red's centre 1.15 buttons from the top of the pill and
+    leaves the same 0.17 margin below blue, as in the reference.
+    (History: the colours first sat below a full-height top button, which
+    looked too low; the rows were then tightened to 0.55, before the
+    reference showed the fix was moving them up, at 0.64 spacing.)
+- **The options** each fade in and slide down from half a row above over
+  `MENU_FADE_MS` (150ms). Their start times are staggered (for example 0,
+  50, 100, 150ms for four options) so each one appears as the pill's edge
+  reaches it, and the last finishes as the pill does. On closing, the
+  stagger runs bottom to top, so options vanish just before the shrinking
+  pill covers them. This follows the header drop-down's pattern
+  (`components/NavMenu.tsx`).
+- With the system's "reduce motion" setting, menus open and close
+  instantly (`motion-reduce:transition-none`).
+- **Layout:** the button keeps a fixed one-button slot in the toolbar
+  (`relative aspect-square w-[var(--tool)]`), and the pill is absolutely
+  positioned inside it, growing downwards over the board, so opening it
+  doesn't move the other buttons.
+- **Hidden options:** while closed, the options are `disabled`, out of the
+  tab order, invisible, and ignore taps (`pointer-events: none`). That
+  matters: closed options are tucked half a row up, under the top button,
+  and before this the first one caught taps meant for the button (the size
+  menus' taller rows reached the button's centre, so the pen and eraser
+  menus couldn't be opened). The top button was also briefly layered above
+  the options (`relative z-10`, with a lavender background); that was
+  removed when the colour menu's `lift` made the first colour overlap the
+  button's bottom edge, because the button painted over the top of the red
+  dot. While open, a tap on that overlap goes to the first colour.
 
 #### Clear
 
@@ -348,13 +432,14 @@ The board is partway through its redesign:
   `var(--luke-*)` colours and Tailwind classes. It replaced upstream's
   "Erase/Draw" and "Clear" buttons, which were purple rectangles with gold
   text in the bottom-left corner, and the "Touch to Draw!" heading.
-- **Done:** the colour menu, from the drawing mockup (see
-  [Colour menu](#colour-menu)).
+- **Done:** the colour menu and the pen and eraser size menus, from the
+  drawing mockup (see [Colour menu](#colour-menu) and
+  [Size menus](#size-menus)), and the tool circle (see
+  [Tool circle](#tool-circle)).
 - **Note:** the purple ink (`PURPLE`, `#331e54`) is still upstream's
   purple, slightly different from `--luke-purple` (`#302052`). The canvas
   needs actual colour values rather than CSS variables, so the inks are a
   list of values in this file (`INKS`).
-- **Next:** the rest of the toolbar's mockup (the pen and eraser menus).
 
 Record further style changes in the repo's [`CSS.md`](../../../CSS.md), as
 the other scenes do.

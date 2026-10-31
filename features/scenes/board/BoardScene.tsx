@@ -18,7 +18,8 @@ import { SceneFrame } from "@/components/SceneFrame";
  * (`destination-out`) instead of painting white over it, so it erases any
  * colour. The toolbar follows the drawing mockup: round icon buttons for the
  * colour, pen and eraser along the top left, and a trash can on the right that
- * clears the board. The colour button opens into a pill listing the inks.
+ * clears the board. The colour button opens into a pill listing the inks, and
+ * the pen and eraser open into pills listing their sizes.
  */
 
 // Upstream ink colour: fill(51, 30, 84). The default ink.
@@ -35,17 +36,51 @@ const INKS = [
 
 type Ink = (typeof INKS)[number]["value"];
 
-/** How long the colour menu takes to open or close. */
-const COLOUR_MENU_ANIMATION_MS = 300;
-/** How long each colour takes to fade and slide in or out. */
-const COLOUR_FADE_MS = 150;
-/** Height of each colour below the top one, as a fraction of the button. */
-const COLOUR_SLOT = 0.615;
+interface SizeOption {
+  name: string;
+  /** Line width in pixels. */
+  width: number;
+  /** Width of the circle that stands for it in the menu, as a fraction of the button (from the mockup). */
+  dot: number;
+}
 
-const PEN_WIDTH = 2;
-const ERASER_WIDTH = 30;
+/** Line widths offered by each tool's menu, thinnest first. */
+const SIZES: Record<Tool, readonly SizeOption[]> = {
+  pen: [
+    { name: "Small", width: 5, dot: 0.31 },
+    { name: "Medium", width: 20, dot: 0.46 },
+    { name: "Large", width: 40, dot: 0.69 },
+  ],
+  // A 2px eraser barely erases anything, so its smallest is wider.
+  eraser: [
+    { name: "Small", width: 10, dot: 0.31 },
+    { name: "Medium", width: 20, dot: 0.46 },
+    { name: "Large", width: 40, dot: 0.69 },
+  ],
+};
+
+/** Both tools start on the middle size, as in the mockup. */
+const DEFAULT_SIZE = 20;
+
+/** How long a menu takes to open or close. */
+const MENU_ANIMATION_MS = 300;
+/** How long each option takes to fade and slide in or out. */
+const MENU_FADE_MS = 150;
+/**
+ * An open menu's height in buttons, as in the mockup; its options share the
+ * space below the top button, unless a menu sets its own row height.
+ */
+const MENU_OPEN_HEIGHT = 3.46;
+/**
+ * The colour menu's layout, in buttons, from the colour menu reference: rows
+ * 0.64 apart, pulled 0.17 up under the top button, which leaves the same 0.17
+ * margin below the last colour. The menu opens to 1 + 4 × 0.64 = 3.56 buttons.
+ */
+const COLOUR_SLOT = 0.64;
+const COLOUR_LIFT = 0.17;
 
 type Tool = "pen" | "eraser";
+type Menu = "colour" | Tool;
 
 interface Point {
   x: number;
@@ -59,34 +94,55 @@ export function BoardScene() {
   const activePointerIdRef = useRef<number | null>(null);
   // Upstream `points`: the previous segment endpoint, -1 when not drawing.
   const lastPointRef = useRef<Point | null>(null);
-  // Grey circle showing the eraser's reach while an erase stroke is under way.
-  const eraserCursorRef = useRef<HTMLDivElement>(null);
+  // Circle showing the tool's reach: the pen's whenever the pen is in use, the
+  // eraser's only while an erase stroke is under way.
+  const cursorRef = useRef<HTMLDivElement>(null);
   const [tool, setTool] = useState<Tool>("pen");
   const eraseMode = tool === "eraser";
   const [ink, setInk] = useState<Ink>(PURPLE);
-  const [colourMenuOpen, setColourMenuOpen] = useState(false);
+  const [penSize, setPenSize] = useState(DEFAULT_SIZE);
+  const [eraserSize, setEraserSize] = useState(DEFAULT_SIZE);
+  const lineWidth = eraseMode ? eraserSize : penSize;
+  // At most one menu is open at a time.
+  const [openMenu, setOpenMenu] = useState<Menu | null>(null);
 
-  function selectTool(next: Tool) {
-    setTool(next);
-    setColourMenuOpen(false);
-    moveEraserCursor(null);
+  // First press picks the tool; once it's picked, presses open and close its
+  // size menu.
+  function pressTool(next: Tool) {
+    if (tool !== next) {
+      setTool(next);
+      setOpenMenu(null);
+      moveCursor(null);
+      return;
+    }
+    setOpenMenu((open) => (open === next ? null : next));
+  }
+
+  function selectSize(target: Tool, size: number) {
+    if (target === "pen") setPenSize(size);
+    else setEraserSize(size);
+    setOpenMenu(null);
   }
 
   // Picking a colour means the visitor wants to draw with it.
   function selectInk(next: Ink) {
     setInk(next);
-    selectTool("pen");
+    if (tool !== "pen") moveCursor(null);
+    setTool("pen");
+    setOpenMenu(null);
   }
 
-  // Moved by hand rather than through state, since it follows every pointer move.
-  function moveEraserCursor(point: Point | null) {
-    const cursor = eraserCursorRef.current;
+  // Moved by hand rather than through state, since it follows every pointer
+  // move. Its size and colour come from state; it's centred on the point
+  // whatever its size.
+  function moveCursor(point: Point | null) {
+    const cursor = cursorRef.current;
     if (!cursor) return;
     if (!point) {
       cursor.style.visibility = "hidden";
       return;
     }
-    cursor.style.transform = `translate(${point.x - ERASER_WIDTH / 2}px, ${point.y - ERASER_WIDTH / 2}px)`;
+    cursor.style.transform = `translate(${point.x}px, ${point.y}px) translate(-50%, -50%)`;
     cursor.style.visibility = "visible";
   }
 
@@ -142,7 +198,7 @@ export function BoardScene() {
       drawingRef.current = false;
       lastPointRef.current = null;
       activePointerIdRef.current = null;
-      if (eraserCursorRef.current) eraserCursorRef.current.style.visibility = "hidden";
+      if (cursorRef.current) cursorRef.current.style.visibility = "hidden";
       resizeCanvas(true);
     };
 
@@ -162,15 +218,20 @@ export function BoardScene() {
 
   function handlePointerDown(event: React.PointerEvent<HTMLCanvasElement>) {
     if (activePointerIdRef.current !== null) return;
-    setColourMenuOpen(false);
+    setOpenMenu(null);
     activePointerIdRef.current = event.pointerId;
     event.currentTarget.setPointerCapture(event.pointerId);
     drawingRef.current = true;
     lastPointRef.current = canvasPoint(event);
-    if (eraseMode) moveEraserCursor(lastPointRef.current);
+    moveCursor(lastPointRef.current);
   }
 
   function handlePointerMove(event: React.PointerEvent<HTMLCanvasElement>) {
+    // A mouse or stylus hovering over the board: the pen's circle follows it.
+    if (activePointerIdRef.current === null) {
+      if (!eraseMode) moveCursor(canvasPoint(event));
+      return;
+    }
     if (event.pointerId !== activePointerIdRef.current) return;
     if (!drawingRef.current) return;
 
@@ -183,7 +244,7 @@ export function BoardScene() {
     // transparent so the white board behind it shows through.
     context.globalCompositeOperation = eraseMode ? "destination-out" : "source-over";
     context.strokeStyle = ink;
-    context.lineWidth = eraseMode ? ERASER_WIDTH : PEN_WIDTH;
+    context.lineWidth = lineWidth;
     context.lineCap = "round";
     context.lineJoin = "round";
     context.beginPath();
@@ -192,7 +253,7 @@ export function BoardScene() {
     context.stroke();
 
     lastPointRef.current = to;
-    if (eraseMode) moveEraserCursor(to);
+    moveCursor(to);
   }
 
   // `ClickRelease()` reset the point chain so strokes don't reconnect.
@@ -204,7 +265,16 @@ export function BoardScene() {
     drawingRef.current = false;
     lastPointRef.current = null;
     activePointerIdRef.current = null;
-    moveEraserCursor(null);
+    // The eraser's circle only shows mid-stroke; the pen's stays where the
+    // finger lifted, ready for the next stroke.
+    if (eraseMode) moveCursor(null);
+  }
+
+  // A mouse leaving the board takes the pen's circle with it. Touch is left
+  // alone: a finger "leaves" every time it lifts.
+  function handlePointerLeave(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (event.pointerType === "touch" || activePointerIdRef.current !== null) return;
+    moveCursor(null);
   }
 
   return (
@@ -218,14 +288,23 @@ export function BoardScene() {
           onPointerMove={handlePointerMove}
           onPointerUp={endStroke}
           onPointerCancel={endStroke}
+          onPointerLeave={handlePointerLeave}
           className="absolute inset-0 h-full w-full"
         />
 
+        {/* The tool's circle, the same width as its line: the pen's in its ink
+            (half opacity, so it reads apart from drawn ink), the eraser's a
+            faint grey. */}
         <div
-          ref={eraserCursorRef}
+          ref={cursorRef}
           aria-hidden="true"
-          className="pointer-events-none invisible absolute top-0 left-0 rounded-full bg-[#d9d9d9]/30"
-          style={{ width: ERASER_WIDTH, height: ERASER_WIDTH }}
+          className="pointer-events-none invisible absolute top-0 left-0 rounded-full"
+          style={{
+            width: lineWidth,
+            height: lineWidth,
+            backgroundColor: eraseMode ? "rgb(217 217 217 / 0.3)" : ink,
+            opacity: eraseMode ? 1 : 0.5,
+          }}
         />
 
         {/* The row itself lets touches through, so the board can be drawn on
@@ -234,16 +313,30 @@ export function BoardScene() {
           <div role="toolbar" aria-label="Drawing tools" className="flex gap-[clamp(0.25rem,1.5vw,0.75rem)]">
             <ColourPicker
               ink={ink}
-              open={colourMenuOpen}
-              onToggle={() => setColourMenuOpen((open) => !open)}
+              open={openMenu === "colour"}
+              onToggle={() => setOpenMenu((open) => (open === "colour" ? null : "colour"))}
               onSelect={selectInk}
             />
-            <ToolButton label="Pen" pressed={tool === "pen"} onClick={() => selectTool("pen")}>
-              <MaskIcon src="/images/board/pen.png" />
-            </ToolButton>
-            <ToolButton label="Eraser" pressed={tool === "eraser"} onClick={() => selectTool("eraser")}>
-              <MaskIcon src="/images/board/eraser.png" />
-            </ToolButton>
+            <SizePicker
+              tool="pen"
+              label="Pen"
+              icon="/images/board/pen.png"
+              selected={tool === "pen"}
+              size={penSize}
+              open={openMenu === "pen"}
+              onPress={() => pressTool("pen")}
+              onSelect={(size) => selectSize("pen", size)}
+            />
+            <SizePicker
+              tool="eraser"
+              label="Eraser"
+              icon="/images/board/eraser.png"
+              selected={tool === "eraser"}
+              size={eraserSize}
+              open={openMenu === "eraser"}
+              onPress={() => pressTool("eraser")}
+              onSelect={(size) => selectSize("eraser", size)}
+            />
           </div>
 
           <ToolButton label="Clear the board" onClick={clearCanvas}>
@@ -284,6 +377,101 @@ function MaskIcon({ src }: { src: string }) {
   );
 }
 
+interface PillMenuOption {
+  key: string;
+  label: string;
+  onSelect: () => void;
+  /** Size options: whether this is the size in use. */
+  selected?: boolean;
+  content: React.ReactNode;
+}
+
+interface PillMenuProps {
+  open: boolean;
+  /** The top button: what it says to screen readers, and what it shows. */
+  label: string;
+  content: React.ReactNode;
+  onPress: () => void;
+  /** Pen and eraser: whether this is the tool in use (thicker outline). */
+  pressed?: boolean;
+  options: PillMenuOption[];
+  /** Each option's row height, in buttons. Defaults to sharing `MENU_OPEN_HEIGHT`. */
+  slot?: number;
+  /**
+   * How far the options are pulled up under the top button, in buttons. The
+   * pill's height doesn't change, so the same space opens below the last one.
+   */
+  lift?: number;
+}
+
+/**
+ * A toolbar button that opens downwards into a pill, from the drawing mockup.
+ * Closed, it's a round button like the others. Open, it grows into a pill the
+ * same width, its options appearing below the top button one after another
+ * as the pill's edge reaches them. By default every menu opens to the same
+ * height, its options sharing the space below the top button.
+ */
+function PillMenu({ open, label, content, onPress, pressed, options, slot: slotOverride, lift = 0 }: PillMenuProps) {
+  const slot = slotOverride ?? (MENU_OPEN_HEIGHT - 1) / options.length;
+  const openHeight = 1 + options.length * slot;
+  // Spread the fades across the pill's growth, last one ending with it.
+  const stagger = (MENU_ANIMATION_MS - MENU_FADE_MS) / Math.max(options.length - 1, 1);
+
+  return (
+    // Holds the button's place in the toolbar; the pill grows out of it over
+    // the board without moving the other buttons.
+    <div className="relative aspect-square w-[var(--tool)]">
+      <div
+        className={`pointer-events-auto absolute inset-x-0 top-0 z-10 flex flex-col overflow-hidden rounded-full border-[var(--luke-purple)] bg-[var(--luke-lavender)] text-[var(--luke-purple)] transition-[height] ease-out motion-reduce:transition-none ${
+          pressed ? "border-[clamp(3.5px,1.1vw,7px)]" : "border-[clamp(2px,0.6vw,4px)]"
+        }`}
+        style={{
+          height: open ? `calc(var(--tool) * ${openHeight})` : "var(--tool)",
+          transitionDuration: `${MENU_ANIMATION_MS}ms`,
+        }}
+      >
+        <button
+          type="button"
+          aria-label={label}
+          aria-pressed={pressed}
+          aria-expanded={open}
+          onClick={onPress}
+          className="flex aspect-square w-full shrink-0 items-center justify-center transition-[filter] active:brightness-90"
+        >
+          {content}
+        </button>
+
+        {options.map((option, i) => (
+          <button
+            key={option.key}
+            type="button"
+            aria-label={option.label}
+            aria-pressed={option.selected}
+            onClick={option.onSelect}
+            // Hidden options can't be tapped or reached with the keyboard, and
+            // let taps through to the top button they're tucked under.
+            disabled={!open}
+            tabIndex={open ? 0 : -1}
+            className="flex w-full shrink-0 items-center justify-center transition-[opacity,translate] ease-out motion-reduce:transition-none"
+            style={{
+              height: `calc(var(--tool) * ${slot})`,
+              marginTop: i === 0 && lift ? `calc(var(--tool) * ${-lift})` : undefined,
+              pointerEvents: open ? "auto" : "none",
+              opacity: open ? 1 : 0,
+              translate: open ? "0 0" : "0 -50%",
+              transitionDuration: `${MENU_FADE_MS}ms`,
+              // Top to bottom on the way out, bottom to top on the way in.
+              transitionDelay: `${(open ? i : options.length - 1 - i) * stagger}ms`,
+            }}
+          >
+            {option.content}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 interface ColourPickerProps {
   ink: Ink;
   open: boolean;
@@ -292,64 +480,73 @@ interface ColourPickerProps {
 }
 
 /**
- * The colour button, from the drawing mockup. Closed, it's a round button
- * showing the current ink. Tapped, it grows downwards into a pill: the current
- * ink stays on top, and the other inks appear below it in `INKS` order, each
- * fading in as the pill's edge reaches it. Picking one selects it and closes
+ * The colour button. The current ink stays on top; the other inks are listed
+ * below it in `INKS` order, slightly smaller. Picking one selects it and closes
  * the menu; tapping the top dot closes it unchanged.
  */
 function ColourPicker({ ink, open, onToggle, onSelect }: ColourPickerProps) {
   const current = INKS.find((option) => option.value === ink) ?? INKS[INKS.length - 1];
-  const others = INKS.filter((option) => option.value !== ink);
-  // Spread the fades across the pill's growth, last one ending with it.
-  const stagger = (COLOUR_MENU_ANIMATION_MS - COLOUR_FADE_MS) / (others.length - 1);
 
   return (
-    // Holds the button's place in the toolbar; the pill grows out of it over
-    // the board without moving the other buttons.
-    <div className="relative aspect-square w-[var(--tool)]">
-      <div
-        className="pointer-events-auto absolute inset-x-0 top-0 z-10 flex flex-col overflow-hidden rounded-full border-[clamp(2px,0.6vw,4px)] border-[var(--luke-purple)] bg-[var(--luke-lavender)] transition-[height] ease-out motion-reduce:transition-none"
-        style={{
-          height: open ? `calc(var(--tool) * ${1 + others.length * COLOUR_SLOT})` : "var(--tool)",
-          transitionDuration: `${COLOUR_MENU_ANIMATION_MS}ms`,
-        }}
-      >
-        <button
-          type="button"
-          aria-label={`Pen colour: ${current.name}`}
-          aria-expanded={open}
-          onClick={onToggle}
-          className="flex aspect-square w-full shrink-0 items-center justify-center transition-[filter] active:brightness-90"
-        >
-          <span className="aspect-square w-[55%] rounded-full" style={{ backgroundColor: current.value }} />
-        </button>
+    <PillMenu
+      open={open}
+      label={`Pen colour: ${current.name}`}
+      content={<span className="aspect-square w-[55%] rounded-full" style={{ backgroundColor: current.value }} />}
+      onPress={onToggle}
+      slot={COLOUR_SLOT}
+      lift={COLOUR_LIFT}
+      options={INKS.filter((option) => option.value !== ink).map((option) => ({
+        key: option.value,
+        label: option.name,
+        onSelect: () => onSelect(option.value),
+        content: <span className="aspect-square w-[45%] rounded-full" style={{ backgroundColor: option.value }} />,
+      }))}
+    />
+  );
+}
 
-        {others.map((option, i) => (
-          <button
-            key={option.value}
-            type="button"
-            aria-label={option.name}
-            onClick={() => onSelect(option.value)}
-            // Hidden colours can't be tapped or reached with the keyboard.
-            disabled={!open}
-            tabIndex={open ? 0 : -1}
-            className="flex w-full shrink-0 items-center justify-center transition-[opacity,translate] ease-out motion-reduce:transition-none"
-            style={{
-              height: `calc(var(--tool) * ${COLOUR_SLOT})`,
-              opacity: open ? 1 : 0,
-              translate: open ? "0 0" : "0 -50%",
-              transitionDuration: `${COLOUR_FADE_MS}ms`,
-              // Top to bottom on the way out, bottom to top on the way in.
-              transitionDelay: `${(open ? i : others.length - 1 - i) * stagger}ms`,
-            }}
-          >
-            {/* Slightly smaller than the selected colour's dot. */}
-            <span className="aspect-square w-[45%] rounded-full" style={{ backgroundColor: option.value }} />
-          </button>
-        ))}
-      </div>
-    </div>
+interface SizePickerProps {
+  /** Which tool this is, for its sizes. */
+  tool: Tool;
+  label: string;
+  /** Icon image, drawn through `MaskIcon`. */
+  icon: string;
+  /** Whether this is the tool in use. */
+  selected: boolean;
+  size: number;
+  open: boolean;
+  onPress: () => void;
+  onSelect: (size: number) => void;
+}
+
+/**
+ * The pen or eraser button. Its menu lists the tool's `SIZES`, thinnest first, as
+ * outlined circles; the size in use is filled in.
+ */
+function SizePicker({ tool, label, icon, selected, size, open, onPress, onSelect }: SizePickerProps) {
+  return (
+    <PillMenu
+      open={open}
+      label={label}
+      content={<MaskIcon src={icon} />}
+      onPress={onPress}
+      pressed={selected}
+      options={SIZES[tool].map((option) => ({
+        key: option.name,
+        label: `${label} size: ${option.name}`,
+        selected: option.width === size,
+        onSelect: () => onSelect(option.width),
+        content: (
+          <span
+            className={`aspect-square rounded-full border-[clamp(1.5px,0.5vw,3px)] border-[var(--luke-purple)] ${
+              option.width === size ? "bg-[var(--luke-purple)]" : ""
+            }`}
+            // A share of the button's width, which is `--tool` less the outline.
+            style={{ width: `calc(var(--tool) * ${option.dot})` }}
+          />
+        ),
+      }))}
+    />
   );
 }
 
