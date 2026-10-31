@@ -52,7 +52,7 @@
   {
     "id": "bison-hall-and-bison-inn",
     "name": "Bison Hall & Bison Inn",
-    "aliases": ["bison", "dorm"],
+    "aliases": ["dorm"],
     "map": { "x": 0.35149, "y": 0.15229 }
   },
   {
