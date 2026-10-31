@@ -15,7 +15,7 @@ canvas and is gone as soon as the visitor leaves the page.
 | Scene id | `board` (used by the menus and the session log) |
 | Name on the bottom bar | "Draw" |
 | Label in the menus | "Drawing" |
-| Files | [BoardScene.tsx](BoardScene.tsx), [index.ts](index.ts) |
+| Files | [BoardScene.tsx](BoardScene.tsx), [index.ts](index.ts), and the toolbar icons in [`public/images/board/`](../../../public/images/board/) |
 | Talks to the server? | No |
 | Tests | None yet |
 
@@ -30,8 +30,14 @@ pages), which covers the shell's lavender and is the whiteboard. Inside it:
 - a `<canvas>` filling the scene area, sitting on top of the white, which
   holds the ink. The canvas itself is transparent wherever nothing is
   drawn, so the page's white shows through.
-- a "Touch to Draw!" heading over the top of the canvas
-- two buttons in the bottom-left corner: **Erase/Draw** and **Clear**
+- a toolbar of round icon buttons along the top, over the canvas, following
+  the drawing mockup: **colour**, **pen** and **eraser** on the left, and a
+  **trash can** on the right (see [Toolbar](#toolbar))
+- a grey circle that shows the eraser's reach while erasing (see "Eraser
+  circle" below)
+
+The old "Touch to Draw!" heading was removed; the mockup doesn't have it,
+and it sat where the toolbar now is.
 
 #### Drawing
 
@@ -88,8 +94,8 @@ drawing. It isn't drawn on the canvas, so it never ends up in the
 picture. `moveEraserCursor` positions it directly through the ref
 (`transform`) on every pointer move, rather than through React state, so
 following the finger doesn't re-render the scene. It hides when the
-stroke ends or is cancelled, when the window is resized, and when the
-Erase/Draw button is pressed. In draw mode it never appears.
+stroke ends or is cancelled, when the window is resized, and when the pen
+or eraser button is pressed. In pen mode it never appears.
 
 This replaced upstream's eraser, which painted thick white lines over the
 drawing. That only works while ink is drawn on plain white. Removing ink
@@ -97,17 +103,57 @@ instead means the eraser will clear any colour, which matters for the
 planned colour choices, and it would still work if the board ever got a
 background colour or image (set on the box behind the canvas).
 
-The **Erase** button toggles `eraseMode` (React state, since the button's
-label changes). Its label shows the mode you'll switch *to*: "Erase" while
-drawing, "Draw" while erasing.
+The tool in use is the `tool` state (`"pen"` or `"eraser"`, starting on
+the pen). `eraseMode` is just `tool === "eraser"`.
+
+#### Toolbar
+
+A row along the top of the board, from the drawing mockup. Each button is a
+`ToolButton` (defined at the bottom of `BoardScene.tsx`).
+
+| Button | Position | What it does |
+| --- | --- | --- |
+| Colour (filled dot) | left, first | **Nothing yet.** It's there to match the mockup, and is `disabled` until colours are added. The dot shows the pen's current ink colour. |
+| Pen (a click pen) | left, second | Selects the pen (`selectTool("pen")`). |
+| Eraser (a block eraser) | left, third | Selects the eraser (`selectTool("eraser")`). |
+| Trash can | right | Clears the board (`clearCanvas`). |
+
+- **Look:** round, lavender (`--luke-lavender`) with a purple
+  (`--luke-purple`) outline and a purple icon. The selected tool, pen or
+  eraser, gets a thicker outline, `clamp(3.5px, 1.1vw, 7px)` instead of
+  `clamp(2px, 0.6vw, 4px)` (about 4px instead of 2px on the kiosk screen),
+  so visitors can see which one they're using. Its colours don't change.
+  The mockup doesn't show a selected state, so this was added. (It was
+  first shown inverted, purple with a lavender icon, then changed to the
+  thicker outline.) The button's size stays the same; the thicker outline
+  grows inwards. Buttons darken slightly while pressed
+  (`active:brightness-90`), like the bottom bar's arrows.
+- **Size:** `clamp(2.5rem, 12vw, 4.5rem)` across (about 43px on the 360px
+  kiosk screen), with an outline of `clamp(2px, 0.6vw, 4px)`. The icons
+  fill 60% of the button.
+- **Icons:** the pen and eraser are images, `public/images/board/pen.png`
+  and `eraser.png` (cropped to the shape and scaled to 256px from the
+  supplied 1536×1024 originals). `MaskIcon` uses each one as a CSS mask
+  (`mask-image`, `mask-size: contain`) over a block of the text colour
+  (`bg-current`), so the icon comes out in the button's `--luke-purple`
+  whatever purple the PNG was saved in, and would follow a colour change
+  on the button. The colour dot and the trash can are still inline SVGs.
+- **Pen and eraser are one choice**, not two toggles: selecting one
+  deselects the other. Each has `aria-pressed`, so screen readers announce
+  which is on. Every button has an `aria-label`, since it shows only an
+  icon.
+- **Drawing around the buttons:** the toolbar row is `pointer-events-none`
+  and only the buttons themselves take taps, so visitors can still draw in
+  the gaps between and beside them. A stroke that starts on the board and
+  passes under a button keeps drawing (the canvas has captured the
+  pointer).
 
 #### Clear
 
-The **Clear** button (`clearCanvas`) erases the whole canvas at once
-(`clearRect`), leaving only the white board behind it. It
-doesn't change the pen/eraser mode. Upstream had no Clear button; it was
-added here so visitors don't have to scrub every stroke away with the
-eraser.
+The trash can (`clearCanvas`) erases the whole canvas at once
+(`clearRect`), leaving only the white board behind it. It doesn't change
+the selected tool. Upstream had no Clear button; it was added here so
+visitors don't have to scrub every stroke away with the eraser.
 
 #### Canvas size
 
@@ -167,13 +213,16 @@ renders the scene and passes it two props (defined in
 
 - **`bounds`**: the screen size from the kiosk options
   ([features/kiosk/options.ts](../../kiosk/options.ts), 360×640 by default).
-  The scene uses only `bounds.width`, to size the heading (`width / 11`,
-  about 33px by default). This is the *configured* size, not the real
-  window size, so the heading doesn't grow on a bigger screen.
+  The board **doesn't use it**. It used to size the old heading from
+  `bounds.width`; the toolbar sizes itself with CSS instead.
 - **`handle`**: functions for talking back to the shell (`reportActivity`,
-  `nextScene`, `goToScene`, …). The board **doesn't use any of them**. It
-  never leaves the page or changes scene by itself; the visitor does that
+  `nextScene`, `goToScene`, …). The board **doesn't use any of them** either.
+  It never leaves the page or changes scene by itself; the visitor does that
   with the bottom bar or the menus.
+
+Since it needs neither prop, `BoardScene` takes no parameters. It still
+fits the shell's `SceneComponent` type, which allows a component to ignore
+its props.
 
 ### Things the shell does that affect the board
 
@@ -219,20 +268,21 @@ renders the scene and passes it two props (defined in
 
 ## Styling
 
-The board hasn't been restyled to the new design yet. Its look is still the
-direct port of the Processing version:
+The board is partway through its redesign:
 
-- The colours are written into the file (`PURPLE` and `GOLD` at the top)
-  rather than taken from the palette in `app/globals.css`. `GOLD` matches
-  `--luke-gold`, but `PURPLE` (`#331e54`) is the old purple; the rest of the
-  kiosk uses `--luke-purple` (`#302052`).
-- The buttons are positioned with inline styles as percentages of the scene
-  (each 20% wide and 7% tall, 92% of the way down), purple with gold text
-  and a gold border, rather than the pill buttons used on other pages.
+- **Done:** the white page background, and the toolbar from the drawing
+  mockup (see [Toolbar](#toolbar)), which uses the palette's
+  `var(--luke-*)` colours and Tailwind classes. It replaced upstream's
+  "Erase/Draw" and "Clear" buttons, which were purple rectangles with gold
+  text in the bottom-left corner, and the "Touch to Draw!" heading.
+- **Not done:** the colour button doesn't do anything yet. The ink colour
+  (`PURPLE` at the top of the file, `#331e54`) is still upstream's purple,
+  slightly different from `--luke-purple` (`#302052`). Canvas drawing needs
+  an actual colour value rather than a CSS variable, so when colours are
+  added, they'll likely be a list of colour values in this file.
 
-When the board gets a redesign, follow the other scenes: use the
-`var(--luke-*)` colours and Tailwind classes, and record the changes in the
-repo's [`CSS.md`](../../../CSS.md).
+Record further style changes in the repo's [`CSS.md`](../../../CSS.md), as
+the other scenes do.
 
 ## Known limitations
 

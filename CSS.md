@@ -106,6 +106,22 @@ Restyled to match the camera mockup, and given two new controls from it: a filte
 - The enlarged view matches the gallery's so the two pages behave the same. It is copied rather than shared because the gallery uses `next/image` and the thumbnail is a blob URL, which `next/image` can't load. If a third page needs it, it's worth moving into `components/`.
 - Equal grid columns keep the capture button exactly centred, whether or not the thumbnail holds a photo, so nothing shifts when the first picture is taken.
 
+### `features/scenes/board/BoardScene.tsx`
+
+Partly restyled to the drawing mockup. Full details are in the scene's [README](features/scenes/board/README.md).
+
+- **Background:** the `SceneFrame` is `bg-white text-black`, like the Directory, Feedback and Video scenes, covering the shell's lavender. The canvas sits on top and is transparent where nothing is drawn.
+- **Toolbar:** upstream's "Erase/Draw" and "Clear" buttons (purple rectangles with gold text and border, placed with inline styles in the bottom-left corner) are replaced by a row of round icon buttons along the top, inset 3%: colour, pen and eraser on the left, a trash can on the right. Each is lavender (`--luke-lavender`) with a purple (`--luke-purple`) outline (`clamp(2px, 0.6vw, 4px)`) and a purple icon at 60% of the button, `clamp(2.5rem, 12vw, 4.5rem)` across, with `clamp(0.25rem, 1.5vw, 0.75rem)` gaps. The selected tool gets a thicker outline, `clamp(3.5px, 1.1vw, 7px)`, with the same colours (it was first shown inverted, purple with a lavender icon). Pressed buttons darken slightly (`active:brightness-90`).
+- **Icons:** the pen and eraser are the supplied icons, `public/images/board/pen.png` and `eraser.png`, applied as CSS masks (`mask-image`, `mask-size: contain`) over `bg-current`, so they take the button's `--luke-purple` text colour instead of the PNGs' own purple. The colour dot and trash can are inline SVGs.
+- **Colour button:** shown to match the mockup, but `disabled` until colours are added. Its dot shows the current ink colour.
+- **Heading removed:** the "Touch to Draw!" heading is gone. The mockup doesn't have it, and it overlapped the toolbar.
+- **Eraser circle:** while erasing, a `#D9D9D9` circle at 30% opacity, the eraser's width (30px), follows the finger.
+
+**Why:**
+- The selected-tool state isn't in the mockup. It was added so visitors can tell whether they're drawing or erasing.
+- The toolbar row lets taps through (`pointer-events-none`, buttons `pointer-events-auto`), so the board can be drawn on around the buttons.
+- The ink is still upstream's `rgb(51, 30, 84)`, not `--luke-purple`. The canvas needs a colour value, not a CSS variable; this is left for when colours are added.
+
 ### `features/scenes/trivia/TriviaScene.tsx`
 
 - **Sizing (portrait and landscape):** every size on this page scales with the scene itself, not the viewport, so all buttons stay on screen in landscape as well as portrait:

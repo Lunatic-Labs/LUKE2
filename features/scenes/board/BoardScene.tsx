@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SceneFrame } from "@/components/SceneFrame";
-import type { SceneComponentProps } from "@/features/kiosk/types";
 
 /**
  * "Touch to Draw!" whiteboard.
@@ -13,26 +12,30 @@ import type { SceneComponentProps } from "@/features/kiosk/types";
  * pointer reset the segment chain, and `Enable()` cleared the canvas white. The
  * scene remounts on scene change here, so a fresh mount is the cleared board.
  *
- * Two changes from upstream: a Clear button that wipes the whole canvas at
- * once, and a real eraser. The canvas holds only ink on a transparent
- * background, with the white board behind it in CSS, and the eraser removes
- * ink (`destination-out`) instead of painting white over it, so it erases any
- * colour.
+ * Changes from upstream: a Clear button that wipes the whole canvas at once,
+ * and a real eraser. The canvas holds only ink on a transparent background,
+ * with the white board behind it in CSS, and the eraser removes ink
+ * (`destination-out`) instead of painting white over it, so it erases any
+ * colour. The toolbar follows the drawing mockup: round icon buttons for the
+ * colour (not wired up yet), pen and eraser along the top left, and a trash
+ * can on the right that clears the board.
  */
 
-// Upstream colors: fill(51, 30, 84) purple, stroke(244, 170, 0) gold.
+// Upstream ink colour: fill(51, 30, 84).
 const PURPLE = "rgb(51, 30, 84)";
-const GOLD = "rgb(244, 170, 0)";
 
 const PEN_WIDTH = 2;
 const ERASER_WIDTH = 30;
+
+type Tool = "pen" | "eraser";
 
 interface Point {
   x: number;
   y: number;
 }
 
-export function BoardScene({ bounds }: SceneComponentProps) {
+// The shell passes `bounds` and `handle`; the board needs neither.
+export function BoardScene() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
   const activePointerIdRef = useRef<number | null>(null);
@@ -40,7 +43,13 @@ export function BoardScene({ bounds }: SceneComponentProps) {
   const lastPointRef = useRef<Point | null>(null);
   // Grey circle showing the eraser's reach while an erase stroke is under way.
   const eraserCursorRef = useRef<HTMLDivElement>(null);
-  const [eraseMode, setEraseMode] = useState(false);
+  const [tool, setTool] = useState<Tool>("pen");
+  const eraseMode = tool === "eraser";
+
+  function selectTool(next: Tool) {
+    setTool(next);
+    moveEraserCursor(null);
+  }
 
   // Moved by hand rather than through state, since it follows every pointer move.
   function moveEraserCursor(point: Point | null) {
@@ -191,50 +200,89 @@ export function BoardScene({ bounds }: SceneComponentProps) {
           style={{ width: ERASER_WIDTH, height: ERASER_WIDTH }}
         />
 
-        <h2
-          className="pointer-events-none absolute inset-x-0 top-0 text-center font-semibold"
-          style={{ color: PURPLE, fontSize: bounds.width / 11 }}
-        >
-          Touch to Draw!
-        </h2>
+        {/* The row itself lets touches through, so the board can be drawn on
+            between and around the buttons. */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between px-[3%] pt-[3%]">
+          <div role="toolbar" aria-label="Drawing tools" className="flex gap-[clamp(0.25rem,1.5vw,0.75rem)]">
+            {/* Colour picker from the mockup; not wired up yet. The dot shows
+                the pen's current ink. */}
+            <ToolButton label="Pen colour (coming soon)" disabled>
+              <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[60%] w-[60%]">
+                <circle cx="12" cy="12" r="9" fill={PURPLE} />
+              </svg>
+            </ToolButton>
+            <ToolButton label="Pen" pressed={tool === "pen"} onClick={() => selectTool("pen")}>
+              <MaskIcon src="/images/board/pen.png" />
+            </ToolButton>
+            <ToolButton label="Eraser" pressed={tool === "eraser"} onClick={() => selectTool("eraser")}>
+              <MaskIcon src="/images/board/eraser.png" />
+            </ToolButton>
+          </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            setEraseMode((current) => !current);
-            moveEraserCursor(null);
-          }}
-          className="absolute rounded border"
-          style={{
-            left: "2%",
-            top: "92%",
-            width: "20%",
-            height: "7%",
-            backgroundColor: PURPLE,
-            borderColor: GOLD,
-            color: GOLD,
-          }}
-        >
-          {eraseMode ? "Draw" : "Erase"}
-        </button>
-
-        <button
-          type="button"
-          onClick={clearCanvas}
-          className="absolute rounded border"
-          style={{
-            left: "24%",
-            top: "92%",
-            width: "20%",
-            height: "7%",
-            backgroundColor: PURPLE,
-            borderColor: GOLD,
-            color: GOLD,
-          }}
-        >
-          Clear
-        </button>
+          <ToolButton label="Clear the board" onClick={clearCanvas}>
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-[60%] w-[60%]"
+            >
+              <path d="M4 6h16" />
+              <path d="M9 6V4h6v2" />
+              <path d="M6 6l1 14h10l1-14" />
+              <path d="M10 10v6" />
+              <path d="M14 10v6" />
+            </svg>
+          </ToolButton>
+        </div>
       </div>
     </SceneFrame>
+  );
+}
+
+/**
+ * An icon image used as a mask and filled with the text colour, so it matches
+ * the button's purple whatever colour the PNG itself was saved in.
+ */
+function MaskIcon({ src }: { src: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="h-[60%] w-[60%] bg-current [mask-position:center] [mask-repeat:no-repeat] [mask-size:contain]"
+      style={{ maskImage: `url(${src})`, WebkitMaskImage: `url(${src})` }}
+    />
+  );
+}
+
+interface ToolButtonProps {
+  label: string;
+  children: React.ReactNode;
+  onClick?: () => void;
+  /** Set on the pen and eraser: whether this is the tool in use. */
+  pressed?: boolean;
+  disabled?: boolean;
+}
+
+/**
+ * A round toolbar button from the drawing mockup: lavender with a purple
+ * outline and icon. The tool in use gets a thicker outline.
+ */
+function ToolButton({ label, children, onClick, pressed, disabled }: ToolButtonProps) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      aria-pressed={pressed}
+      onClick={onClick}
+      disabled={disabled}
+      className={`pointer-events-auto flex aspect-square w-[clamp(2.5rem,12vw,4.5rem)] items-center justify-center rounded-full border-[var(--luke-purple)] bg-[var(--luke-lavender)] text-[var(--luke-purple)] transition-[filter] active:brightness-90 disabled:active:brightness-100 ${
+        pressed ? "border-[clamp(3.5px,1.1vw,7px)]" : "border-[clamp(2px,0.6vw,4px)]"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
