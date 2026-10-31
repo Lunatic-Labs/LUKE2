@@ -8,6 +8,7 @@ import { NavMenu } from "@/components/NavMenu";
 import { useCarousel } from "@/hooks/useCarousel";
 import { useIdleTimer } from "@/hooks/useIdleTimer";
 import { bottomBarHeight, DEFAULT_OPTIONS, type KioskOptions } from "../options";
+import { KioskOptionsContext } from "../options-context";
 import { IDLE_SCENE, MAIN_MENU_SCENE, MENU_ITEMS, SCENES } from "../registry";
 import { SessionTracker, type SessionSink } from "../session-log";
 import type { SceneHandle } from "../types";
@@ -164,7 +165,9 @@ export function KioskShell({ options = DEFAULT_OPTIONS, sessionSink }: KioskShel
               endSession();
             }}
           >
-            <Component bounds={{ width: options.screenWidth, height: options.screenHeight }} handle={handle} />
+            <KioskOptionsContext.Provider value={options}>
+              <Component bounds={{ width: options.screenWidth, height: options.screenHeight }} handle={handle} />
+            </KioskOptionsContext.Provider>
           </SceneErrorBoundary>
         </div>
         <NavMenu
