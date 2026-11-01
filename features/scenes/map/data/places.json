@@ -46,7 +46,8 @@
     "kind": "building",
     "category": "admissions-visitors",
     "aliases": [],
-    "map": { "x": 0.7508, "y": 0.21833 }
+    "map": { "x": 0.7508, "y": 0.21833 },
+    "geo": { "lat": 36.10635, "lng": -86.79392 }
   },
   {
     "id": "beaman-library",
@@ -247,7 +248,8 @@
     "name": "Lipscomb Family Therapy Center",
     "category": "health",
     "aliases": [],
-    "map": { "x": 0.7062, "y": 0.17146 }
+    "map": { "x": 0.7062, "y": 0.17146 },
+    "geo": { "lat": 36.10677, "lng": -86.79426 }
   },
   {
     "id": "lipscomb-online",
@@ -311,7 +313,8 @@
     "name": "Reese Smith Athletic Complex",
     "category": "athletics",
     "aliases": [],
-    "map": { "x": 0.83959, "y": 0.36229 }
+    "map": { "x": 0.83959, "y": 0.36229 },
+    "geo": { "lat": 36.10480, "lng": -86.79111 }
   },
   {
     "id": "sewell-hall",
@@ -366,7 +369,8 @@
     "name": "Thomas James McMeen Music Center",
     "category": "arts",
     "aliases": ["mcmeen", "music building"],
-    "map": { "x": 0.32018, "y": 0.41667 }
+    "map": { "x": 0.32018, "y": 0.41667 },
+    "geo": { "lat": 36.10536, "lng": -86.79912 }
   },
   {
     "id": "university-health-services",
@@ -381,7 +385,8 @@
     "name": "University Theatre",
     "category": "arts",
     "aliases": [],
-    "map": { "x": 0.51319, "y": 0.50875 }
+    "map": { "x": 0.51319, "y": 0.50875 },
+    "geo": { "lat": 36.10433, "lng": -86.79744 }
   },
   {
     "id": "veterans-resource-center",
@@ -389,7 +394,8 @@
     "kind": "building",
     "category": "student-life",
     "aliases": [],
-    "map": { "x": 0.41047, "y": 0.22062 }
+    "map": { "x": 0.41047, "y": 0.22062 },
+    "geo": { "lat": 36.10666, "lng": -86.79801 }
   },
   {
     "id": "ward-hall",

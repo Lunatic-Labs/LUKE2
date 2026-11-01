@@ -65,8 +65,8 @@ export interface CampusPlace {
   withinBuildingId?: string;
   aliases: string[];
   map: { x: number; y: number };
-  /** Real-world position of the place's centre. Optional until every entry has one. */
-  geo?: { lat: number; lng: number };
+  /** Real-world position of the place's centre. */
+  geo: { lat: number; lng: number };
   entrances?: Entrance[];
   /** Path under `public/` to a photo of the main entrance. Deferred; unset for now. */
   photo?: string;
@@ -196,7 +196,7 @@ export function validatePlaces(places: CampusPlace[]): string[] {
       problems.push(`${where}: map x and y must be numbers from 0 to 1`);
     }
 
-    if (place.geo !== undefined && !isOnCampus(place.geo)) {
+    if (!isOnCampus(place.geo)) {
       problems.push(`${where}: geo must be a lat and lng on campus`);
     }
 
