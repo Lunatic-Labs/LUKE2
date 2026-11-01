@@ -21,6 +21,8 @@ docker compose up --build                       # production image
 
 `CAMERA_DIR` (optional) sets where `app/api/photos` saves camera-scene photos; it defaults to `data/camera-pics` relative to the working directory, which is gitignored and mounted as the `camera-pics` volume in `docker-compose.yml`. The camera needs a secure context (https or localhost) for `getUserMedia`.
 
+`OPTIONS_FILE` (optional) sets where this machine's `options.txt` is read from; it defaults to `data/options.txt` relative to the working directory, which is gitignored. It's read when the page is served, so one build can run on every kiosk, and a missing file means the defaults in `features/kiosk/options.ts`.
+
 ## Architecture
 
 This is a Next.js (App Router) + React 19 + TypeScript (strict) + Tailwind v4 app hosting **L.U.K.E.** (Lipscomb University Kiosk Experience), ported from the Processing/Java sketch at https://github.com/Lunatic-Labs/Kiosk (`src/luke_java/`). The shell architecture is ported; most individual scenes are registered placeholders awaiting implementation.
