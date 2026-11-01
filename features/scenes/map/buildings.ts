@@ -60,12 +60,13 @@ export interface CampusPlace {
   name: string;
   /** Optional until every entry in `places.json` has one. */
   kind?: PlaceKind;
-  /** Optional until every entry in `places.json` has one. */
-  category?: PlaceCategory;
+  category: PlaceCategory;
   /** For an office inside another place: that place's id. Unset for standalone offices. */
   withinBuildingId?: string;
   aliases: string[];
   map: { x: number; y: number };
+  /** Real-world position of the place's centre. Optional until every entry has one. */
+  geo?: { lat: number; lng: number };
   entrances?: Entrance[];
   /** Path under `public/` to a photo of the main entrance. Deferred; unset for now. */
   photo?: string;
@@ -104,8 +105,22 @@ function isFraction(value: unknown): boolean {
   return typeof value === "number" && value >= 0 && value <= 1;
 }
 
-function isNumberIn(value: unknown, min: number, max: number): boolean {
-  return typeof value === "number" && value >= min && value <= max;
+/**
+ * A box around campus with a little margin. Anything outside it is a mistake,
+ * most likely a typo or lat and lng swapped, which would otherwise send a
+ * visitor's directions somewhere else entirely.
+ */
+const CAMPUS_BOUNDS = { minLat: 36.099, maxLat: 36.111, minLng: -86.804, maxLng: -86.789 };
+
+function isOnCampus(geo: { lat: number; lng: number } | undefined): boolean {
+  return (
+    typeof geo?.lat === "number" &&
+    typeof geo.lng === "number" &&
+    geo.lat >= CAMPUS_BOUNDS.minLat &&
+    geo.lat <= CAMPUS_BOUNDS.maxLat &&
+    geo.lng >= CAMPUS_BOUNDS.minLng &&
+    geo.lng <= CAMPUS_BOUNDS.maxLng
+  );
 }
 
 /**
@@ -141,10 +156,7 @@ export function validatePlaces(places: CampusPlace[]): string[] {
     if (place.kind !== undefined && !(PLACE_KINDS as readonly string[]).includes(place.kind)) {
       problems.push(`${where}: unknown kind "${place.kind}"`);
     }
-    if (
-      place.category !== undefined &&
-      !(PLACE_CATEGORIES as readonly string[]).includes(place.category)
-    ) {
+    if (!(PLACE_CATEGORIES as readonly string[]).includes(place.category)) {
       problems.push(`${where}: unknown category "${place.category}"`);
     }
 
@@ -184,6 +196,10 @@ export function validatePlaces(places: CampusPlace[]): string[] {
       problems.push(`${where}: map x and y must be numbers from 0 to 1`);
     }
 
+    if (place.geo !== undefined && !isOnCampus(place.geo)) {
+      problems.push(`${where}: geo must be a lat and lng on campus`);
+    }
+
     if (place.entrances !== undefined) {
       if (place.entrances.length === 0) {
         problems.push(`${where}: entrances is empty; leave it out until there is one`);
@@ -193,8 +209,8 @@ export function validatePlaces(places: CampusPlace[]): string[] {
         const door = `${where} entrance "${entrance.id}"`;
         if (entranceIds.has(entrance.id)) problems.push(`${door}: id is used more than once`);
         entranceIds.add(entrance.id);
-        if (!isNumberIn(entrance.geo?.lat, -90, 90) || !isNumberIn(entrance.geo?.lng, -180, 180)) {
-          problems.push(`${door}: geo needs a valid lat and lng`);
+        if (!isOnCampus(entrance.geo)) {
+          problems.push(`${door}: geo must be a lat and lng on campus`);
         }
         if (entrance.map !== undefined && (!isFraction(entrance.map.x) || !isFraction(entrance.map.y))) {
           problems.push(`${door}: map x and y must be numbers from 0 to 1`);

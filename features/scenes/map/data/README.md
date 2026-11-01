@@ -11,6 +11,7 @@ to change a name, add an alias or add a place.
   "id": "beaman-library",
   "name": "Beaman Library",
   "kind": "building",
+  "category": "academics",
   "aliases": ["beaman", "library", "the library"],
   "map": { "x": 0.19773, "y": 0.50083 }
 }
@@ -23,21 +24,30 @@ to change a name, add an alias or add a place.
 | `id` | yes | Lowercase words joined by dashes, unique. See the rules below. |
 | `name` | yes | The official name, unique. Shown on the map and in the place list. |
 | `aliases` | yes | Other names people use. Can be empty: `[]`. |
+| `category` | yes | `admissions-visitors`, `academics`, `student-life`, `athletics`, `housing`, `admin`, `arts` or `health`. The section it appears under on the Find screen. |
 | `map` | yes | Marker position as fractions of the image: `x` from 0 (left) to 1 (right), `y` from 0 (top) to 1 (bottom). |
+| `geo` | not yet | Real-world `lat` and `lng` of the place's centre. See Coordinates below. |
 | `kind` | not yet | `building`, `office`, `venue` or `field`. |
-| `category` | not yet | `admissions-visitors`, `academics`, `student-life`, `athletics`, `housing`, `admin`, `arts` or `health`. |
 | `withinBuildingId` | no | For an `office` inside another place: that place's `id`. |
 | `entrances` | no | Doors visitors use. Leave it out until a place has one. |
 | `photo` | no | Deferred; leave it out. |
 
-`kind` and `category` become required once every place has one. The allowed
-values for both are `PLACE_KINDS` and `PLACE_CATEGORIES` in `../buildings.ts`;
+`geo` and `kind` become required once every place has one. The allowed values
+for `kind` and `category` are `PLACE_KINDS` and `PLACE_CATEGORIES` in `../buildings.ts`;
 add a new value there first.
 
 **Kinds.** A `building` is a standalone structure, even if it's mostly offices.
 An `office` is a destination inside another place, so it needs
 `withinBuildingId`. A `venue` hosts events but isn't an enclosed building (an
 amphitheater, a square). A `field` is an outdoor sports ground.
+
+## Coordinates
+
+`geo` comes from [OpenStreetMap](https://www.openstreetmap.org/copyright),
+© OpenStreetMap contributors, available under the Open Database License. Take
+new coordinates from OpenStreetMap or public-domain imagery such as USGS NAIP,
+not from Google Maps, whose terms don't allow reusing its data in another map.
+Values outside the box around campus in `../buildings.ts` fail the tests.
 
 ## Aliases
 
@@ -51,8 +61,8 @@ amphitheater, a square). A `field` is an outdoor sports ground.
 
 ## Adding a place
 
-Add an entry with `id`, `name`, `aliases` and `map`, plus `kind` and `category`
-if you know them. To find `map`, open `LUJustMap.jpg` in an image editor, note
+Add an entry with `id`, `name`, `category`, `aliases` and `map`, plus `kind` if you
+know it. To find `map`, open `LUJustMap.jpg` in an image editor, note
 the marker's pixel position, and divide by the image size (4663 × 4800): a
 marker at pixel (922, 2404) is `{ "x": 0.19773, "y": 0.50083 }`. An office
 inside an existing building can reuse that building's position.

@@ -131,6 +131,22 @@ describe("CAMPUS_PLACES", () => {
     expect(validatePlaces(CAMPUS_PLACES)).toEqual([]);
   });
 
+  it("has coordinates for every place except those still to be located", () => {
+    // OpenStreetMap has no named feature for these, so they need placing by hand
+    // from imagery. Remove each from this list as its geo is added.
+    const STILL_TO_LOCATE = [
+      "alumni-relations",
+      "lipscomb-family-therapy-center",
+      "reese-smith-athletic-complex",
+      "thomas-james-mcmeen-music-center",
+      "university-theatre",
+      "veterans-resource-center",
+    ];
+    expect(CAMPUS_PLACES.filter((place) => !place.geo).map((place) => place.id)).toEqual(
+      STILL_TO_LOCATE,
+    );
+  });
+
   it("shares an alias between places only where listed in SHARED_ALIASES", () => {
     const owners = new Map<string, string[]>();
     for (const place of CAMPUS_PLACES) {
@@ -149,6 +165,7 @@ describe("validatePlaces", () => {
   const place = (overrides: Partial<CampusPlace> = {}): CampusPlace => ({
     id: "test-hall",
     name: "Test Hall",
+    category: "academics",
     aliases: [],
     map: { x: 0.5, y: 0.5 },
     ...overrides,
@@ -195,6 +212,19 @@ describe("validatePlaces", () => {
     ]);
   });
 
+  it("rejects coordinates off campus, including lat and lng swapped", () => {
+    expect(validatePlaces([place({ geo: { lat: 36.105, lng: -86.798 } })])).toEqual([]);
+    for (const geo of [
+      { lat: -86.798, lng: 36.105 },
+      { lat: 36.105, lng: 86.798 },
+      { lat: 37.105, lng: -86.798 },
+    ]) {
+      expect(validatePlaces([place({ geo })])).toEqual([
+        '"test-hall": geo must be a lat and lng on campus',
+      ]);
+    }
+  });
+
   it("checks withinBuildingId points to another place, from an office", () => {
     const office = place({ id: "test-office", name: "Test Office", kind: "office" });
     expect(validatePlaces([place(), { ...office, withinBuildingId: "test-hall" }])).toEqual([]);
@@ -214,7 +244,7 @@ describe("validatePlaces", () => {
     ]);
     expect(
       validatePlaces([place({ entrances: [{ ...entrance, primary: true, geo: { lat: 136, lng: 0 } }] })]),
-    ).toEqual(['"test-hall" entrance "front": geo needs a valid lat and lng']);
+    ).toEqual(['"test-hall" entrance "front": geo must be a lat and lng on campus']);
   });
 
   it("rejects an empty entrance list and repeated entrance ids", () => {

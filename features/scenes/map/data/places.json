@@ -2,190 +2,250 @@
   {
     "id": "a-m-burton-health-sciences-center",
     "name": "A.M. Burton Health Sciences Center",
+    "category": "academics",
     "aliases": ["burton", "health sciences building", "college of pharmacy"],
-    "map": { "x": 0.28587, "y": 0.395 }
+    "map": { "x": 0.28587, "y": 0.395 },
+    "geo": { "lat": 36.10557, "lng": -86.79931 }
   },
   {
     "id": "acuff-chapel",
     "name": "Acuff Chapel",
+    "category": "student-life",
     "aliases": [],
-    "map": { "x": 0.61763, "y": 0.23813 }
+    "map": { "x": 0.61763, "y": 0.23813 },
+    "geo": { "lat": 36.10640, "lng": -86.79601 }
   },
   {
     "id": "advancement-office",
     "name": "Advancement Office",
     "kind": "building",
+    "category": "admin",
     "aliases": [],
-    "map": { "x": 0.41969, "y": 0.19062 }
+    "map": { "x": 0.41969, "y": 0.19062 },
+    "geo": { "lat": 36.10682, "lng": -86.79776 }
   },
   {
     "id": "allen-arena",
     "name": "Allen Arena",
+    "category": "athletics",
     "aliases": ["allen", "the gathering", "basketball"],
-    "map": { "x": 0.37701, "y": 0.61146 }
+    "map": { "x": 0.37701, "y": 0.61146 },
+    "geo": { "lat": 36.10371, "lng": -86.79895 }
   },
   {
     "id": "allen-bell-tower",
     "name": "Allen Bell Tower",
+    "category": "student-life",
     "aliases": ["the bell tower", "bell tower", "tower"],
-    "map": { "x": 0.27622, "y": 0.54854 }
+    "map": { "x": 0.27622, "y": 0.54854 },
+    "geo": { "lat": 36.10444, "lng": -86.79997 }
   },
   {
     "id": "alumni-relations",
     "name": "Alumni Relations",
     "kind": "building",
+    "category": "admissions-visitors",
     "aliases": [],
     "map": { "x": 0.7508, "y": 0.21833 }
   },
   {
     "id": "beaman-library",
     "name": "Beaman Library",
+    "category": "academics",
     "aliases": ["beaman", "library", "the library"],
-    "map": { "x": 0.19773, "y": 0.50083 }
+    "map": { "x": 0.19773, "y": 0.50083 },
+    "geo": { "lat": 36.10492, "lng": -86.80046 }
   },
   {
     "id": "bennett-campus-center",
     "name": "Bennett Campus Center",
+    "category": "student-life",
     "aliases": ["bennett", "the campus center", "campus center", "the stu", "the caf", "dining", "food", "eat"],
-    "map": { "x": 0.41711, "y": 0.38167 }
+    "map": { "x": 0.41711, "y": 0.38167 },
+    "geo": { "lat": 36.10548, "lng": -86.79808 }
   },
   {
     "id": "bison-hall-and-bison-inn",
     "name": "Bison Hall & Bison Inn",
+    "category": "housing",
     "aliases": ["dorm"],
-    "map": { "x": 0.35149, "y": 0.15229 }
+    "map": { "x": 0.35149, "y": 0.15229 },
+    "geo": { "lat": 36.10741, "lng": -86.79841 }
   },
   {
     "id": "bison-square-and-osman-fountain",
     "name": "Bison Square & Osman Fountain",
+    "category": "student-life",
     "aliases": ["the square", "the fountain"],
-    "map": { "x": 0.36908, "y": 0.40437 }
+    "map": { "x": 0.36908, "y": 0.40437 },
+    "geo": { "lat": 36.10552, "lng": -86.79866 }
   },
   {
     "id": "collins-alumni-auditorium",
     "name": "Collins Alumni Auditorium",
+    "category": "arts",
     "aliases": ["collins", "the auditorium", "auditorium"],
-    "map": { "x": 0.31546, "y": 0.39333 }
+    "map": { "x": 0.31546, "y": 0.39333 },
+    "geo": { "lat": 36.10554, "lng": -86.79917 }
   },
   {
     "id": "contemporary-music-house",
     "name": "Contemporary Music House",
+    "category": "arts",
     "aliases": ["imagine house"],
-    "map": { "x": 0.6558, "y": 0.43625 }
+    "map": { "x": 0.6558, "y": 0.43625 },
+    "geo": { "lat": 36.10470, "lng": -86.79580 }
   },
   {
     "id": "crisman-administration-building",
     "name": "Crisman Administration Building",
+    "category": "admin",
     "aliases": ["crisman", "the administration building"],
-    "map": { "x": 0.24383, "y": 0.31375 }
+    "map": { "x": 0.24383, "y": 0.31375 },
+    "geo": { "lat": 36.10625, "lng": -86.79973 }
   },
   {
     "id": "draper-diamond",
     "name": "Draper Diamond",
+    "category": "athletics",
     "aliases": [],
-    "map": { "x": 0.22089, "y": 0.73625 }
+    "map": { "x": 0.22089, "y": 0.73625 },
+    "geo": { "lat": 36.10278, "lng": -86.80086 }
   },
   {
     "id": "dugan-field",
     "name": "Dugan Field",
+    "category": "athletics",
     "aliases": [],
-    "map": { "x": 0.40682, "y": 0.75646 }
+    "map": { "x": 0.40682, "y": 0.75646 },
+    "geo": { "lat": 36.10252, "lng": -86.79887 }
   },
   {
     "id": "elam-hall",
     "name": "Elam Hall",
+    "category": "housing",
     "aliases": ["elam", "girls dorm"],
-    "map": { "x": 0.41668, "y": 0.28125 }
+    "map": { "x": 0.41668, "y": 0.28125 },
+    "geo": { "lat": 36.10629, "lng": -86.79802 }
   },
   {
     "id": "ezell-center",
     "name": "Ezell Center",
+    "category": "academics",
     "aliases": ["ezell", "psychology department", "bible and theology department", "education department", "history, politics, and philosophy department", "english department"],
-    "map": { "x": 0.20437, "y": 0.58167 }
+    "map": { "x": 0.20437, "y": 0.58167 },
+    "geo": { "lat": 36.10417, "lng": -86.80054 }
   },
   {
     "id": "fanning-hall",
     "name": "Fanning Hall",
+    "category": "housing",
     "aliases": ["fanning", "girls dorm"],
-    "map": { "x": 0.30603, "y": 0.28813 }
+    "map": { "x": 0.30603, "y": 0.28813 },
+    "geo": { "lat": 36.10637, "lng": -86.79902 }
   },
   {
     "id": "fields-engineering-center",
     "name": "Fields Engineering Center",
+    "category": "academics",
     "aliases": ["fields", "engineering department", "school of computing"],
-    "map": { "x": 0.29166, "y": 0.10437 }
+    "map": { "x": 0.29166, "y": 0.10437 },
+    "geo": { "lat": 36.10792, "lng": -86.79887 }
   },
   {
     "id": "flatt-amphitheater",
     "name": "Flatt Amphitheater",
+    "category": "student-life",
     "aliases": ["flatt", "the amphitheater"],
-    "map": { "x": 0.41647, "y": 0.41833 }
+    "map": { "x": 0.41647, "y": 0.41833 },
+    "geo": { "lat": 36.10517, "lng": -86.79818 }
   },
   {
     "id": "george-shinn-center",
     "name": "George Shinn Center",
+    "category": "admissions-visitors",
     "aliases": ["shinn", "campus visit", "visit", "check in", "visitor center", "welcome center"],
-    "map": { "x": 0.21789, "y": 0.62583 }
+    "map": { "x": 0.21789, "y": 0.62583 },
+    "geo": { "lat": 36.10379, "lng": -86.80049 }
   },
   {
     "id": "graduate-admissions",
     "name": "Graduate Admissions",
     "kind": "building",
+    "category": "admissions-visitors",
     "aliases": [],
-    "map": { "x": 0.40532, "y": 0.16271 }
+    "map": { "x": 0.40532, "y": 0.16271 },
+    "geo": { "lat": 36.10708, "lng": -86.79771 }
   },
   {
     "id": "gymnasium",
     "name": "Gymnasium",
+    "category": "athletics",
     "aliases": [],
-    "map": { "x": 0.65323, "y": 0.23521 }
+    "map": { "x": 0.65323, "y": 0.23521 },
+    "geo": { "lat": 36.10634, "lng": -86.79565 }
   },
   {
     "id": "harding-hall",
     "name": "Harding Hall",
+    "category": "academics",
     "aliases": [],
-    "map": { "x": 0.54793, "y": 0.24229 }
+    "map": { "x": 0.54793, "y": 0.24229 },
+    "geo": { "lat": 36.10633, "lng": -86.79671 }
   },
   {
     "id": "high-rise-hall",
     "name": "High Rise Hall",
+    "category": "housing",
     "aliases": ["high rise", "freshman boys dorm"],
-    "map": { "x": 0.5149, "y": 0.57875 }
+    "map": { "x": 0.5149, "y": 0.57875 },
+    "geo": { "lat": 36.10381, "lng": -86.79762 }
   },
   {
     "id": "honors-college",
     "name": "Honors College",
     "kind": "building",
+    "category": "academics",
     "aliases": [],
-    "map": { "x": 0.40725, "y": 0.12687 }
+    "map": { "x": 0.40725, "y": 0.12687 },
+    "geo": { "lat": 36.10764, "lng": -86.79772 }
   },
   {
     "id": "huston-marsh-griffith-tennis-center",
     "name": "Huston-Marsh-Griffith Tennis Center",
+    "category": "athletics",
     "aliases": [],
-    "map": { "x": 0.28179, "y": 0.71208 }
+    "map": { "x": 0.28179, "y": 0.71208 },
+    "geo": { "lat": 36.10246, "lng": -86.79994 }
   },
   {
     "id": "intramural-field",
     "name": "Intramural Field",
+    "category": "athletics",
     "aliases": [],
-    "map": { "x": 0.56101, "y": 0.38875 }
+    "map": { "x": 0.56101, "y": 0.38875 },
+    "geo": { "lat": 36.10513, "lng": -86.79671 }
   },
   {
     "id": "james-d-hughes-center",
     "name": "James D. Hughes Center",
+    "category": "academics",
     "aliases": [],
-    "map": { "x": 0.23719, "y": 0.19104 }
+    "map": { "x": 0.23719, "y": 0.19104 },
+    "geo": { "lat": 36.10726, "lng": -86.79961 }
   },
   {
     "id": "johnson-hall",
     "name": "Johnson Hall",
+    "category": "housing",
     "aliases": ["johnson", "girls dorm"],
-    "map": { "x": 0.37701, "y": 0.48896 }
+    "map": { "x": 0.37701, "y": 0.48896 },
+    "geo": { "lat": 36.10465, "lng": -86.79871 }
   },
   {
     "id": "lipscomb-family-therapy-center",
     "name": "Lipscomb Family Therapy Center",
+    "category": "health",
     "aliases": [],
     "map": { "x": 0.7062, "y": 0.17146 }
   },
@@ -193,102 +253,133 @@
     "id": "lipscomb-online",
     "name": "Lipscomb Online",
     "kind": "building",
+    "category": "academics",
     "aliases": [],
-    "map": { "x": 0.38966, "y": 0.18313 }
+    "map": { "x": 0.38966, "y": 0.18313 },
+    "geo": { "lat": 36.10701, "lng": -86.79799 }
   },
   {
     "id": "mccadams-athletic-center",
     "name": "McCadams Athletic Center",
+    "category": "athletics",
     "aliases": [],
-    "map": { "x": 0.83809, "y": 0.30146 }
+    "map": { "x": 0.83809, "y": 0.30146 },
+    "geo": { "lat": 36.10546, "lng": -86.79122 }
   },
   {
     "id": "mcfarland-science-center",
     "name": "McFarland Science Center",
+    "category": "academics",
     "aliases": ["mcfarland", "science building", "math building", "science department", "math department"],
-    "map": { "x": 0.17757, "y": 0.29375 }
+    "map": { "x": 0.17757, "y": 0.29375 },
+    "geo": { "lat": 36.10649, "lng": -86.80033 }
   },
   {
     "id": "mcquiddy-gym",
     "name": "McQuiddy Gym",
+    "category": "athletics",
     "aliases": ["mcquiddy"],
-    "map": { "x": 0.32275, "y": 0.59167 }
+    "map": { "x": 0.32275, "y": 0.59167 },
+    "geo": { "lat": 36.10393, "lng": -86.79978 }
   },
   {
     "id": "music-wing",
     "name": "Music Wing",
+    "category": "arts",
     "aliases": [],
-    "map": { "x": 0.49818, "y": 0.24208 }
+    "map": { "x": 0.49818, "y": 0.24208 },
+    "geo": { "lat": 36.10645, "lng": -86.79720 }
   },
   {
     "id": "nursing-and-health-sciences-center",
     "name": "Nursing & Health Sciences Center",
+    "category": "academics",
     "aliases": ["nursing building", "health sciences building"],
-    "map": { "x": 0.23333, "y": 0.1525 }
+    "map": { "x": 0.23333, "y": 0.1525 },
+    "geo": { "lat": 36.10758, "lng": -86.79956 }
   },
   {
     "id": "pharmaceutical-sciences-research-center",
     "name": "Pharmaceutical Sciences Research Center",
+    "category": "academics",
     "aliases": [],
-    "map": { "x": 0.2389, "y": 0.22937 }
+    "map": { "x": 0.2389, "y": 0.22937 },
+    "geo": { "lat": 36.10694, "lng": -86.79965 }
   },
   {
     "id": "reese-smith-athletic-complex",
     "name": "Reese Smith Athletic Complex",
+    "category": "athletics",
     "aliases": [],
     "map": { "x": 0.83959, "y": 0.36229 }
   },
   {
     "id": "sewell-hall",
     "name": "Sewell Hall",
+    "category": "housing",
     "aliases": ["sewell", "dorm"],
-    "map": { "x": 0.48252, "y": 0.48812 }
+    "map": { "x": 0.48252, "y": 0.48812 },
+    "geo": { "lat": 36.10450, "lng": -86.79770 }
   },
   {
     "id": "shamblin-theatre",
     "name": "Shamblin Theatre",
+    "category": "arts",
     "aliases": [],
-    "map": { "x": 0.47652, "y": 0.37771 }
+    "map": { "x": 0.47652, "y": 0.37771 },
+    "geo": { "lat": 36.10544, "lng": -86.79764 }
   },
   {
     "id": "soccer-complex",
     "name": "Soccer Complex",
+    "category": "athletics",
     "aliases": [],
-    "map": { "x": 0.20995, "y": 0.87021 }
+    "map": { "x": 0.20995, "y": 0.87021 },
+    "geo": { "lat": 36.10175, "lng": -86.80118 }
   },
   {
     "id": "student-activities-center",
     "name": "Student Activities Center",
+    "category": "student-life",
     "aliases": ["activities center", "gym", "the sac", "sac", "dining", "food", "eat"],
-    "map": { "x": 0.28394, "y": 0.60354 }
+    "map": { "x": 0.28394, "y": 0.60354 },
+    "geo": { "lat": 36.10392, "lng": -86.79942 }
   },
   {
     "id": "swang-business-center",
     "name": "Swang Business Center",
+    "category": "academics",
     "aliases": ["business department", "business building", "swang"],
-    "map": { "x": 0.30431, "y": 0.48896 }
+    "map": { "x": 0.30431, "y": 0.48896 },
+    "geo": { "lat": 36.10486, "lng": -86.79942 }
   },
   {
     "id": "the-village",
     "name": "The Village",
+    "category": "housing",
     "aliases": [],
-    "map": { "x": 0.35921, "y": 0.22458 }
+    "map": { "x": 0.35921, "y": 0.22458 },
+    "geo": { "lat": 36.10675, "lng": -86.79848 }
   },
   {
     "id": "thomas-james-mcmeen-music-center",
     "name": "Thomas James McMeen Music Center",
+    "category": "arts",
     "aliases": ["mcmeen", "music building"],
     "map": { "x": 0.32018, "y": 0.41667 }
   },
   {
     "id": "university-health-services",
     "name": "University Health Services",
+    "category": "health",
     "aliases": [],
-    "map": { "x": 0.43491, "y": 0.14062 }
+    "map": { "x": 0.43491, "y": 0.14062 },
+    "geo": { "lat": 36.10741, "lng": -86.79735 }
   },
   {
     "id": "university-theatre",
     "name": "University Theatre",
+    "category": "arts",
     "aliases": [],
     "map": { "x": 0.51319, "y": 0.50875 }
   },
@@ -296,13 +387,16 @@
     "id": "veterans-resource-center",
     "name": "Veterans' Resource Center",
     "kind": "building",
+    "category": "student-life",
     "aliases": [],
     "map": { "x": 0.41047, "y": 0.22062 }
   },
   {
     "id": "ward-hall",
     "name": "Ward Hall",
+    "category": "academics",
     "aliases": ["ward"],
-    "map": { "x": 0.21252, "y": 0.27333 }
+    "map": { "x": 0.21252, "y": 0.27333 },
+    "geo": { "lat": 36.10664, "lng": -86.80000 }
   }
 ]
