@@ -315,7 +315,7 @@ export function FacultyView({ onBack, onActivity }: FacultyViewProps) {
       {activePerson ? (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-white px-8 py-7 sm:px-12 sm:py-10">
           <div className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col overflow-y-auto">
-            <div className="relative mx-auto mb-7 aspect-[3/4] w-full max-w-xs overflow-hidden border border-[#AD8C45]/40 bg-[#F6F3EB]">
+            <div className="relative mx-auto mb-7 aspect-[3/4] w-full max-w-xs shrink-0 overflow-hidden border border-[#AD8C45]/40 bg-[#F6F3EB]">
               {failedImage === activePerson.image ? (
                 <div className="flex h-full items-center justify-center px-4 text-center text-sm text-[#2B0A54]/70">
                   Photo unavailable
