@@ -24,16 +24,15 @@ to change a name, add an alias or add a place.
 | `id` | yes | Lowercase words joined by dashes, unique. See the rules below. |
 | `name` | yes | The official name, unique. Shown on the map and in the place list. |
 | `aliases` | yes | Other names people use. Can be empty: `[]`. |
+| `kind` | yes | `building`, `office`, `venue` or `field`. |
 | `category` | yes | `admissions-visitors`, `academics`, `student-life`, `athletics`, `housing`, `admin`, `arts` or `health`. The section it appears under on the Find screen. |
 | `map` | yes | Marker position as fractions of the image: `x` from 0 (left) to 1 (right), `y` from 0 (top) to 1 (bottom). |
 | `geo` | yes | Real-world `lat` and `lng` of the place's centre. See Coordinates below. |
-| `kind` | not yet | `building`, `office`, `venue` or `field`. |
 | `withinBuildingId` | no | For an `office` inside another place: that place's `id`. |
-| `entrances` | no | Doors visitors use. Leave it out until a place has one. |
+| `entrances` | no | Doors visitors use, with exactly one `primary`. Leave it out until a place has one. Outdoor places (`venue`, `field`) don't need any: directions go to their `geo`. |
 | `photo` | no | Deferred; leave it out. |
 
-`kind` becomes required once every place has one. The allowed values for `kind`
-and `category` are `PLACE_KINDS` and `PLACE_CATEGORIES` in `../buildings.ts`;
+The allowed values for `kind` and `category` are `PLACE_KINDS` and `PLACE_CATEGORIES` in `../buildings.ts`;
 add a new value there first.
 
 **Kinds.** A `building` is a standalone structure, even if it's mostly offices.
@@ -55,6 +54,10 @@ McMeen Music Center, Veterans' Resource Center, Alumni Relations, Lipscomb Famil
 Therapy Center and Reese Smith Athletic Complex. Correct them if you can confirm
 a better position.
 
+OpenStreetMap has the names of McQuiddy Gym and the Student Activities Center swapped.
+`places.json` follows the campus map and its key, so don't re-import those two from
+OpenStreetMap without checking.
+
 ## Aliases
 
 - Lowercase only, no spaces at either end. Search compares lowercase text, so
@@ -67,8 +70,7 @@ a better position.
 
 ## Adding a place
 
-Add an entry with `id`, `name`, `category`, `aliases`, `map` and `geo`, plus `kind`
-if you know it. To find `map`, open `LUJustMap.jpg` in an image editor, note
+Add an entry with `id`, `name`, `kind`, `category`, `aliases`, `map` and `geo`. To find `map`, open `LUJustMap.jpg` in an image editor, note
 the marker's pixel position, and divide by the image size (4663 × 4800): a
 marker at pixel (922, 2404) is `{ "x": 0.19773, "y": 0.50083 }`. An office
 inside an existing building can reuse that building's position.

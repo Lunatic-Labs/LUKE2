@@ -66,10 +66,18 @@ describe("KIOSKS", () => {
     }
   });
 
+  it("records which way the Fields exit faces", () => {
+    expect(KIOSKS.fields.exitHeadingDeg).toBe(186);
+  });
+
   it.each(Object.entries(KIOSKS))("gives %s a compass heading, once measured", (_id, kiosk) => {
     if (kiosk.headingDeg !== null) {
       expect(kiosk.headingDeg).toBeGreaterThanOrEqual(0);
       expect(kiosk.headingDeg).toBeLessThan(360);
+    }
+    if (kiosk.exitHeadingDeg !== null) {
+      expect(kiosk.exitHeadingDeg).toBeGreaterThanOrEqual(0);
+      expect(kiosk.exitHeadingDeg).toBeLessThan(360);
     }
   });
 });

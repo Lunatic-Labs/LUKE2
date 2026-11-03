@@ -58,8 +58,7 @@ export type PlaceCategory = (typeof PLACE_CATEGORIES)[number];
 export interface CampusPlace {
   id: string;
   name: string;
-  /** Optional until every entry in `places.json` has one. */
-  kind?: PlaceKind;
+  kind: PlaceKind;
   category: PlaceCategory;
   /** For an office inside another place: that place's id. Unset for standalone offices. */
   withinBuildingId?: string;
@@ -153,7 +152,7 @@ export function validatePlaces(places: CampusPlace[]): string[] {
   for (const place of places) {
     const where = `"${place.id}"`;
 
-    if (place.kind !== undefined && !(PLACE_KINDS as readonly string[]).includes(place.kind)) {
+    if (!(PLACE_KINDS as readonly string[]).includes(place.kind)) {
       problems.push(`${where}: unknown kind "${place.kind}"`);
     }
     if (!(PLACE_CATEGORIES as readonly string[]).includes(place.category)) {

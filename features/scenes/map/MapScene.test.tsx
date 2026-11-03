@@ -77,7 +77,7 @@ describe("MapScene", () => {
   }
 
   it("puts the pin on the active kiosk's place", () => {
-    KIOSKS.library = { placeId: "beaman-library", exitEntranceId: "main", headingDeg: null };
+    KIOSKS.library = { placeId: "beaman-library", exitEntranceId: "main", headingDeg: null, exitHeadingDeg: null };
     try {
       renderScene("library");
       expect(pinPosition()).toEqual(percentages(building("beaman-library")));

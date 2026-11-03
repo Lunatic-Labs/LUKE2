@@ -149,6 +149,7 @@ describe("validatePlaces", () => {
   const place = (overrides: Partial<CampusPlace> = {}): CampusPlace => ({
     id: "test-hall",
     name: "Test Hall",
+    kind: "building",
     category: "academics",
     aliases: [],
     map: { x: 0.5, y: 0.5 },

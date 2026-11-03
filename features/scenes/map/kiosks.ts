@@ -18,6 +18,8 @@ export interface Kiosk {
    * north, and direction cues would trust it.
    */
   headingDeg: number | null;
+  /** Compass direction the exit entrance faces, in degrees clockwise from north. Directions start out this way. */
+  exitHeadingDeg: number | null;
 }
 
 export const KIOSKS: Record<string, Kiosk> = {
@@ -26,6 +28,8 @@ export const KIOSKS: Record<string, Kiosk> = {
     // The front entrance, facing the rest of campus.
     exitEntranceId: "front",
     headingDeg: null,
+    // Fields' south wall, from its OpenStreetMap outline.
+    exitHeadingDeg: 186,
   },
 };
 
