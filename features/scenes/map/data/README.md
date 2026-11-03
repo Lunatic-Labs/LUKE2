@@ -28,6 +28,7 @@ to change a name, add an alias or add a place.
 | `category` | yes | `admissions-visitors`, `academics`, `student-life`, `athletics`, `housing`, `admin`, `arts` or `health`. The section it appears under on the Find screen. |
 | `map` | yes | Marker position as fractions of the image: `x` from 0 (left) to 1 (right), `y` from 0 (top) to 1 (bottom). |
 | `geo` | yes | Real-world `lat` and `lng` of the place's centre. See Coordinates below. |
+| `departments` | no | Departments in the place, capitalized as the detail card should show them. |
 | `withinBuildingId` | no | For an `office` inside another place: that place's `id`. |
 | `entrances` | no | Doors visitors use, with exactly one `primary`. Leave it out until a place has one. Outdoor places (`venue`, `field`) don't need any: directions go to their `geo`. |
 | `photo` | no | Deferred; leave it out. |
@@ -53,6 +54,11 @@ position on `LUJustMap.jpg` and are approximate: University Theatre, Thomas Jame
 McMeen Music Center, Veterans' Resource Center, Alumni Relations, Lipscomb Family
 Therapy Center and Reese Smith Athletic Complex. Correct them if you can confirm
 a better position.
+
+`LUJustMap.jpg` is drawn to scale, so `map` and `geo` agree to within about 30 m,
+and the tests fail if a place drifts further than that. New coordinates that fail
+there are probably a typo or the wrong building. The exceptions are McCadams, where
+the map squeezes the far east of campus, and the Tennis Center.
 
 OpenStreetMap has the names of McQuiddy Gym and the Student Activities Center swapped.
 `places.json` follows the campus map and its key, so don't re-import those two from

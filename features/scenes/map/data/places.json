@@ -4,12 +4,13 @@
     "name": "A.M. Burton Health Sciences Center",
     "kind": "building",
     "category": "academics",
-    "aliases": ["burton", "health sciences building", "college of pharmacy"],
+    "aliases": ["burton", "health sciences building"],
+    "departments": ["College of Pharmacy"],
     "map": { "x": 0.28587, "y": 0.395 },
     "geo": { "lat": 36.10557, "lng": -86.79931 },
     "entrances": [
-      { "id": "south", "label": "Main entrance, facing Swang Business Center", "geo": { "lat": 36.105368, "lng": -86.799328 }, "primary": true },
-      { "id": "west", "geo": { "lat": 36.105599, "lng": -86.799626 } },
+      { "id": "west", "label": "Main entrance, on the west side of the building", "geo": { "lat": 36.105599, "lng": -86.799626 }, "primary": true },
+      { "id": "south", "geo": { "lat": 36.105368, "lng": -86.799328 } },
       { "id": "north", "geo": { "lat": 36.105879, "lng": -86.799435 } },
       { "id": "east", "geo": { "lat": 36.105542, "lng": -86.798987 } }
     ]
@@ -183,7 +184,8 @@
     "name": "Ezell Center",
     "kind": "building",
     "category": "academics",
-    "aliases": ["ezell", "psychology department", "bible and theology department", "education department", "history, politics, and philosophy department", "english department"],
+    "aliases": ["ezell"],
+    "departments": ["Bible and Theology", "Psychology", "History, Politics, and Philosophy", "English", "Education"],
     "map": { "x": 0.20437, "y": 0.58167 },
     "geo": { "lat": 36.10417, "lng": -86.80054 },
     "entrances": [
@@ -207,7 +209,8 @@
     "name": "Fields Engineering Center",
     "kind": "building",
     "category": "academics",
-    "aliases": ["fields", "engineering department", "school of computing"],
+    "aliases": ["fields", "school of computing"],
+    "departments": ["College of Engineering"],
     "map": { "x": 0.29166, "y": 0.10437 },
     "geo": { "lat": 36.10792, "lng": -86.79887 },
     "entrances": [
@@ -310,6 +313,7 @@
     "kind": "building",
     "category": "academics",
     "aliases": [],
+    "departments": ["Kinesiology"],
     "map": { "x": 0.23719, "y": 0.19104 },
     "geo": { "lat": 36.10726, "lng": -86.79961 },
     "entrances": [
@@ -360,7 +364,8 @@
     "name": "McFarland Science Center",
     "kind": "building",
     "category": "academics",
-    "aliases": ["mcfarland", "science building", "math building", "science department", "math department"],
+    "aliases": ["mcfarland", "science building", "math building"],
+    "departments": ["Math", "Physics", "Biology", "Chemistry", "Graphic Design", "Fashion Design"],
     "map": { "x": 0.17757, "y": 0.29375 },
     "geo": { "lat": 36.10649, "lng": -86.80033 },
     "entrances": [
@@ -471,7 +476,8 @@
     "name": "Swang Business Center",
     "kind": "building",
     "category": "academics",
-    "aliases": ["business department", "business building", "swang"],
+    "aliases": ["business building", "swang"],
+    "departments": ["College of Business"],
     "map": { "x": 0.30431, "y": 0.48896 },
     "geo": { "lat": 36.10486, "lng": -86.79942 },
     "entrances": [
@@ -495,8 +501,12 @@
     "kind": "building",
     "category": "arts",
     "aliases": ["mcmeen", "music building"],
+    "departments": ["School of Music"],
     "map": { "x": 0.32018, "y": 0.41667 },
-    "geo": { "lat": 36.10536, "lng": -86.79912 }
+    "geo": { "lat": 36.10536, "lng": -86.79912 },
+    "entrances": [
+      { "id": "south", "label": "Main entrance, facing Swang Business Center, between two protruding parts of the building", "geo": { "lat": 36.105368, "lng": -86.799328 }, "primary": true }
+    ]
   },
   {
     "id": "university-health-services",

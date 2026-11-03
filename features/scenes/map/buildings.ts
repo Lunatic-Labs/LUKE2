@@ -63,6 +63,8 @@ export interface CampusPlace {
   /** For an office inside another place: that place's id. Unset for standalone offices. */
   withinBuildingId?: string;
   aliases: string[];
+  /** Departments in this place, written as the detail card should show them. */
+  departments?: string[];
   map: { x: number; y: number };
   /** Real-world position of the place's centre. */
   geo: { lat: number; lng: number };
@@ -191,6 +193,21 @@ export function validatePlaces(places: CampusPlace[]): string[] {
       }
     }
 
+    if (place.departments !== undefined) {
+      const seen = new Set<string>();
+      for (const department of place.departments) {
+        if (typeof department !== "string" || !department.trim()) {
+          problems.push(`${where}: has an empty department`);
+          continue;
+        }
+        if (department !== department.trim()) {
+          problems.push(`${where}: department "${department}" has outer spaces`);
+        }
+        if (seen.has(department)) problems.push(`${where}: department "${department}" is listed twice`);
+        seen.add(department);
+      }
+    }
+
     if (!isFraction(place.map?.x) || !isFraction(place.map?.y)) {
       problems.push(`${where}: map x and y must be numbers from 0 to 1`);
     }
@@ -273,6 +290,14 @@ export function findNearestBuilding(
  * exactly only on a screen shaped to match it.
  */
 export const MAP_ASPECT_RATIO = 4663 / 4800;
+
+/**
+ * Which way true north points on `LUJustMap.jpg`, in degrees clockwise from the
+ * top of the image: north is about 10 degrees to the left of straight up, as the
+ * compass drawn on the map shows. Measured by fitting each place's `map` position
+ * to its `geo`; the tests repeat the fit, so this can't drift from the data.
+ */
+export const MAP_NORTH_DEG = -10.4;
 
 /**
  * The largest box of `aspectRatio` that fits inside a `width` x `height` area
