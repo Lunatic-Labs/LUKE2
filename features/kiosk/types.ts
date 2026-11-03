@@ -31,6 +31,11 @@ export interface SceneHandle {
   exitCarousel: () => void;
   /** Jump straight to a carousel scene by id, as the main menu and `NavMenu` do. */
   goToScene: (sceneId: string) => void;
+  /**
+   * Go back to the main menu, keeping the session going. No upstream
+   * equivalent: the Processing build never returned to its menu.
+   */
+  goToMainMenu: () => void;
 }
 
 export interface SceneComponentProps {

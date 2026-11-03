@@ -37,6 +37,7 @@ describe("MapScene", () => {
       previousScene: jest.fn(),
       exitCarousel: jest.fn(),
       goToScene: jest.fn(),
+      goToMainMenu: jest.fn(),
     };
     render(
       <KioskOptionsContext.Provider value={{ ...DEFAULT_OPTIONS, kioskId }}>

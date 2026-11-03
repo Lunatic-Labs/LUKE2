@@ -8,6 +8,7 @@ const handle: SceneHandle = {
   previousScene: jest.fn(),
   exitCarousel: jest.fn(),
   goToScene: jest.fn(),
+  goToMainMenu: jest.fn(),
 };
 
 const bounds = { width: 1920, height: 1080 };

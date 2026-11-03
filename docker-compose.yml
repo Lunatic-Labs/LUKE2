@@ -2,8 +2,9 @@ services:
   web:
     build: .
     ports:
-      # Localhost only: /api/photos (upload and serving) has no auth, so other
-      # machines on the network must not be able to reach it.
+      # Localhost only: /api/photos (upload and serving) and /api/scores have
+      # no auth, so other machines on the network must not be able to reach
+      # them.
       - "127.0.0.1:3000:3000"
     environment:
       - NODE_ENV=production
@@ -14,6 +15,10 @@ services:
       # This machine's options (KioskId and so on). Uncomment once the file exists:
       # Docker creates a folder at a missing path, and the defaults would apply.
       # - ./data/options.txt:/app/data/options.txt:ro
+      # The trivia scene's saved scores (scores.csv); /api/scores reads and
+      # appends to it.
+      - trivia-scores:/app/data/trivia-scores
 
 volumes:
   camera-pics:
+  trivia-scores:

@@ -3,12 +3,17 @@
  *
  * Ported from `TriviaEngagement.pde`'s `Engagement` class and the round-building
  * and scoring logic embedded in `TriviaScene.pde` (`shuffleEngagements()`,
- * `Enable()`, `moveToNextEngagement()`, `DrawScore()`). `TriviaGameManager.pde`'s
- * `Game` class is dead code upstream — nothing ever constructs one — so it has
- * no counterpart here.
+ * `Enable()`, `DrawScore()`). `TriviaGameManager.pde`'s `Game` class is dead
+ * code upstream — nothing ever constructs one — so it has no counterpart here.
+ * Upstream's in-memory leaderboard is replaced by saved scores; see `scores.ts`.
  */
 
 import type { TriviaQuestion } from "./questions";
+
+/** Seconds on the clock for each question. */
+export const QUESTION_SECONDS = 25;
+/** Questions in one round. */
+export const ROUND_LENGTH = 5;
 
 export interface Engagement {
   prompt: string;
@@ -51,7 +56,7 @@ export function createEngagement(prompt: string, responses: string[]): Engagemen
  * five, rather than sampling — kept here so replays don't repeat a question
  * back to back only by chance.
  */
-export function pickRound(bank: TriviaQuestion[], count = 5): Engagement[] {
+export function pickRound(bank: TriviaQuestion[], count = ROUND_LENGTH): Engagement[] {
   return shuffle(bank)
     .slice(0, count)
     .map((question) => createEngagement(question.prompt, question.responses));
@@ -63,18 +68,4 @@ export function pickRound(bank: TriviaQuestion[], count = 5): Engagement[] {
  */
 export function scoreForAnswer(secondsRemaining: number): number {
   return secondsRemaining * 69 + 100;
-}
-
-export const DEFAULT_LEADERBOARD = [0, 2560, 2580, 3000, 5620, 7500];
-
-/**
- * Slots a finished score into the board and re-sorts it.
- * `moveToNextEngagement()`: `leaderboard[0] = score; Arrays.sort(leaderboard);`
- * — the smallest entry is always the one overwritten, session to session.
- */
-export function updateLeaderboard(board: number[], score: number): number[] {
-  const next = [...board];
-  next[0] = score;
-  next.sort((a, b) => a - b);
-  return next;
 }
