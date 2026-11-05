@@ -22,10 +22,11 @@ export function CampusBackdrop() {
       {/* Extra lilac behind the top of the screen, fading out to reveal the photo. */}
       <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#8f7eb3_23%,rgb(255_255_255/0)_39%)] opacity-25" />
       <Image
-        src="/images/nashville-skyline.png"
+        src="/images/nashville-skyline-v2.png"
         alt=""
-        width={482}
-        height={119}
+        width={2142}
+        height={495}
+        sizes="100vw"
         className="pointer-events-none absolute inset-x-0 bottom-0 h-auto w-full"
       />
     </>

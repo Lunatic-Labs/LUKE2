@@ -20,6 +20,10 @@ One folder per screen. `idle/`, `map/` and `camera/` are built; the rest are reg
 placeholders that render `<ScenePlaceholder />` and name the Processing source
 they should be ported from.
 
+Some scenes document themselves in a `README.md` in their folder:
+`board/`, `camera/`, `main-menu/` and `trivia/`. Each covers how the scene
+works and how it connects to the shell and the rest of the kiosk.
+
 `camera/photo-store.ts` is server-only (it writes to disk for `app/api/photos`);
 keep it out of the `camera/index.ts` barrel so client bundles never pull it in.
 The same goes for `trivia/score-store.ts`, which writes the trivia leaderboard

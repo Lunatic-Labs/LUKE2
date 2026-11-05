@@ -77,7 +77,7 @@ Rebuilt to match the welcome-screen mockup. From bottom to top, the layers are:
 1. **Photo:** `lipscomb-entrance.png`, filling the scene with `object-cover`.
 2. **Tint:** a top-to-bottom gradient, `#8F7EB3` at 87% to `#3E364D` at 100%, at 50% opacity. It washes the photo lilac and darkens it slightly at the bottom.
 3. **Heading wash:** a top-to-bottom gradient, `#8F7EB3` at 23% to transparent at 39%, at 25% opacity. It adds lilac behind the heading so the text stays readable against the sky.
-4. **Skyline:** its own copy of `nashville-skyline.png`, anchored to the bottom.
+4. **Skyline:** its own copy of `nashville-skyline-v2.png`, anchored to the bottom.
 5. **Text:** "WELCOME!" (extra-bold, `clamp(2.5rem, 15vw, 7rem)`) and "tap to start" (bold, `clamp(1rem, 5vw, 2.25rem)`) in `--luke-purple`, centred near the top.
 
 The old "Hi, I'm L.U.K.E.!" text and its floating animation are gone, since the mockup doesn't have them. Tapping anywhere still starts a session.
@@ -106,6 +106,25 @@ Restyled to match the camera mockup, and given two new controls from it: a filte
 - The enlarged view matches the gallery's so the two pages behave the same. It is copied rather than shared because the gallery uses `next/image` and the thumbnail is a blob URL, which `next/image` can't load. If a third page needs it, it's worth moving into `components/`.
 - Equal grid columns keep the capture button exactly centred, whether or not the thumbnail holds a photo, so nothing shifts when the first picture is taken.
 
+### `features/scenes/board/BoardScene.tsx`
+
+Partly restyled to the drawing mockup. Full details are in the scene's [README](features/scenes/board/README.md).
+
+- **Background:** the `SceneFrame` is `bg-white text-black`, like the Directory, Feedback and Video scenes, covering the shell's lavender. The canvas sits on top and is transparent where nothing is drawn.
+- **Toolbar:** upstream's "Erase/Draw" and "Clear" buttons (purple rectangles with gold text and border, placed with inline styles in the bottom-left corner) are replaced by a row of round icon buttons along the top, inset 3%: colour, pen and eraser on the left, a trash can on the right. Each is lavender (`--luke-lavender`) with a purple (`--luke-purple`) outline (`clamp(2px, 0.6vw, 4px)`) and a purple icon at 60% of the button, `clamp(2.5rem, 12vw, 4.5rem)` across, with `clamp(0.25rem, 1.5vw, 0.75rem)` gaps. The selected tool gets a thicker outline, `clamp(3.5px, 1.1vw, 7px)`, with the same colours (it was first shown inverted, purple with a lavender icon). Pressed buttons darken slightly (`active:brightness-90`).
+- **Icons:** the pen and eraser are the supplied icons, `public/images/board/pen.png` and `eraser.png`, applied as CSS masks (`mask-image`, `mask-size: contain`) over `bg-current`, so they take the button's `--luke-purple` text colour instead of the PNGs' own purple. The trash can is an inline SVG; the colour button and size options are plain circles.
+- **Colour menu:** the colour button shows a dot of the current ink. Tapped, it grows from a circle into a pill (`rounded-full`, same outline and fill, height animating from `var(--tool)` to `var(--tool) × 3.56` over 300ms, ease-out). The current ink stays on top at 55% of the button's width; the others, in the order red `#E04C46`, yellow `#F0CD48`, green `#71C467`, blue `#5588F6`, purple `rgb(51, 30, 84)` (the default), are listed below at 45%, each row 0.64 of a button tall (`COLOUR_SLOT`), pulled 0.17 of a button up under the top button (`COLOUR_LIFT`, a negative top margin on the first colour) so red's centre is 1.15 buttons from the pill's top and the same 0.17 margin is left below blue. Measured from the colour menu reference image; before that the colours sat below a full-height top button and looked too low. Each colour fades in and slides down over 150ms, staggered 50ms apart so it appears as the pill reaches it; closing runs the stagger in reverse. Colours were sampled from the mockup. `motion-reduce` makes it instant.
+- **Size menus:** the pen and eraser buttons open the same kind of pill (shared `PillMenu` component, same timing and stagger as the colour menu). The tool's icon stays on top, with three sizes below it, thinnest first: circles at 31%, 46% and 69% of the button's width (measured from the mockup) for 5px, 20px and 40px pen lines (the eraser's smallest is 10px instead of 5px). Each circle is a purple outline (`clamp(1.5px, 0.5vw, 3px)`) and is filled purple when it's the size in use. Each row is 0.82 of a button tall, so the size menus open to 3.46 buttons, the mockup's height. The pill keeps the selected tool's thicker outline.
+- **Button size:** the `--tool` CSS variable on the toolbar row, `clamp(2.5rem, 12vw, 4.5rem)`, shared by every menu and the round buttons.
+- **Heading removed:** the "Touch to Draw!" heading is gone. The mockup doesn't have it, and it overlapped the toolbar.
+- **Tool circle:** a circle the same width as the current line shows where the tool will reach. For the pen it's the ink colour at 50% opacity, shown whenever the pen is in use (it follows the finger, and a hovering mouse). For the eraser it's `#D9D9D9` at 30% opacity, shown only mid-stroke. It replaced an eraser-only circle that was always 30px.
+
+**Why:**
+- The selected-tool state isn't in the mockup. It was added so visitors can tell whether they're drawing or erasing.
+- The toolbar row lets taps through (`pointer-events-none`, buttons `pointer-events-auto`), so the board can be drawn on around the buttons.
+- Hidden menu options are `pointer-events: none`. Closed options are tucked half a row up, and the size menus' taller rows otherwise covered the button's centre and swallowed its taps. The top button isn't layered above the options (an earlier `relative z-10` with a lavender background was removed), because the colour menu's lifted first row overlaps its bottom edge and the button would paint over the red dot.
+- Purple stays the board's existing ink, `rgb(51, 30, 84)` (upstream's), not `--luke-purple`: the canvas needs colour values, not CSS variables, so the inks are listed in the file.
+
 ### `features/scenes/trivia/TriviaScene.tsx`
 
 - **Sizing (portrait and landscape):** every size on this page scales with the scene itself, not the viewport, so all buttons stay on screen in landscape as well as portrait:
@@ -114,7 +133,7 @@ Restyled to match the camera mockup, and given two new controls from it: a filte
   - In landscape, the height limits `--u`, so the same layout is scaled down until it fits. All screens sit in a centred column `calc(var(--u)*100)` wide (the full width in portrait), so percentage widths like the pills' 60% keep their portrait proportions instead of stretching across a wide screen. The column scrolls only as a last resort, for example if a very long question wraps onto more lines than usual.
   - **Reading the sizes below:** they're listed as originally designed in `vw` and `dvh`. In the code, each `N vw` is written `calc(var(--u)*N)` and each `N dvh` is `calc(var(--v)*N)`, with the same upper limits, e.g. `clamp(1.25rem, 6.5vw, 3.25rem)` became `min(3.25rem, calc(var(--u)*6.5))`. The `rem` lower limits were dropped, since none applied at 360×640 and they stopped short landscape screens from fitting. Borders and the letter boxes' inner padding keep their small `px` minimums so they never vanish. `text-[…]` and `border-[…]` values carry a `length:` hint, because Tailwind can't tell a `var()` size from a colour.
   - Checked by screenshot at 360×640 and 768×1024 portrait, and at 1280×720, 1024×600 and 640×360 landscape: every button on every screen (start, initials, question, result, "Don't ghost the quiz!", end, leader board) is fully visible. Before, landscape cut off the lower buttons on most screens, and a 768×1024 tablet cut off the initials screen's "Back".
-- **Background:** the scene's `SceneFrame` now has the trivia mockup's question-mark pattern: `bg-[url('/images/trivia-pattern.svg')]`, repeated, over a `#d9d9d9` grey fallback. `bg-[length:40%_auto]` sizes each tile to 40% of the scene's width. A tile holds two columns of marks, so there are always five columns across, matching the mockup at any screen width.
+- **Background:** the scene's `SceneFrame` now has the trivia mockup's question-mark pattern: `bg-[url('/images/trivia-pattern.svg')]`, repeated, over a white fallback (`bg-white`). `bg-[length:40%_auto]` sizes each tile to 40% of the scene's width. A tile holds two columns of marks, so there are always five columns across, matching the mockup at any screen width. The page was first a `#d9d9d9` grey, as in the mockup; it is now white (`#ffffff`), the same shade as the Directory, Feedback and Video scenes (`bg-white`), so it matches the rest of the kiosk. The SVG tile changed with it, since its own square paints over the fallback.
 - **Start screen:** a new `StartScreen` component replaces the old shared `PromptScreen` on the opening screen, following the start-screen mockup:
   - **Heading:** "Think you got what it takes to ace this Lipscomb Trivia?", bold, centred and in `--luke-purple`, sized `clamp(1.25rem, 6.5vw, 3.25rem)`. It sits in the upper part of the scene (`pt-[clamp(2rem,10dvh,7rem)]`) rather than centred vertically, with `px-[12%]` so it wraps onto three lines as in the mockup.
   - **Buttons:** "Let's go!" followed by a right-arrow icon (inline SVG sized `1em`), then "Score Board", stacked with even gaps (`clamp(0.75rem, 2.5dvh, 2rem)`) a large gap below the heading (`clamp(2rem, 7dvh, 5rem)`). Each is a `rounded-full` purple pill, 60% of the scene's width, with bold gold text (`clamp(1.125rem, 5.5vw, 2.75rem)`). They brighten slightly while pressed (`active:brightness-125`), because darkening barely shows on dark purple. "Let's go!" replaced the old "Game on!" here, which moved to the initials screen.
@@ -223,11 +242,21 @@ Checks that `MENU_ITEMS` lists every carousel scene exactly once, so adding or r
 
 The shield logo, cropped to its visible bounds (372×438). The original had transparent padding that would have thrown off sizing and alignment.
 
-### `public/images/nashville-skyline.png`
+### `public/images/nashville-skyline-v2.png`
 
-The skyline, cropped to 482×119. The source image has "NASHVILLE" cut out of its base as transparent letters, so the crop stops just above them. That leaves a solid purple base that blends into the bottom bar. The source is already exactly `#302052`, so it needed no recoloring.
+The skyline, 2142×495, with a short solid purple base that blends into the bottom bar, as in the welcome screen mockup. No "NASHVILLE" text shows.
 
-**Known limitation:** at 482px wide it looks slightly jagged on large or high-DPI screens. An SVG version would fix that.
+It replaced `nashville-skyline.png`, an earlier 482×119 skyline that looked slightly jagged on large or high-DPI screens. The new source was cleaned up before being added:
+
+- **Recoloured** to exactly `#302052`. The source's purple was close but varied slightly from pixel to pixel (around `#2e194a`–`#301a4f`), which would have left a visible line against the bottom bar.
+- **Solid fill:** the source's fill was about 99% opaque (alpha 253–254), so pixels at alpha 240 or above were made fully opaque. The softened edges of the buildings were kept.
+- **Letters filled:** the source has "NASHVILLE" cut out of its base as transparent letters. Every transparent pixel that can't be reached from the image's edges is a hole inside the base, i.e. a letter, so those were made solid purple, soft edges included, so no faint outline is left.
+- **Cropped** to the outline, removing the source's transparent padding, so the base runs edge to edge.
+- **Base shortened (moved down):** only 24px of solid base is kept below the lowest rooftops (the source had 158px), which drops the buildings about 22px lower on the 360px-wide kiosk screen, to match the mockup. This also removes the rows the letters were in.
+
+**Why a new file name:** Next.js 16 caches its resized copies of an image for 4 hours (`images.minimumCacheTTL`), and browsers cache them too. Overwriting `nashville-skyline.png` in place kept serving the old version with the letters. A new name gets a fresh cache entry. If this image is changed again, give it a new name too (or clear `.next/cache/images` and the browser cache).
+
+Both places that draw it (`KioskShell` and `CampusBackdrop`) give `next/image` its size and `sizes="100vw"`, so the browser downloads a copy sized to the screen instead of the full 2142px file.
 
 ### `features/scenes/trivia/TriviaScene.test.tsx`
 
@@ -235,7 +264,7 @@ The trivia scene's component tests, run against a fixed round with fake timers. 
 
 ### `public/images/trivia-pattern.svg`
 
-One repeating tile of the trivia background, 114×57: a `#D9D9D9` grey square with two bold question marks in lavender-grey `#C4C0D6`, tilted 15°. The second mark sits half a row higher, so neighbouring columns are staggered when the tile repeats.
+One repeating tile of the trivia background, 114×57: a white `#FFFFFF` square (originally the mockup's `#D9D9D9` grey, changed to match the other scenes' `bg-white`) with two bold question marks in lavender-grey `#C4C0D6`, tilted 15°. The second mark sits half a row higher, so neighbouring columns are staggered when the tile repeats.
 
 **Why an SVG rather than the mockup image:** the exported mockup image has a pink line down its left edge, and its edges don't line up, so it would show seams when tiled. A redrawn tile repeats seamlessly and stays sharp at any resolution. The marks use the system's bold Arial, because an SVG used as a CSS background can't load web fonts.
 
