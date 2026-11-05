@@ -17,6 +17,8 @@ export interface KioskOptions {
    * `DisplayManager.Draw()` used a hard-coded 60.
    */
   sessionIdleSeconds: number;
+  /** Which kiosk this machine is: a key of `KIOSKS` in `features/scenes/map/kiosks.ts`. */
+  kioskId: string;
 }
 
 export const DEFAULT_OPTIONS: KioskOptions = {
@@ -24,6 +26,7 @@ export const DEFAULT_OPTIONS: KioskOptions = {
   screenWidth: 360,
   screenHeight: 640,
   sessionIdleSeconds: 60,
+  kioskId: "fields",
 };
 
 /**
@@ -61,6 +64,7 @@ export function parseOptions(source: string): KioskOptions {
     screenWidth: readNumber(parsed.ScreenWidth, DEFAULT_OPTIONS.screenWidth),
     screenHeight: readNumber(parsed.ScreenHeight, DEFAULT_OPTIONS.screenHeight),
     sessionIdleSeconds: readNumber(parsed.SessionIdleSeconds, DEFAULT_OPTIONS.sessionIdleSeconds),
+    kioskId: parsed.KioskId || DEFAULT_OPTIONS.kioskId,
   };
 }
 
