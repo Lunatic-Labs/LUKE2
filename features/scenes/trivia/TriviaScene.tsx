@@ -222,7 +222,7 @@ export function TriviaScene({ handle }: SceneComponentProps) {
     // layout was designed in. Portrait looks exactly as designed; landscape
     // gets the same layout, scaled down to fit. `--v` stands in for dvh, and
     // equals 1dvh on the 360×640 kiosk screen.
-    <SceneFrame className="bg-[#d9d9d9] bg-[url('/images/trivia-pattern.svg')] bg-[length:40%_auto] bg-repeat [container-type:size] [--u:min(1cqw,0.817cqh)] [--v:calc(var(--u)*16/9)]">
+    <SceneFrame className="bg-white bg-[url('/images/trivia-pattern.svg')] bg-[length:40%_auto] bg-repeat [container-type:size] [--u:min(1cqw,0.817cqh)] [--v:calc(var(--u)*16/9)]">
       {/* A portrait-shaped column: the full width in portrait, centred in
           landscape, so percentage widths keep their portrait proportions. It
           scrolls only as a last resort, if a long question wraps further
