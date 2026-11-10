@@ -26,11 +26,23 @@ export function KioskHeader({ showMenuToggle = true, menuOpen = false, onToggleM
         className="h-[clamp(3.5rem,11dvh,8.5rem)] w-auto shrink-0"
       />
       <div className="flex min-w-0 flex-1 flex-col self-stretch">
-        <p className="text-[clamp(0.75rem,3.8vw,1.75rem)] leading-tight text-[var(--luke-lilac)]">
-          Lipscomb University Kiosk Experience
-        </p>
+        {/* The subtitle runs from the shield to the vertical centre line of the
+            hamburger icon below it. The right padding is half the icon's width
+            (see the svg's `w-` class; keep the two in sync), and the inner div
+            is a size container, so `cqw` is a percentage of exactly the span
+            the text should fill. In Arial this string is about 16.46em wide,
+            so 100cqw / 16.46 ≈ 6.07cqw would fill it exactly; 6cqw leaves a
+            hair of slack so the text never wraps if the fallback font is a
+            touch wider. */}
+        <div className="pr-[clamp(0.78125rem,2.5dvh,1.875rem)]">
+          <div className="@container">
+            <p className="text-[6cqw] leading-tight whitespace-nowrap text-[var(--luke-lilac)]">
+              Lipscomb University Kiosk Experience
+            </p>
+          </div>
+        </div>
         <div className="flex flex-1 items-end justify-between gap-[3%]">
-          <p className="text-[clamp(2rem,10vw,5rem)] leading-none font-extrabold text-[var(--luke-gold)]">
+          <p className="text-[clamp(2.1rem,10.5vw,5.25rem)] leading-none font-extrabold text-[var(--luke-gold)]">
             L.U.K.E.
           </p>
           {/* Hidden with `invisible` rather than removed, so the header keeps
