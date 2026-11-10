@@ -8,7 +8,7 @@ the photo ends up in the gallery scene.
 ## A photo's trip, start to finish
 
 ```
-CameraScene ──captureFrame──▶ JPEG ──uploadPhoto──▶ POST /api/photos
+CameraScene ──captureFrame──▶ JPEG ──(upload tapped)──uploadPhoto──▶ POST /api/photos
                                                          │
                                                   photo-store.savePhoto
                                                          │
@@ -21,11 +21,17 @@ GalleryScene ◀── <Image src="/api/photos/screen-….jpg"> ◀── GET /a
 ```
 
 1. The visitor taps the capture button, the countdown runs, and
-   `CameraScene` grabs a frame.
-2. The frame is sent to `POST /api/photos`, which saves it in `CAMERA_DIR`.
-3. The next time anyone opens the gallery scene, it asks `GET /api/gallery`
+   `CameraScene` grabs a frame. The frame becomes the **snapshot**: it shows
+   in the snapshot button (the round thumbnail) and is kept in browser memory
+   only. Nothing has been stored yet.
+2. The visitor taps the snapshot button to see the photo in the preview card.
+3. Only if they tap the card's upload button is the photo sent to
+   `POST /api/photos`, which saves it in `CAMERA_DIR`. A snapshot that is
+   never uploaded is thrown away when another picture is taken or the
+   visitor leaves the scene.
+4. The next time anyone opens the gallery scene, it asks `GET /api/gallery`
    for its picture list. That list now includes the new photo.
-4. The gallery loads the photo from `GET /api/photos/<file name>`.
+5. The gallery loads the photo from `GET /api/photos/<file name>`.
 
 Photos are kept forever. Nothing deletes them automatically.
 
@@ -35,24 +41,65 @@ Photos are kept forever. Nothing deletes them automatically.
 
 The camera screen itself, the replacement for `CameraScene.pde`.
 
-The screen always shows one of six states:
+The screen always shows one of eight states:
 
-| State         | What's on screen                                          |
-| ------------- | --------------------------------------------------------- |
-| `starting`    | Waiting for the webcam; capture button dimmed             |
-| `ready`       | Live preview with "Take A Picture"; capture button active |
-| `countdown`   | Gold "Ready.", "Set.", "Pose!" stacking, one per second   |
-| `saving`      | White flash while the photo is captured and sent          |
-| `done`        | A thank-you line (or an error message) for 1 second       |
-| `unavailable` | "Camera unavailable" with the reason                      |
+| State         | What's on screen                                                     |
+| ------------- | -------------------------------------------------------------------- |
+| `starting`    | Waiting for the webcam; capture button dimmed                        |
+| `ready`       | Live preview with "Take A Picture"; capture button active            |
+| `countdown`   | Gold "Ready.", "Set.", "Pose!" stacking, one per second              |
+| `capturing`   | White flash while the frame is grabbed                               |
+| `review`      | The preview card, opened from the snapshot button                    |
+| `uploading`   | The preview card, locked, while the snapshot is sent                 |
+| `done`        | A line of text for 1 second: the snapshot hint, a thank-you, or an error |
+| `unavailable` | "Camera unavailable" with the reason                                 |
 
 It has three effects (blocks of code that run on their own timing):
 
 - **Camera on/off:** opens the webcam when the scene appears and stops it when
   the visitor leaves. This is upstream's `video.start()` / `video.stop()`.
-- **Countdown:** moves through Ready./Set./Pose! and then takes the picture.
+- **Countdown:** moves through Ready./Set./Pose! and then grabs the frame
+  into the snapshot button.
 - **Cooldown:** after 1 second in `done`, goes back to `ready`. This is
   upstream's `delay(1000)`.
+
+### The snapshot, the preview card, and when a photo is stored
+
+The flow is: **take a picture → it becomes the snapshot → tap the snapshot
+button → see it in the preview card → upload it, or don't.**
+
+After "Pose!" the flash plays and the photo goes into the snapshot button.
+For the 1-second hold that follows, "Tap your snapshot to see it!"
+(`SNAPSHOT_HINT`) shows over the preview, pointing the visitor at it.
+
+Tapping the snapshot button (during that hold or any time after) opens the
+**preview card** over the live camera, which is dimmed behind a white 40%
+wash. The card is purple with rounded corners, inset from the sides, and
+holds the photo (cropped to fill, rounded corners) above a footer with a
+lavender **upload icon** (a tray with an up arrow) at the bottom right.
+
+A photo is stored **only** when the upload icon is tapped (`handleUpload`,
+the only caller of `uploadPhoto`). Until then the JPEG exists only in browser
+memory. From the card the visitor can:
+
+- **Tap the upload icon:** the card locks (upload, close, the snapshot button
+  and capture are all disabled) while it uploads. On success the card closes
+  and a thank-you line shows for 1 second. On failure the card stays up with
+  "Sorry, that didn't upload. Try again!" in its footer, so the visitor can
+  tap upload again.
+- **Tap the dimmed area around the card, or the snapshot button again:**
+  closes the card. The snapshot stays in the button, unstored, and can be
+  opened again.
+- **Tap the capture button:** closes the card and starts a new countdown. The
+  new photo replaces the snapshot. The filters button also stays usable while
+  the card is up.
+
+Once a snapshot is uploaded, reopening it shows "In the gallery!"
+(`UPLOADED_TEXT`) in the footer, and its upload icon is disabled, so the same
+photo is never stored twice. A new picture can be uploaded as normal.
+
+Leaving the scene, including when a session times out, throws away a
+snapshot that was never uploaded.
 
 The layout follows the camera mockup. The scene is purple, continuing the
 header and bottom bar, and the live preview fills most of it as a card with
@@ -64,21 +111,22 @@ is a row of three controls:
   vivid, cool), wrapping round after the last. The filter is a CSS filter on
   the live preview, and `captureFrame` draws the same filter into the saved
   photo, so the photo matches what the visitor saw. The button is disabled
-  during the countdown and while saving, because the photo uses the filter on
-  screen at "Pose!". Its accessible name says which filter is on, e.g.
+  during the countdown, the capture and an upload, because the photo uses the
+  filter on screen at "Pose!". Its accessible name says which filter is on, e.g.
   "Change filter, now Sepia".
 - **Capture button** (centre): a camera-app style shutter, drawn as a lavender
   ring around a lavender disc with a purple gap between them. The disc shrinks
   slightly while pressed. Its accessible name is "Take picture".
-- **Last photo** (right): a round thumbnail of the last photo saved on this
-  visit to the scene. Before the first one it is a placeholder: a lilac
-  circle with a lavender ring and a purple person icon, which does nothing
-  when tapped. Only photos that saved successfully appear. Tapping the
-  thumbnail opens the photo enlarged, using the same view as the gallery
-  scene: the photo in a gold frame over a dimmed screen, closed by tapping
-  anywhere. The thumbnail is disabled during the countdown and while saving,
-  so the enlarged view can't cover a picture in progress. The thumbnail uses an object URL for
-  the JPEG already in memory, so it costs no extra request. The URL is freed
+- **Snapshot button** (right): a round thumbnail of the snapshot, the last
+  photo taken on this visit to the scene, whether or not it was uploaded.
+  Before the first one it is a placeholder: a lilac circle with a lavender
+  ring and a purple person icon, which does nothing when tapped. A failed
+  capture never appears. Tapping it opens the preview card (see above), and
+  tapping it again closes the card; its accessible name switches between
+  "See your snapshot" and "Close snapshot", with `aria-expanded`. It is
+  disabled during the countdown, the capture and an upload. The button and
+  the card use an object URL for the JPEG already in memory, so they cost no
+  extra request. The URL is freed
   when a newer photo replaces it and when the scene unmounts. Leaving the
   scene, including at the end of a session, empties the thumbnail, so the
   next visitor never sees someone else's photo.
@@ -86,17 +134,18 @@ is a row of three controls:
 The text over the preview follows the mockup's frames: heavy sans-serif with a
 thick dark purple outline. "Take A Picture" sits at the top while the camera is
 ready. The gold countdown starts just below the middle and stacks downward
-("Ready.", then "Ready. Set.", then "Ready. Set. Pose!"). The thank-you line,
-picked at random from `THANK_YOU_TEXT`, appears lower down, around two thirds
-of the way down the preview.
+("Ready.", then "Ready. Set.", then "Ready. Set. Pose!"). The snapshot hint
+after a capture, and the thank-you line (picked at random from
+`THANK_YOU_TEXT`) after an upload, appear lower down, around two thirds of
+the way down the preview.
 
 The capture button is the only way to take a picture: tapping the preview
 does nothing, so a visitor touching the screen for another reason can't set
 off the camera. The button stays on screen at all times but is disabled and
-dimmed outside `ready`, so it never jumps around.
+dimmed outside `ready` and `review`, so it never jumps around.
 
-`handleTakePicture()` starts the countdown, but only from `ready`. That's the
-job the old `canTakePicture` flag did.
+`handleTakePicture()` starts the countdown, but only from `ready` or
+`review` (with the card open). That's the job the old `canTakePicture` flag did.
 
 The camera uses `getUserMedia`, which browsers only allow on `https://` pages
 or `localhost`. Opening the kiosk by IP address over plain `http` shows
@@ -254,14 +303,23 @@ Uses a fake webcam and fake timers to check:
 - the capture button is disabled until the camera's first frame arrives,
   then enabled
 - tapping the preview doesn't take a picture
-- the full countdown → capture → thank-you → back-to-ready flow, with the
-  button disabled until it's over
+- the countdown → capture flow puts the photo in the snapshot button with
+  the hint, leaves the card shut, and uploads nothing
+- the snapshot button opens the card, and tapping the dimmed area or the
+  button again closes it, without uploading
+- the card can be opened during the hold right after a capture
+- the upload icon is the only thing that stores a photo; after it, the
+  thank-you line shows and the scene goes back to ready
+- an uploaded snapshot can't be uploaded again, but a new picture can
+- taking another picture from the card replaces the snapshot, unuploaded,
+  and frees the old object URL
+- a failed upload keeps the card up with an error, and a retry works
+- the card is locked while an upload is in flight
+- a failed capture shows an error and leaves the placeholder
 - taps are ignored mid-countdown
-- a failed save shows an error and leaves the thumbnail empty
-- a saved photo appears as the thumbnail, and its object URL is freed when
-  the scene unmounts; the empty placeholder isn't tappable
-- tapping the thumbnail opens the enlarged view and tapping again closes it
-- the thumbnail is disabled mid-countdown
+- the empty placeholder isn't tappable, and the snapshot's object URL is
+  freed when the scene unmounts
+- the snapshot button is disabled mid-countdown
 - the filters button cycles through `FILTERS` and wraps round, applies the
   filter to the preview, is disabled mid-countdown, and the photo is captured
   with the filter that was on screen
@@ -319,7 +377,9 @@ thing preventing that. Don't change these bindings to `0.0.0.0` or remove
 - The countdown shows one word per second. The original drew all three words
   at once for about a frame.
 - The thank-you lines (`thankYouText[]`) were written but disabled upstream;
-  they're shown during the 1-second hold.
+  they're shown during the 1-second hold after an upload.
+- Upstream saved every picture it took. Here a picture is stored only if the
+  visitor taps upload on the preview card.
 - A capture button below the preview replaces upstream's
   tap-anywhere-to-shoot, and the "Touch to take a picture!" prompt became
   "Take A Picture".
@@ -327,5 +387,5 @@ thing preventing that. Don't change these bindings to `0.0.0.0` or remove
   licensed Adobe font, following the camera mockup. The countdown words gained
   periods ("Ready.", "Set.") to match it.
 - The preview isn't mirrored, same as the original.
-- The filters button and the last-photo thumbnail are new; upstream had
-  neither.
+- The filters button, the snapshot button and the preview card are new;
+  upstream had none of them.
