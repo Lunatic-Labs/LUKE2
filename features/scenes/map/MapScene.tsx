@@ -1,18 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { SceneFrame } from "@/components/SceneFrame";
 import { useKioskOptions } from "@/features/kiosk/options-context";
 import type { SceneComponentProps } from "@/features/kiosk/types";
 import {
   CAMPUS_BUILDINGS,
+  CAMPUS_PLACES,
   findNearestBuilding,
   fitToAspectRatio,
   MAP_ASPECT_RATIO,
-  type CampusBuilding,
 } from "./buildings";
-import { kioskLocation } from "./kiosks";
+import { DetailCard } from "./DetailCard";
+import { FindScreen } from "./FindScreen";
+import { MapOverlay } from "./MapOverlay";
 
 /**
  * "You Are Here" campus map.
@@ -21,11 +23,14 @@ import { kioskLocation } from "./kiosks";
  * `LUJustMap.jpg` map, tapping selects the nearest building within a combined
  * offset threshold (`findNearestBuilding`, not a precise hit), the
  * `markerTransparent.png` pin fixed at the active kiosk's location (see
- * `kiosks.ts`), and a Key
- * toggle that swaps to the legend. See `buildings.ts` for why the building
- * coordinates were re-measured from the image rather than ported from
- * `MapButtons.pde` directly, and why the Key screen is a tappable list here
- * rather than hit-regions over `LUKey.jpg`, as upstream drew it.
+ * `kiosks.ts`), and a Key toggle that swaps to the legend. See `buildings.ts`
+ * for why the building coordinates were re-measured from the image rather than
+ * ported from `MapButtons.pde` directly, and why the Key screen is a tappable
+ * list here rather than hit-regions over `LUKey.jpg`, as upstream drew it.
+ *
+ * This component only holds which place is selected and which view is showing.
+ * The Find screen, what's drawn on the map and the detail card are their own
+ * components, so the Step 2 tracks can each work in a separate file.
  *
  * `MapAIScene.pde` (an AI-directions variant) is dead code upstream — every
  * call site in `MapScene.pde` that would reach it is commented out — so it
@@ -33,12 +38,11 @@ import { kioskLocation } from "./kiosks";
  */
 export function MapScene({ handle }: SceneComponentProps) {
   const { kioskId } = useKioskOptions();
-  // Memoized so an unknown id warns once, not on every tap.
-  const kiosk = useMemo(() => kioskLocation(kioskId), [kioskId]);
-  const [selected, setSelected] = useState<CampusBuilding | null>(null);
-  const [showKey, setShowKey] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [view, setView] = useState<"map" | "find">("map");
   const containerRef = useRef<HTMLDivElement>(null);
   const [mapBox, setMapBox] = useState({ width: 0, height: 0 });
+  const selected = selectedId ? CAMPUS_PLACES.find((place) => place.id === selectedId) : undefined;
 
   // The map's own rendered rectangle within the (possibly differently-shaped)
   // scene area — letterboxed to MAP_ASPECT_RATIO rather than stretched.
@@ -59,7 +63,7 @@ export function MapScene({ handle }: SceneComponentProps) {
     const observer = new ResizeObserver(measure);
     observer.observe(container);
     return () => observer.disconnect();
-  }, [showKey]);
+  }, [view]);
 
   function handleMapClick(event: React.MouseEvent<HTMLDivElement>) {
     handle.reportActivity();
@@ -68,49 +72,37 @@ export function MapScene({ handle }: SceneComponentProps) {
     const x = (event.clientX - bounds.left) / bounds.width;
     const y = (event.clientY - bounds.top) / bounds.height;
 
-    setSelected(findNearestBuilding(CAMPUS_BUILDINGS, x, y));
+    setSelectedId(findNearestBuilding(CAMPUS_BUILDINGS, x, y)?.id ?? null);
   }
 
-  function selectFromKey(building: CampusBuilding) {
-    // on_key_button_click(): selecting a name on the Key screen chooses that
-    // building and switches back to the map with it highlighted.
+  function selectFromFind(placeId: string) {
+    // on_key_button_click(): choosing a place switches back to the map with it
+    // highlighted.
     handle.reportActivity();
-    setSelected(building);
-    setShowKey(false);
+    setSelectedId(placeId);
+    setView("map");
   }
 
   return (
     <SceneFrame>
       <div className="flex items-center justify-between gap-2 px-4 py-2">
         <p className="text-sm text-zinc-500">
-          {showKey ? "Tap a building to find it on the map" : "Touch a building to display"}
+          {view === "find" ? "Tap a building to find it on the map" : "Touch a building to display"}
         </p>
         <button
           type="button"
           onClick={() => {
             handle.reportActivity();
-            setShowKey((current) => !current);
+            setView((current) => (current === "find" ? "map" : "find"));
           }}
           className="rounded-full border border-[var(--luke-purple)] px-4 py-1 text-sm font-medium text-[var(--luke-purple)]"
         >
-          {showKey ? "Map" : "Key"}
+          {view === "find" ? "Map" : "Key"}
         </button>
       </div>
 
-      {showKey ? (
-        <ul className="flex-1 space-y-1 overflow-y-auto px-4 pb-4">
-          {CAMPUS_BUILDINGS.map((building) => (
-            <li key={building.id}>
-              <button
-                type="button"
-                onClick={() => selectFromKey(building)}
-                className="w-full border-b border-zinc-100 py-2 text-left font-medium text-[var(--luke-purple)]"
-              >
-                {building.name}
-              </button>
-            </li>
-          ))}
-        </ul>
+      {view === "find" ? (
+        <FindScreen onSelect={selectFromFind} />
       ) : (
         <div ref={containerRef} className="relative flex-1 overflow-hidden bg-zinc-50">
           {mapBox.width > 0 && (
@@ -128,41 +120,21 @@ export function MapScene({ handle }: SceneComponentProps) {
                 priority
               />
 
-              <Image
-                src="/map/markerTransparent.png"
-                alt="You are here"
-                width={30}
-                height={30}
-                style={{ left: `${kiosk.x * 100}%`, top: `${kiosk.y * 100}%` }}
-                className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
-              />
-
-              {selected && (
-                <span
-                  aria-hidden="true"
-                  // fill(205, 0, 205) in display_map() — the magenta selection dot.
-                  style={{
-                    left: `${selected.x * 100}%`,
-                    top: `${selected.y * 100}%`,
-                    background: "rgb(205, 0, 205)",
-                  }}
-                  className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow"
-                />
-              )}
+              <MapOverlay selectedId={selectedId} kioskId={kioskId} />
             </div>
           )}
 
-          <div className="absolute inset-x-3 bottom-3 rounded-lg bg-[var(--luke-purple)]/95 p-3 text-center text-white shadow-lg">
-            {selected ? (
-              <p className="font-semibold text-[var(--luke-gold)]">
-                Currently displaying:
-                <br />
-                {selected.name}
-              </p>
-            ) : (
+          {selected ? (
+            <DetailCard
+              place={selected}
+              onClose={() => setSelectedId(null)}
+              onFindAnother={() => setView("find")}
+            />
+          ) : (
+            <div className="absolute inset-x-3 bottom-3 rounded-lg bg-[var(--luke-purple)]/95 p-3 text-center text-white shadow-lg">
               <p className="text-sm">Touch a building to display</p>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
     </SceneFrame>
