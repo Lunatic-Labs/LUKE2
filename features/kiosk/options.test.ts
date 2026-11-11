@@ -36,6 +36,15 @@ describe("parseOptions", () => {
     expect(options.screenHeight).toBe(DEFAULT_OPTIONS.screenHeight);
     expect(options.sessionIdleSeconds).toBe(DEFAULT_OPTIONS.sessionIdleSeconds);
   });
+
+  it("reads the kiosk id as text", () => {
+    expect(parseOptions("KioskId=north").kioskId).toBe("north");
+  });
+
+  it("falls back to the default kiosk when absent or empty", () => {
+    expect(parseOptions("").kioskId).toBe(DEFAULT_OPTIONS.kioskId);
+    expect(parseOptions("KioskId=").kioskId).toBe(DEFAULT_OPTIONS.kioskId);
+  });
 });
 
 describe("bottomBarHeight", () => {

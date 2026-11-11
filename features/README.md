@@ -8,6 +8,9 @@ The shell, ported from the L.U.K.E. Processing sketch's `DisplayManager.pde`:
   the carousel reads and a `SceneComponent` that renders.
 - `registry.ts` — carousel registration in upstream's order (`BuildDisplay()`).
 - `options.ts` — configuration and the `key=value` parser for `options.txt`.
+- `options-context.ts` — `useKioskOptions()`, how a scene reads those options.
+- `options-file.ts` — reads `options.txt` from disk. Server-only, so it stays out
+  of the `kiosk/index.ts` barrel.
 - `session-log.ts` — per-scene dwell tracking behind a swappable sink
   (`WriteLog()` / `WriteError()`).
 - `components/KioskShell.tsx` — carousel state, idle clock, session logging.
