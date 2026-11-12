@@ -1,6 +1,9 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
+import { DEFAULT_OPTIONS } from "@/features/kiosk/options";
+import { KioskOptionsContext } from "@/features/kiosk/options-context";
 import type { SceneHandle } from "@/features/kiosk/types";
 import { CAMPUS_BUILDINGS, MAP_ASPECT_RATIO } from "./buildings";
+import { KIOSKS } from "./kiosks";
 import { MapScene } from "./MapScene";
 
 // jsdom has no layout engine, so every element measures 0x0 and MapScene would
@@ -27,7 +30,7 @@ describe("MapScene", () => {
     jest.restoreAllMocks();
   });
 
-  function renderScene() {
+  function renderScene(kioskId = DEFAULT_OPTIONS.kioskId) {
     const handle: SceneHandle = {
       reportActivity: jest.fn(),
       nextScene: jest.fn(),
@@ -36,7 +39,11 @@ describe("MapScene", () => {
       goToScene: jest.fn(),
       goToMainMenu: jest.fn(),
     };
-    render(<MapScene bounds={{ width: MAP_WIDTH, height: MAP_HEIGHT }} handle={handle} />);
+    render(
+      <KioskOptionsContext.Provider value={{ ...DEFAULT_OPTIONS, kioskId }}>
+        <MapScene bounds={{ width: MAP_WIDTH, height: MAP_HEIGHT }} handle={handle} />
+      </KioskOptionsContext.Provider>,
+    );
     return handle;
   }
 
@@ -58,6 +65,35 @@ describe("MapScene", () => {
     expect(screen.getByAltText("Lipscomb University campus map")).toBeInTheDocument();
     expect(screen.getByAltText("You are here")).toBeInTheDocument();
     expect(selectionBanner()).not.toBeInTheDocument();
+  });
+
+  /** The "You are here" pin's position, as CSS percentages of the map. */
+  function pinPosition() {
+    const { left, top } = screen.getByAltText("You are here").style;
+    return { left, top };
+  }
+
+  function percentages({ x, y }: { x: number; y: number }) {
+    return { left: `${x * 100}%`, top: `${y * 100}%` };
+  }
+
+  it("puts the pin on the active kiosk's place", () => {
+    KIOSKS.library = { placeId: "beaman-library", exitEntranceId: "main", headingDeg: null, exitHeadingDeg: null };
+    try {
+      renderScene("library");
+      expect(pinPosition()).toEqual(percentages(building("beaman-library")));
+    } finally {
+      delete KIOSKS.library;
+    }
+  });
+
+  it("warns once and uses the default kiosk for an unknown id", () => {
+    const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+    renderScene("nowhere");
+
+    expect(pinPosition()).toEqual(percentages(building("fields-engineering-center")));
+    tapMap(0.5, 0.5);
+    expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it("selects the building under a tap", () => {
