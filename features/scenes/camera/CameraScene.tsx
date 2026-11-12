@@ -103,6 +103,14 @@ export function CameraScene({ handle }: SceneComponentProps) {
   const [lastPhoto, setLastPhoto] = useState<{ blob: Blob; url: string; key: SnapshotKey } | null>(null);
   /** The key of the snapshot once it has been uploaded, so the card won't offer it again. */
   const [uploadedId, setUploadedId] = useState<string | null>(null);
+  /**
+   * True from the moment an upload starts until it settles. The state checks
+   * in `handleUpload` only see the last render, so two taps landing before
+   * React re-renders would both pass them; a ref changes at once, so the
+   * second tap is turned away. Set only in event handlers and callbacks,
+   * never during render.
+   */
+  const uploadingRef = useRef(false);
   const filter = FILTERS[filterIndex];
 
   // Open the camera for as long as the scene is on screen.
@@ -207,19 +215,23 @@ export function CameraScene({ handle }: SceneComponentProps) {
   /** The only place a photo is stored: the preview card's upload button. */
   function handleUpload() {
     handle.reportActivity();
+    if (uploadingRef.current) return;
     if (status !== "review" || !lastPhoto || uploadedId === lastPhoto.key.id) return;
+    uploadingRef.current = true;
     const video = videoRef.current;
     const { key } = lastPhoto;
     setStatus("uploading");
     setMessage("");
     uploadPhoto(lastPhoto.blob, key).then(
       () => {
+        uploadingRef.current = false;
         if (videoRef.current !== video) return;
         setUploadedId(key.id);
         setMessage(THANK_YOU_TEXT[Math.floor(Math.random() * THANK_YOU_TEXT.length)]);
         setStatus("done");
       },
       (error: unknown) => {
+        uploadingRef.current = false;
         if (videoRef.current !== video) return;
         console.error("CameraScene: could not upload photo", error);
         // Stay on the card so the visitor can try again.

@@ -16,6 +16,14 @@ import {
   saveSnapshotOnce,
 } from "./photo-store";
 
+// The real writeFile, wrapped so one test can make a single write fail. A
+// jest.spyOn on the module object doesn't reach the binding photo-store
+// imports, so the mock has to replace the module.
+jest.mock("node:fs/promises", () => {
+  const actual = jest.requireActual("node:fs/promises");
+  return { ...actual, writeFile: jest.fn(actual.writeFile) };
+});
+
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
 const ID = "6f1c2b9e-3d4a-4f5b-8c6d-7e8f9a0b1c2d";
 const TAKEN_AT = "2026-11-12T15:30:05.123Z";
@@ -153,6 +161,14 @@ describe("photo-store", () => {
       await writeFile(file, "x");
 
       await expect(saveSnapshotOnce(JPEG, parseSnapshotKey(ID, TAKEN_AT)!, file)).rejects.toThrow();
+    });
+
+    it("reports a failed write (e.g. a full disk) as an error, not as already saved", async () => {
+      const diskFull = Object.assign(new Error("no space left on device"), { code: "ENOSPC" });
+      jest.mocked(writeFile).mockRejectedValueOnce(diskFull);
+
+      await expect(saveSnapshotOnce(JPEG, parseSnapshotKey(ID, TAKEN_AT)!, dir)).rejects.toBe(diskFull);
+      expect(await readdir(dir)).toEqual([]);
     });
   });
 

@@ -417,6 +417,26 @@ describe("CameraScene", () => {
     expect(uploadPhoto).toHaveBeenCalledTimes(1);
   });
 
+  it("uploads once when two taps land before the screen updates", async () => {
+    mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+    (uploadPhoto as jest.Mock).mockReturnValue(new Promise(() => {}));
+    await renderScene();
+    await takeSnapshot();
+    fireEvent.click(snapshotButton());
+    const upload = uploadButton();
+
+    // One act() holds React's re-render until both taps have run, so the
+    // second tap still sees the card as it was before the first: upload
+    // enabled, state "review". Only something that doesn't wait for a render
+    // can stop it.
+    act(() => {
+      upload.click();
+      upload.click();
+    });
+
+    expect(uploadPhoto).toHaveBeenCalledTimes(1);
+  });
+
   it("tells the visitor when the frame can't be captured", async () => {
     mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
     (captureFrame as jest.Mock).mockRejectedValue(new Error("no frame"));
@@ -441,6 +461,19 @@ describe("CameraScene", () => {
 
     unmount();
     expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:last-photo");
+  });
+
+  it("never uploads a snapshot just because the visitor leaves the scene", async () => {
+    mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+    const { unmount } = await renderScene();
+    await takeSnapshot();
+    // Leaving with the card open, as an idle timeout would.
+    fireEvent.click(snapshotButton());
+
+    unmount();
+    await advance(COOLDOWN_MS, 3);
+
+    expect(uploadPhoto).not.toHaveBeenCalled();
   });
 
   it("locks the snapshot button while a picture is being taken", async () => {

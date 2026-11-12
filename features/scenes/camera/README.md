@@ -354,6 +354,10 @@ Uses a fake webcam and fake timers to check:
   sends the same snapshot key as the first try
 - each new picture gets its own snapshot key
 - the card is locked while an upload is in flight
+- two taps on upload that land before React re-renders still upload once
+  (both fired inside one `act()`, so the second sees the pre-upload state;
+  only the `uploadingRef` guard in `handleUpload` stops it)
+- leaving the scene never uploads the snapshot
 - a failed capture shows an error and leaves the placeholder
 - taps are ignored mid-countdown
 - the empty placeholder isn't tappable, and the snapshot's object URL is
