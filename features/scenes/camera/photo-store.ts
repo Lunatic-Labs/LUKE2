@@ -24,7 +24,7 @@ export function cameraDir(): string {
   // The folder is chosen at runtime, so there is nothing for the build to
   // trace; without the hint Turbopack copies the whole repo (photos and
   // `.env.local` included) into the standalone output.
-  return path.resolve(/* turbopackIgnore: true */ process.env.CAMERA_DIR || DEFAULT_CAMERA_DIR);
+  return path.resolve(/* turbopackIgnore: true */ process.env.CAMERA_DIR?.trim() || DEFAULT_CAMERA_DIR);
 }
 
 export function pendingDir(): string {
