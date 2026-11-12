@@ -83,7 +83,10 @@ the only caller of `uploadPhoto`). Until then the JPEG exists only in browser
 memory. From the card the visitor can:
 
 - **Tap the upload icon:** the card locks (upload, close, the snapshot button
-  and capture are all disabled) while it uploads. On success the card closes
+  and capture are all disabled) while it uploads. Disabling the buttons waits
+  for React to re-render, so `handleUpload` also sets `uploadingRef` the
+  moment an upload starts; a second tap that lands before the re-render is
+  turned away by it. On success the card closes
   and a thank-you line shows for 1 second. On failure the card stays up with
   "Sorry, that didn't upload. Try again!" in its footer, so the visitor can
   tap upload again.
@@ -440,6 +443,42 @@ network could download every visitor's photo or keep uploading until the disk
 filled. Since photos are never deleted, keeping the server private is the only
 thing preventing that. Don't change these bindings to `0.0.0.0` or remove
 `127.0.0.1:` from a port mapping unless you add authentication first.
+
+## Known limitations
+
+Trade-offs in the current design, and what hasn't been checked:
+
+- **The server trusts the browser's clock.** The "taken at" time in a
+  snapshot key comes from the browser and goes into the file name. The
+  server only checks its format, so a wrong clock, or a hand-made request,
+  can give a photo the wrong date and sort it out of order in the gallery.
+  On the kiosk, browser and server are the same machine.
+- **Uploads without a snapshot key are still saved every time.** This keeps
+  older clients working, but anything that skips the headers (such as
+  `curl`) can still create copies.
+- **Only the same snapshot is recognised as a duplicate.** Two snapshots of
+  the same picture are saved twice; the server doesn't compare image data.
+- **A repeat upload with different image data is ignored.** The first copy
+  is kept, and the reply is still 200 with `duplicate: true`.
+- **The server only accepts lowercase v4 UUIDs**, the format
+  `crypto.randomUUID()` produces. A client that made ids another way would
+  need the server changed too.
+- **Only one snapshot is kept.** Taking a new picture replaces an unuploaded
+  one without a warning.
+- **An unuploaded snapshot is lost on an idle timeout or reload**, because it
+  lives only in browser memory. That includes one whose upload just failed.
+- **The same-instant double-tap test fakes a timing** (two taps in one
+  `act()`) that a real browser is unlikely to produce. It is there to prove
+  `uploadingRef` works, not because the case is common.
+- **Not checked by any automated test:** `captureFrame` itself (Jest has no
+  camera or canvas), and anything visual: the preview card's size and
+  position, colours, the flash, and the layout at kiosk resolution. These
+  need checking on the kiosk screen. The card's insets (9% / 3% / 9%), the
+  40% white wash and the upload icon were estimated from the snapshot
+  mockup.
+- **The upload flow has been checked end to end only on `npm run dev`**, by
+  posting JPEGs to a running server. It hasn't been run against the
+  production build or the Docker image, or with a real camera.
 
 ## Differences from the Processing version
 

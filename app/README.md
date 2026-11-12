@@ -10,7 +10,13 @@
 
 - `api/photos/route.ts` — accepts a JPEG from the camera scene and saves it via
   `@/features/scenes/camera/photo-store` into `CAMERA_DIR` (default
-  `data/camera-pics`, the Processing build's `CameraDir`).
+  `data/camera-pics`, the Processing build's `CameraDir`). The camera scene
+  only uploads when the visitor taps upload on the snapshot preview card. Each
+  upload carries the snapshot's key in the `x-photo-id` and `x-photo-taken-at`
+  headers (names in `@/features/scenes/camera/snapshot-headers`). A new
+  snapshot gets **201**, and a repeat of one already saved gets **200** with
+  `duplicate: true`, writing nothing. Sending only one header, or a malformed
+  one, is a **400**. An upload with no key is saved every time, as before.
 - `api/photos/[name]/route.ts` — serves one saved photo back as a JPEG, since
   `CAMERA_DIR` is outside `public/`. Only names the photo store generates are
   accepted, so it can't read other files.

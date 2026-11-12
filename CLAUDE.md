@@ -19,7 +19,7 @@ docker compose up --build                       # production image
 
 `RAPIDAPI_KEY` is expected in `.env.local` (see `.env.local.example`) for any feature that calls the RapidAPI news endpoints — not currently wired into any route in this boilerplate state.
 
-`CAMERA_DIR` (optional) sets where `app/api/photos` saves camera-scene photos; it defaults to `data/camera-pics` relative to the working directory, which is gitignored and mounted as the `camera-pics` volume in `docker-compose.yml`. The camera needs a secure context (https or localhost) for `getUserMedia`.
+`CAMERA_DIR` (optional) sets where `app/api/photos` saves camera-scene photos; it defaults to `data/camera-pics` relative to the working directory, which is gitignored and mounted as the `camera-pics` volume in `docker-compose.yml`. The camera needs a secure context (https or localhost) for `getUserMedia`. A photo is saved only when the visitor taps upload on the snapshot preview card, and each upload carries a snapshot key (`x-photo-id`, `x-photo-taken-at`) so a repeat upload of the same snapshot isn't saved twice; see `features/scenes/camera/README.md`.
 
 `TRIVIA_SCORES_DIR` (optional) sets where `app/api/scores` keeps the trivia leaderboard, a `scores.csv` table of `tag,score` rows; it defaults to `data/trivia-scores` and is mounted as the `trivia-scores` volume in `docker-compose.yml`. `features/scenes/trivia/score-store.ts` is server-only, like `camera/photo-store.ts`.
 
@@ -47,6 +47,8 @@ Four top-level directories define the structure, each documented by its own READ
 Jest is configured via `next/jest` (`jest.config.ts`) with `jest-environment-jsdom` as the default test environment and `@testing-library/jest-dom` matchers loaded in `jest.setup.ts`. Tests are matched under `__tests__/` or as `*.test.ts(x)` anywhere in the tree. A route handler or other server-only test needs a `@jest-environment node` docblock at the top of the file to override the default jsdom environment.
 
 ## Gotchas
+
+`npm test` currently fails before running any test: Jest needs `ts-node` to load `jest.config.ts`, and `ts-node` isn't in `package.json`. Until it's added as a dev dependency, run tests with Node's type stripping instead: `NODE_OPTIONS=--experimental-strip-types npx jest` (the same arguments work for a single file or `-t`).
 
 `react-hooks/refs` is enforced as an error: writing `ref.current` during render fails `npm run lint`. The "latest value" ref pattern must sync inside a `useEffect` — see `hooks/useIdleTimer.ts`.
 

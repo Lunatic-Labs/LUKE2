@@ -26,6 +26,8 @@ works and how it connects to the shell and the rest of the kiosk.
 
 `camera/photo-store.ts` is server-only (it writes to disk for `app/api/photos`);
 keep it out of the `camera/index.ts` barrel so client bundles never pull it in.
+Anything both the browser and that route need, like the snapshot header names
+in `camera/snapshot-headers.ts`, goes in a separate module with no server code.
 The same goes for `trivia/score-store.ts`, which writes the trivia leaderboard
 for `app/api/scores`.
 
