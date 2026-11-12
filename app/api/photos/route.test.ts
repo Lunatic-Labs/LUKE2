@@ -1,14 +1,23 @@
 /**
  * @jest-environment node
  */
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { newSnapshotKey, type SnapshotKey } from "@/features/scenes/camera/capture";
 import { MAX_PHOTO_BYTES } from "@/features/scenes/camera/photo-store";
+import { PHOTO_ID_HEADER, PHOTO_TAKEN_AT_HEADER } from "@/features/scenes/camera/snapshot-headers";
 import { POST } from "./route";
 
-function post(body: BodyInit) {
-  return POST(new Request("http://localhost/api/photos", { method: "POST", body }));
+const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0]);
+
+function post(body: BodyInit, headers: Record<string, string> = {}) {
+  return POST(new Request("http://localhost/api/photos", { method: "POST", body, headers }));
+}
+
+/** Uploads the way the camera scene does, with the snapshot's key in the headers. */
+function postSnapshot(key: SnapshotKey, body: BodyInit = JPEG) {
+  return post(body, { [PHOTO_ID_HEADER]: key.id, [PHOTO_TAKEN_AT_HEADER]: key.takenAt });
 }
 
 describe("POST /api/photos", () => {
@@ -30,6 +39,69 @@ describe("POST /api/photos", () => {
     expect(response.status).toBe(201);
     const { fileName } = await response.json();
     expect(await readdir(dir)).toEqual([fileName]);
+  });
+
+  describe("duplicate uploads of one snapshot", () => {
+    it("saves the first upload and answers a repeat with the same file, unsaved", async () => {
+      const key = newSnapshotKey();
+
+      const first = await postSnapshot(key);
+      const repeat = await postSnapshot(key);
+
+      expect(first.status).toBe(201);
+      expect(repeat.status).toBe(200);
+      const saved = await first.json();
+      expect(await repeat.json()).toEqual({ fileName: saved.fileName, duplicate: true });
+      expect(await readdir(dir)).toEqual([saved.fileName]);
+      expect(saved.fileName).toContain(key.id);
+    });
+
+    it("keeps the first copy when a repeat carries different bytes", async () => {
+      const key = newSnapshotKey();
+      await postSnapshot(key);
+
+      await postSnapshot(key, new Uint8Array([0xff, 0xd8, 0xff, 0xe1, 9, 9]));
+
+      const [fileName] = await readdir(dir);
+      expect(new Uint8Array(await readFile(path.join(dir, fileName)))).toEqual(JPEG);
+    });
+
+    it("saves one copy when the same snapshot is sent several times at once", async () => {
+      const key = newSnapshotKey();
+
+      const responses = await Promise.all(Array.from({ length: 5 }, () => postSnapshot(key)));
+
+      expect(responses.map((response) => response.status).sort()).toEqual([200, 200, 200, 200, 201]);
+      expect(await readdir(dir)).toHaveLength(1);
+    });
+
+    it("saves different snapshots separately", async () => {
+      expect((await postSnapshot(newSnapshotKey())).status).toBe(201);
+      expect((await postSnapshot(newSnapshotKey())).status).toBe(201);
+      expect(await readdir(dir)).toHaveLength(2);
+    });
+
+    it.each([
+      ["only an id", { [PHOTO_ID_HEADER]: "6f1c2b9e-3d4a-4f5b-8c6d-7e8f9a0b1c2d" }],
+      ["only a time", { [PHOTO_TAKEN_AT_HEADER]: "2026-11-12T15:30:05.123Z" }],
+      [
+        "an id that is not a UUID",
+        { [PHOTO_ID_HEADER]: "../../x", [PHOTO_TAKEN_AT_HEADER]: "2026-11-12T15:30:05.123Z" },
+      ],
+      [
+        "a malformed time",
+        { [PHOTO_ID_HEADER]: "6f1c2b9e-3d4a-4f5b-8c6d-7e8f9a0b1c2d", [PHOTO_TAKEN_AT_HEADER]: "soon" },
+      ],
+    ])("rejects %s with 400, saving nothing", async (_, headers) => {
+      expect((await post(JPEG, headers)).status).toBe(400);
+      expect(await readdir(dir)).toEqual([]);
+    });
+
+    it("still saves every upload that has no snapshot key, as before", async () => {
+      expect((await post(JPEG)).status).toBe(201);
+      expect((await post(JPEG)).status).toBe(201);
+      expect(await readdir(dir)).toHaveLength(2);
+    });
   });
 
   it("rejects an empty body", async () => {

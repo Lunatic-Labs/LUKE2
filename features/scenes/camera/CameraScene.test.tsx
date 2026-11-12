@@ -72,6 +72,9 @@ function takePictureButton() {
   return screen.getByRole("button", { name: "Take picture" });
 }
 
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
 /** The round thumbnail of the last photo, which opens the preview card. */
 function snapshotButton() {
   return screen.getByRole("button", { name: "See your snapshot" });
@@ -282,7 +285,10 @@ describe("CameraScene", () => {
     });
     expect(handle.reportActivity).toHaveBeenCalled();
     expect(uploadPhoto).toHaveBeenCalledTimes(1);
-    expect(uploadPhoto).toHaveBeenCalledWith(await (captureFrame as jest.Mock).mock.results[0].value);
+    expect(uploadPhoto).toHaveBeenCalledWith(await (captureFrame as jest.Mock).mock.results[0].value, {
+      id: expect.stringMatching(UUID_V4),
+      takenAt: expect.stringMatching(ISO_UTC),
+    });
     expect(screen.queryByAltText("Your snapshot")).not.toBeInTheDocument();
     expect(THANK_YOU_TEXT).toContain(screen.getByRole("status").textContent);
     // Shown on screen too, not only announced.
@@ -370,6 +376,29 @@ describe("CameraScene", () => {
     });
     expect(uploadPhoto).toHaveBeenCalledTimes(2);
     expect(THANK_YOU_TEXT).toContain(screen.getByRole("status").textContent);
+    // The retry sends the same snapshot key, so if the first upload had in
+    // fact been saved, the server recognises the retry instead of copying it.
+    const [first, second] = (uploadPhoto as jest.Mock).mock.calls;
+    expect(second[1]).toEqual(first[1]);
+  });
+
+  it("gives every new picture its own snapshot key", async () => {
+    mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+    await renderScene();
+    for (let i = 0; i < 2; i++) {
+      (URL.createObjectURL as jest.Mock).mockReturnValue(`blob:photo-${i}`);
+      await takeSnapshot();
+      fireEvent.click(snapshotButton());
+      await act(async () => {
+        fireEvent.click(uploadButton());
+      });
+      await advance(COOLDOWN_MS);
+    }
+
+    const [first, second] = (uploadPhoto as jest.Mock).mock.calls;
+    expect(first[1].id).toMatch(UUID_V4);
+    expect(second[1].id).toMatch(UUID_V4);
+    expect(second[1].id).not.toBe(first[1].id);
   });
 
   it("locks the card while an upload is in flight", async () => {

@@ -158,10 +158,31 @@ The two browser-side steps of taking a picture:
 - `captureFrame(video, filter)` draws the current video frame onto a hidden
   canvas, with the CSS `filter` applied (default `"none"`), and turns it into
   a JPEG.
-- `uploadPhoto(blob)` sends that JPEG to `/api/photos`.
+- `newSnapshotKey()` makes a snapshot's key when the picture is taken: a
+  random v4 UUID (`crypto.randomUUID()`) and the time, as an ISO string.
+- `uploadPhoto(blob, key)` sends that JPEG to `/api/photos`, with the key in
+  the `x-photo-id` and `x-photo-taken-at` headers. It treats both 201 (saved)
+  and 200 (already saved) as success.
 
-These two together replace Processing's `saveFrame()`. They're in their own
+These together replace Processing's `saveFrame()`. They're in their own
 file so the tests can swap them out, since a test has no real camera.
+
+### No duplicate photos
+
+Each snapshot gets its key once, when it's taken, and every upload of it
+sends the same key. The server builds the file name from the key alone
+(`screen-<taken at>-<id>.jpg`), so a repeat upload of a snapshot lands on the
+name already saved. The write uses the `wx` flag, which refuses to overwrite,
+so the repeat is recognised as a duplicate and nothing new is written. The
+check is atomic, so it holds even if two copies arrive at the same moment.
+
+This covers the case the card's own checks can't: an upload that reached
+the server but whose response was lost, so the scene shows "didn't upload"
+and the visitor taps upload again. The retry sends the same key and gets 200
+with the existing file name, and the scene shows the thank-you as normal.
+
+The header names live in [snapshot-headers.ts](snapshot-headers.ts), shared
+by the browser and the route, since `photo-store.ts` is server-only.
 
 ### [photo-store.ts](photo-store.ts)
 
@@ -178,6 +199,15 @@ Writes photos to disk. **Server-only.**
   JPEG starts with.
 - `savePhoto()` creates the folder if needed and writes the file. It refuses to
   overwrite an existing file.
+- `parseSnapshotKey(id, takenAt)` checks a client's snapshot key: the id must
+  be a lowercase v4 UUID, and the time an exact `toISOString()` string whose
+  file name `isPhotoFileName()` accepts (so a year past 9999 can't make a
+  photo that saves but never shows in the gallery). Returns `null` otherwise.
+- `saveSnapshotOnce(bytes, key)` saves a snapshot under the name its key
+  gives it, at most once. A repeat returns `created: false` with the existing
+  name and leaves that file untouched. Only "file already exists" counts as a
+  repeat. Other errors, including a `CAMERA_DIR` that turns out to be a file,
+  are thrown, so a photo is never silently dropped.
 - `isPhotoFileName()` accepts only names that `photoFileName()` could have
   made. It also accepts older photos saved before the UUID was added. Anything
   else, like `../package.json` or `notes.txt`, is rejected. This is what keeps
@@ -203,10 +233,17 @@ code would pull in Node's file-system code and the build would break.
 The server endpoint the photo gets sent to (`POST /api/photos`). It checks the
 upload before saving it:
 
+- only one of the snapshot headers, or a malformed one → **400**
 - too big (over 10 MB) → **413**
 - empty → **400**
 - not a JPEG → **415**
 - otherwise it saves the photo and replies **201** with the file name.
+- with snapshot headers for a snapshot that's already saved, it saves
+  nothing and replies **200** with `{ fileName, duplicate: true }`.
+
+An upload with no snapshot headers at all is saved as a new photo every
+time, as before. The camera scene always sends them, so only uploads made
+outside it (such as a `curl` command) can still create copies.
 
 The size limit is checked while the upload is still arriving, so an upload
 that doesn't say its size up front still gets cut off at 10 MB.
@@ -313,7 +350,9 @@ Uses a fake webcam and fake timers to check:
 - an uploaded snapshot can't be uploaded again, but a new picture can
 - taking another picture from the card replaces the snapshot, unuploaded,
   and frees the old object URL
-- a failed upload keeps the card up with an error, and a retry works
+- a failed upload keeps the card up with an error, and a retry works and
+  sends the same snapshot key as the first try
+- each new picture gets its own snapshot key
 - the card is locked while an upload is in flight
 - a failed capture shows an error and leaves the placeholder
 - taps are ignored mid-countdown
@@ -330,8 +369,24 @@ Uses a fake webcam and fake timers to check:
 ### [photo-store.test.ts](photo-store.test.ts)
 
 Checks file naming, JPEG detection, `CAMERA_DIR` handling, folder creation, and
-that overwriting is refused. It uses a temporary folder, so it never touches
-real photos.
+that overwriting is refused. For snapshot keys it checks:
+
+- `parseSnapshotKey` accepts a v4 UUID with a `toISOString()` time, and
+  rejects missing values, non-UUIDs, uppercase or non-v4 UUIDs, paths, bad
+  or offset times, and years past 9999
+- `saveSnapshotOnce` saves once, reports a repeat without rewriting the file
+  (even with different bytes), and saves exactly one copy when five arrive at
+  once
+- different snapshots taken at the same moment are both saved
+- errors other than "already exists" are thrown, not treated as duplicates
+
+It uses a temporary folder, so it never touches real photos.
+
+### [capture.test.ts](capture.test.ts)
+
+Checks that `newSnapshotKey` makes a v4 UUID and the exact ISO time, never
+repeating an id, and that `uploadPhoto` sends the key in its headers, treats
+200 (already saved) as success, and rejects on a server error.
 
 ### [app/api/photos/route.test.ts](../../../app/api/photos/route.test.ts)
 
@@ -340,6 +395,16 @@ Sends fake uploads to the route and checks the result: a valid JPEG gets saved
 without writing anything. It also checks that oversized uploads get 413, both
 when the size is sent up front and when it isn't (the route must stop reading
 an endless upload).
+
+For duplicates, it uploads with keys made by the scene's own
+`newSnapshotKey`, and checks that:
+
+- a repeat upload gets 200 with the same file name, and only one file exists
+- a repeat with different bytes leaves the first copy as it was
+- five copies sent at once give one 201, four 200s and one file
+- different snapshots are saved separately
+- only one header, a non-UUID id or a bad time gets 400, saving nothing
+- uploads with no key are still saved each time, as before
 
 ### [app/api/photos/[name]/route.test.ts](../../../app/api/photos/[name]/route.test.ts)
 

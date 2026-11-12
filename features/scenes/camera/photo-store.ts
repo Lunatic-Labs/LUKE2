@@ -55,6 +55,58 @@ export async function savePhoto(
 }
 
 /**
+ * How the camera scene names a snapshot: a random v4 UUID it makes when the
+ * picture is taken (`crypto.randomUUID()`), plus the time it was taken. Sent
+ * with every upload of that snapshot, so a retry carries the same pair.
+ */
+export interface SnapshotKey {
+  id: string;
+  takenAt: Date;
+}
+
+const SNAPSHOT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+/**
+ * Checks the id and time a client sent for a snapshot. Returns null unless
+ * the id is a lowercase v4 UUID and the time is an exact ISO 8601 UTC string
+ * (what `Date.toISOString()` produces) that makes a name `isPhotoFileName`
+ * accepts. That last check rules out years outside 0000–9999, whose names
+ * would be saved but never listed in the gallery.
+ */
+export function parseSnapshotKey(id: string | null, takenAt: string | null): SnapshotKey | null {
+  if (!id || !takenAt || !SNAPSHOT_ID.test(id)) return null;
+  const date = new Date(takenAt);
+  if (Number.isNaN(date.getTime()) || date.toISOString() !== takenAt) return null;
+  if (!isPhotoFileName(photoFileName(date, id))) return null;
+  return { id, takenAt: date };
+}
+
+/**
+ * Saves a snapshot at most once. The file name comes entirely from the key,
+ * so uploading the same snapshot again lands on the same name, and the
+ * exclusive write (`wx`) refuses it atomically, even when two copies arrive
+ * at the same moment. `created` is false when the snapshot was already saved;
+ * the existing file is left as it is.
+ */
+export async function saveSnapshotOnce(
+  bytes: Uint8Array,
+  key: SnapshotKey,
+  dir: string = cameraDir(),
+): Promise<{ fileName: string; created: boolean }> {
+  // Outside the try: `mkdir` also fails with EEXIST when `dir` is a file, and
+  // that must surface as an error, not pass for "already saved".
+  await mkdir(dir, { recursive: true });
+  const fileName = photoFileName(key.takenAt, key.id);
+  try {
+    await writeFile(path.join(dir, fileName), bytes, { flag: "wx" });
+    return { fileName, created: true };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    return { fileName, created: false };
+  }
+}
+
+/**
  * Only names `photoFileName` produces. The serving route turns a URL segment
  * into a path, so anything else (`..`, separators, other files) is rejected.
  * The id is optional: photos saved before it was added are named

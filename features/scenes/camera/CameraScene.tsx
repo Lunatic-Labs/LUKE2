@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { SceneFrame } from "@/components/SceneFrame";
 import type { SceneComponentProps } from "@/features/kiosk/types";
-import { captureFrame, idealCaptureSize, uploadPhoto } from "./capture";
+import { captureFrame, idealCaptureSize, newSnapshotKey, uploadPhoto, type SnapshotKey } from "./capture";
 
 /**
  * Take a Picture!
@@ -96,11 +96,13 @@ export function CameraScene({ handle }: SceneComponentProps) {
    * The snapshot: the last photo taken on this visit, as the JPEG, kept in
    * memory until the visitor uploads it, and an object URL of it for the
    * snapshot button and the preview card. Taking a photo never stores it;
-   * only `handleUpload` does.
+   * only `handleUpload` does. `key` is made once, when the picture is taken,
+   * and sent with every upload of it, so the server saves it at most once
+   * even if an upload is retried after its response was lost.
    */
-  const [lastPhoto, setLastPhoto] = useState<{ blob: Blob; url: string } | null>(null);
-  /** The object URL of the snapshot once it has been uploaded, so it is never sent twice. */
-  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  const [lastPhoto, setLastPhoto] = useState<{ blob: Blob; url: string; key: SnapshotKey } | null>(null);
+  /** The key of the snapshot once it has been uploaded, so the card won't offer it again. */
+  const [uploadedId, setUploadedId] = useState<string | null>(null);
   const filter = FILTERS[filterIndex];
 
   // Open the camera for as long as the scene is on screen.
@@ -159,7 +161,7 @@ export function CameraScene({ handle }: SceneComponentProps) {
       captureFrame(video, filter.css).then(
         (blob) => {
           if (videoRef.current !== video) return;
-          setLastPhoto({ blob, url: URL.createObjectURL(blob) });
+          setLastPhoto({ blob, url: URL.createObjectURL(blob), key: newSnapshotKey() });
           setMessage(SNAPSHOT_HINT);
           setStatus("done");
         },
@@ -205,15 +207,15 @@ export function CameraScene({ handle }: SceneComponentProps) {
   /** The only place a photo is stored: the preview card's upload button. */
   function handleUpload() {
     handle.reportActivity();
-    if (status !== "review" || !lastPhoto || uploadedUrl === lastPhoto.url) return;
+    if (status !== "review" || !lastPhoto || uploadedId === lastPhoto.key.id) return;
     const video = videoRef.current;
-    const { url } = lastPhoto;
+    const { key } = lastPhoto;
     setStatus("uploading");
     setMessage("");
-    uploadPhoto(lastPhoto.blob).then(
+    uploadPhoto(lastPhoto.blob, key).then(
       () => {
         if (videoRef.current !== video) return;
-        setUploadedUrl(url);
+        setUploadedId(key.id);
         setMessage(THANK_YOU_TEXT[Math.floor(Math.random() * THANK_YOU_TEXT.length)]);
         setStatus("done");
       },
@@ -274,7 +276,7 @@ export function CameraScene({ handle }: SceneComponentProps) {
   // announced, and it sits outside the button because a button's children
   // can be treated as presentational and never read.
   const reviewing = (status === "review" || status === "uploading") && lastPhoto !== null;
-  const uploaded = lastPhoto !== null && uploadedUrl === lastPhoto.url;
+  const uploaded = lastPhoto !== null && uploadedId === lastPhoto.key.id;
   const busy = status === "countdown" || status === "capturing" || status === "uploading";
   const cardNote = message || (uploaded ? UPLOADED_TEXT : "");
   const announcement =
