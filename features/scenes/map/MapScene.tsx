@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { SceneFrame } from "@/components/SceneFrame";
+import { useKioskOptions } from "@/features/kiosk/options-context";
 import type { SceneComponentProps } from "@/features/kiosk/types";
 import {
   CAMPUS_BUILDINGS,
   findNearestBuilding,
   fitToAspectRatio,
-  KIOSK_LOCATION,
   MAP_ASPECT_RATIO,
   type CampusBuilding,
 } from "./buildings";
+import { kioskLocation } from "./kiosks";
 
 /**
  * "You Are Here" campus map.
@@ -19,8 +20,8 @@ import {
  * Ported from `src/luke_java/MapScene.pde` + `MapButtons.pde`: the real
  * `LUJustMap.jpg` map, tapping selects the nearest building within a combined
  * offset threshold (`findNearestBuilding`, not a precise hit), the
- * `markerTransparent.png` pin fixed at the kiosk's own location (Fields
- * Engineering Center, where the kiosk is physically installed), and a Key
+ * `markerTransparent.png` pin fixed at the active kiosk's location (see
+ * `kiosks.ts`), and a Key
  * toggle that swaps to the legend. See `buildings.ts` for why the building
  * coordinates were re-measured from the image rather than ported from
  * `MapButtons.pde` directly, and why the Key screen is a tappable list here
@@ -31,6 +32,9 @@ import {
  * has no counterpart here, same as `TriviaGameManager.pde`'s `Game` class.
  */
 export function MapScene({ handle }: SceneComponentProps) {
+  const { kioskId } = useKioskOptions();
+  // Memoized so an unknown id warns once, not on every tap.
+  const kiosk = useMemo(() => kioskLocation(kioskId), [kioskId]);
   const [selected, setSelected] = useState<CampusBuilding | null>(null);
   const [showKey, setShowKey] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -129,7 +133,7 @@ export function MapScene({ handle }: SceneComponentProps) {
                 alt="You are here"
                 width={30}
                 height={30}
-                style={{ left: `${KIOSK_LOCATION.x * 100}%`, top: `${KIOSK_LOCATION.y * 100}%` }}
+                style={{ left: `${kiosk.x * 100}%`, top: `${kiosk.y * 100}%` }}
                 className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
               />
 

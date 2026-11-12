@@ -12,6 +12,9 @@ services:
       # Photos taken by the camera scene; /api/gallery lists them and
       # /api/photos/[name] serves them to the gallery scene.
       - camera-pics:/app/data/camera-pics
+      # This machine's options (KioskId and so on). Uncomment once the file exists:
+      # Docker creates a folder at a missing path, and the defaults would apply.
+      # - ./data/options.txt:/app/data/options.txt:ro
       # The trivia scene's saved scores (scores.csv); /api/scores reads and
       # appends to it.
       - trivia-scores:/app/data/trivia-scores

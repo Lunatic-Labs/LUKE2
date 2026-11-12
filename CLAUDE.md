@@ -21,6 +21,8 @@ docker compose up --build                       # production image
 
 `CAMERA_DIR` (optional) sets where `app/api/photos` saves camera-scene photos; it defaults to `data/camera-pics` relative to the working directory, which is gitignored and mounted as the `camera-pics` volume in `docker-compose.yml`. The camera needs a secure context (https or localhost) for `getUserMedia`. A photo is saved only when the visitor taps upload on the snapshot preview card, and each upload carries a snapshot key (`x-photo-id`, `x-photo-taken-at`) so a repeat upload of the same snapshot isn't saved twice; see `features/scenes/camera/README.md`.
 
+`OPTIONS_FILE` (optional) sets where this machine's `options.txt` is read from; it defaults to `data/options.txt` relative to the working directory, which is gitignored. It's read when the page is served, so one build can run on every kiosk, and a missing file means the defaults in `features/kiosk/options.ts`.
+
 `TRIVIA_SCORES_DIR` (optional) sets where `app/api/scores` keeps the trivia leaderboard, a `scores.csv` table of `tag,score` rows; it defaults to `data/trivia-scores` and is mounted as the `trivia-scores` volume in `docker-compose.yml`. `features/scenes/trivia/score-store.ts` is server-only, like `camera/photo-store.ts`.
 
 ## Architecture

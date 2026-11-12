@@ -7,6 +7,7 @@ export {
   bottomBarHeight,
   parseOptions,
 } from "./options";
+export { KioskOptionsContext, useKioskOptions } from "./options-context";
 export { SessionTracker, consoleSessionSink } from "./session-log";
 export type { KioskOptions } from "./options";
 export type { SessionRecord, SessionErrorRecord, SessionSink } from "./session-log";

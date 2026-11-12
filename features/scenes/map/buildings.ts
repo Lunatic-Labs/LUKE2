@@ -1,3 +1,5 @@
+import placesData from "./data/places.json";
+
 /**
  * Campus map markers.
  *
@@ -14,6 +16,7 @@
  * each of the 50 numbered markers was located by color-based blob detection,
  * then matched to its name via `LUKey.jpg`'s legend. `x`/`y` are fractions
  * of the image's own width/height, so they stay correct at any render size.
+ * They live in `data/places.json` as each place's `map` position.
  *
  * Upstream had no per-building description; `display_text()` only ever showed
  * the name ("Currently displaying: " + label), so none is invented here either.
@@ -27,71 +30,229 @@ export interface CampusBuilding {
   y: number;
 }
 
-export const CAMPUS_BUILDINGS: CampusBuilding[] = [
-  { id: "a-m-burton-health-sciences-center", name: "A.M. Burton Health Sciences Center", x: 0.28587, y: 0.395 },
-  { id: "acuff-chapel", name: "Acuff Chapel", x: 0.61763, y: 0.23813 },
-  { id: "advancement-office", name: "Advancement Office", x: 0.41969, y: 0.19062 },
-  { id: "allen-arena", name: "Allen Arena", x: 0.37701, y: 0.61146 },
-  { id: "allen-bell-tower", name: "Allen Bell Tower", x: 0.27622, y: 0.54854 },
-  { id: "alumni-relations", name: "Alumni Relations", x: 0.7508, y: 0.21833 },
-  { id: "beaman-library", name: "Beaman Library", x: 0.19773, y: 0.50083 },
-  { id: "bennett-campus-center", name: "Bennett Campus Center", x: 0.41711, y: 0.38167 },
-  { id: "bison-hall-and-bison-inn", name: "Bison Hall & Bison Inn", x: 0.35149, y: 0.15229 },
-  { id: "bison-square-and-osman-fountain", name: "Bison Square & Osman Fountain", x: 0.36908, y: 0.40437 },
-  { id: "collins-alumni-auditorium", name: "Collins Alumni Auditorium", x: 0.31546, y: 0.39333 },
-  { id: "contemporary-music-house", name: "Contemporary Music House", x: 0.6558, y: 0.43625 },
-  { id: "crisman-administration-building", name: "Crisman Administration Building", x: 0.24383, y: 0.31375 },
-  { id: "draper-diamond", name: "Draper Diamond", x: 0.22089, y: 0.73625 },
-  { id: "dugan-field", name: "Dugan Field", x: 0.40682, y: 0.75646 },
-  { id: "elam-hall", name: "Elam Hall", x: 0.41668, y: 0.28125 },
-  { id: "ezell-center", name: "Ezell Center", x: 0.20437, y: 0.58167 },
-  { id: "fanning-hall", name: "Fanning Hall", x: 0.30603, y: 0.28813 },
-  { id: "fields-engineering-center", name: "Fields Engineering Center", x: 0.29166, y: 0.10437 },
-  { id: "flatt-amphitheater", name: "Flatt Amphitheater", x: 0.41647, y: 0.41833 },
-  { id: "george-shinn-center", name: "George Shinn Center", x: 0.21789, y: 0.62583 },
-  { id: "graduate-admissions", name: "Graduate Admissions", x: 0.40532, y: 0.16271 },
-  { id: "gymnasium", name: "Gymnasium", x: 0.65323, y: 0.23521 },
-  { id: "harding-hall", name: "Harding Hall", x: 0.54793, y: 0.24229 },
-  { id: "high-rise-hall", name: "High Rise Hall", x: 0.5149, y: 0.57875 },
-  { id: "honors-college", name: "Honors College", x: 0.40725, y: 0.12687 },
-  { id: "huston-marsh-griffith-tennis-center", name: "Huston-Marsh-Griffith Tennis Center", x: 0.28179, y: 0.71208 },
-  { id: "intramural-field", name: "Intramural Field", x: 0.56101, y: 0.38875 },
-  { id: "james-d-hughes-center", name: "James D. Hughes Center", x: 0.23719, y: 0.19104 },
-  { id: "johnson-hall", name: "Johnson Hall", x: 0.37701, y: 0.48896 },
-  { id: "lipscomb-family-therapy-center", name: "Lipscomb Family Therapy Center", x: 0.7062, y: 0.17146 },
-  { id: "lipscomb-online", name: "Lipscomb Online", x: 0.38966, y: 0.18313 },
-  { id: "mccadams-athletic-center", name: "McCadams Athletic Center", x: 0.83809, y: 0.30146 },
-  { id: "mcfarland-science-center", name: "McFarland Science Center", x: 0.17757, y: 0.29375 },
-  { id: "mcquiddy-gym", name: "McQuiddy Gym", x: 0.32275, y: 0.59167 },
-  { id: "music-wing", name: "Music Wing", x: 0.49818, y: 0.24208 },
-  { id: "nursing-and-health-sciences-center", name: "Nursing & Health Sciences Center", x: 0.23333, y: 0.1525 },
-  { id: "pharmaceutical-sciences-research-center", name: "Pharmaceutical Sciences Research Center", x: 0.2389, y: 0.22937 },
-  { id: "reese-smith-athletic-complex", name: "Reese Smith Athletic Complex", x: 0.83959, y: 0.36229 },
-  { id: "sewell-hall", name: "Sewell Hall", x: 0.48252, y: 0.48812 },
-  { id: "shamblin-theatre", name: "Shamblin Theatre", x: 0.47652, y: 0.37771 },
-  { id: "soccer-complex", name: "Soccer Complex", x: 0.20995, y: 0.87021 },
-  { id: "student-activities-center", name: "Student Activities Center", x: 0.28394, y: 0.60354 },
-  { id: "swang-business-center", name: "Swang Business Center", x: 0.30431, y: 0.48896 },
-  { id: "the-village", name: "The Village", x: 0.35921, y: 0.22458 },
-  { id: "thomas-james-mcmeen-music-center", name: "Thomas James McMeen Music Center", x: 0.32018, y: 0.41667 },
-  { id: "university-health-services", name: "University Health Services", x: 0.43491, y: 0.14062 },
-  { id: "university-theatre", name: "University Theatre", x: 0.51319, y: 0.50875 },
-  { id: "veterans-resource-center", name: "Veterans' Resource Center", x: 0.41047, y: 0.22062 },
-  { id: "ward-hall", name: "Ward Hall", x: 0.21252, y: 0.27333 },
-];
+/**
+ * What sort of place an entry is. An office is a destination inside another
+ * building; a venue or field is somewhere people go that isn't an enclosed
+ * building (an amphitheater, a square, a ballpark).
+ */
+export const PLACE_KINDS = ["building", "office", "venue", "field"] as const;
+export type PlaceKind = (typeof PLACE_KINDS)[number];
 
 /**
- * Where the kiosk itself stands. `MapScene.Init()` set this independently of
- * the building list (`mapMarX`/`mapMarY` = `x_max/3.4`, `y_max/16.84210526`)
- * but landed on Fields Engineering Center, where the physical kiosk is
- * installed — so it's derived from that building's own (now-measured)
- * position here instead of carrying a second, separately-tunable coordinate
- * that can drift out of sync with it. Drawn with `markerTransparent.png`
- * regardless of what building is selected.
+ * The section a place is listed under on the Find screen. One per place, so
+ * every place appears exactly once in the grouped list; a search for a
+ * generic word like "dorm" can match a whole category.
  */
-export const KIOSK_LOCATION = CAMPUS_BUILDINGS.find(
-  (building) => building.id === "fields-engineering-center",
-)!;
+export const PLACE_CATEGORIES = [
+  "admissions-visitors",
+  "academics",
+  "student-life",
+  "athletics",
+  "housing",
+  "admin",
+  "arts",
+  "health",
+] as const;
+export type PlaceCategory = (typeof PLACE_CATEGORIES)[number];
+
+export interface CampusPlace {
+  id: string;
+  name: string;
+  kind: PlaceKind;
+  category: PlaceCategory;
+  /** For an office inside another place: that place's id. Unset for standalone offices. */
+  withinBuildingId?: string;
+  aliases: string[];
+  /** Departments in this place, written as the detail card should show them. */
+  departments?: string[];
+  map: { x: number; y: number };
+  /** Real-world position of the place's centre. */
+  geo: { lat: number; lng: number };
+  entrances?: Entrance[];
+  /** Path under `public/` to a photo of the main entrance. Deferred; unset for now. */
+  photo?: string;
+}
+
+/** A door visitors can use to get into a place. */
+export interface Entrance {
+  /** Unique within its place, e.g. "front" or "north". */
+  id: string;
+  /** How a visitor recognizes it, e.g. "Front entrance, facing Bison Square". */
+  label?: string;
+  /** Real-world position; where QR directions and routes end. */
+  geo: { lat: number; lng: number };
+  /** Position on the map image, as fractions of its width and height. */
+  map?: { x: number; y: number };
+  /** The default door for the place; exactly one per place. */
+  primary?: boolean;
+  /** Deferred until accessibility data is collected. */
+  accessible?: boolean;
+}
+
+/**
+ * Every place in `data/places.json`, in file order.
+ *
+ * TypeScript types a JSON file's strings as plain `string`, so `"kind":
+ * "building"` can't be checked against `PlaceKind` at compile time and the
+ * file has to be cast. `validatePlaces` is what makes that cast safe: the
+ * tests run it over this list, so a typo in the JSON fails `npm test` rather
+ * than reaching the kiosk.
+ */
+export const CAMPUS_PLACES = placesData as CampusPlace[];
+
+const PLACE_ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+function isFraction(value: unknown): boolean {
+  return typeof value === "number" && value >= 0 && value <= 1;
+}
+
+/**
+ * A box around campus with a little margin. Anything outside it is a mistake,
+ * most likely a typo or lat and lng swapped, which would otherwise send a
+ * visitor's directions somewhere else entirely.
+ */
+const CAMPUS_BOUNDS = { minLat: 36.099, maxLat: 36.111, minLng: -86.804, maxLng: -86.789 };
+
+function isOnCampus(geo: { lat: number; lng: number } | undefined): boolean {
+  return (
+    typeof geo?.lat === "number" &&
+    typeof geo.lng === "number" &&
+    geo.lat >= CAMPUS_BOUNDS.minLat &&
+    geo.lat <= CAMPUS_BOUNDS.maxLat &&
+    geo.lng >= CAMPUS_BOUNDS.minLng &&
+    geo.lng <= CAMPUS_BOUNDS.maxLng
+  );
+}
+
+/**
+ * Everything wrong with a list of places, one readable message per problem;
+ * an empty list means the data is valid. Checks what the types can't: values
+ * from the allowed lists, unique ids and names, aliases written the way
+ * search expects, positions on the map, and references between places.
+ *
+ * Whether an alias may be shared by two places is a judgment call, so that
+ * check lives in the tests next to the list of deliberate exceptions.
+ */
+export function validatePlaces(places: CampusPlace[]): string[] {
+  const problems: string[] = [];
+  const ids = new Set<string>();
+  const names = new Set<string>();
+
+  for (const place of places) {
+    if (!PLACE_ID.test(place.id)) {
+      problems.push(`"${place.id}": id must be lowercase words joined by dashes`);
+    }
+    if (ids.has(place.id)) problems.push(`"${place.id}": id is used more than once`);
+    ids.add(place.id);
+
+    const name = place.name?.trim() ?? "";
+    if (!name) problems.push(`"${place.id}": name is empty`);
+    if (names.has(name)) problems.push(`"${place.id}": name "${name}" is used more than once`);
+    names.add(name);
+  }
+
+  for (const place of places) {
+    const where = `"${place.id}"`;
+
+    if (!(PLACE_KINDS as readonly string[]).includes(place.kind)) {
+      problems.push(`${where}: unknown kind "${place.kind}"`);
+    }
+    if (!(PLACE_CATEGORIES as readonly string[]).includes(place.category)) {
+      problems.push(`${where}: unknown category "${place.category}"`);
+    }
+
+    if (place.withinBuildingId !== undefined) {
+      if (place.withinBuildingId === place.id) {
+        problems.push(`${where}: withinBuildingId points to itself`);
+      } else if (!ids.has(place.withinBuildingId)) {
+        problems.push(`${where}: withinBuildingId "${place.withinBuildingId}" is not a place`);
+      }
+      if (place.kind !== "office") {
+        problems.push(`${where}: only an office can have withinBuildingId`);
+      }
+    }
+
+    if (!Array.isArray(place.aliases)) {
+      problems.push(`${where}: aliases must be a list`);
+    } else {
+      const seen = new Set<string>();
+      for (const alias of place.aliases) {
+        if (typeof alias !== "string" || !alias.trim()) {
+          problems.push(`${where}: has an empty alias`);
+          continue;
+        }
+        // Search compares lowercase text, so anything else would never match.
+        if (alias !== alias.trim().toLowerCase()) {
+          problems.push(`${where}: alias "${alias}" must be lowercase with no outer spaces`);
+        }
+        if (seen.has(alias)) problems.push(`${where}: alias "${alias}" is listed twice`);
+        seen.add(alias);
+        if (alias === place.name?.toLowerCase()) {
+          problems.push(`${where}: alias "${alias}" just repeats the name`);
+        }
+      }
+    }
+
+    if (place.departments !== undefined) {
+      const seen = new Set<string>();
+      for (const department of place.departments) {
+        if (typeof department !== "string" || !department.trim()) {
+          problems.push(`${where}: has an empty department`);
+          continue;
+        }
+        if (department !== department.trim()) {
+          problems.push(`${where}: department "${department}" has outer spaces`);
+        }
+        if (seen.has(department)) problems.push(`${where}: department "${department}" is listed twice`);
+        seen.add(department);
+      }
+    }
+
+    if (!isFraction(place.map?.x) || !isFraction(place.map?.y)) {
+      problems.push(`${where}: map x and y must be numbers from 0 to 1`);
+    }
+
+    if (!isOnCampus(place.geo)) {
+      problems.push(`${where}: geo must be a lat and lng on campus`);
+    }
+
+    if (place.entrances !== undefined) {
+      if (place.entrances.length === 0) {
+        problems.push(`${where}: entrances is empty; leave it out until there is one`);
+      }
+      const entranceIds = new Set<string>();
+      for (const entrance of place.entrances) {
+        const door = `${where} entrance "${entrance.id}"`;
+        if (entranceIds.has(entrance.id)) problems.push(`${door}: id is used more than once`);
+        entranceIds.add(entrance.id);
+        if (!isOnCampus(entrance.geo)) {
+          problems.push(`${door}: geo must be a lat and lng on campus`);
+        }
+        if (entrance.map !== undefined && (!isFraction(entrance.map.x) || !isFraction(entrance.map.y))) {
+          problems.push(`${door}: map x and y must be numbers from 0 to 1`);
+        }
+      }
+      const primaries = place.entrances.filter((entrance) => entrance.primary).length;
+      if (place.entrances.length > 0 && primaries !== 1) {
+        problems.push(`${where}: needs exactly one primary entrance, has ${primaries}`);
+      }
+    }
+  }
+
+  return problems;
+}
+
+/**
+ * The places as flat (id, name, x, y) markers: the shape the scene and
+ * `findNearestBuilding` were written against. Derived from `CAMPUS_PLACES`,
+ * so `data/places.json` is the only list to edit.
+ */
+export const CAMPUS_BUILDINGS: CampusBuilding[] = CAMPUS_PLACES.map((place) => ({
+  id: place.id,
+  name: place.name,
+  x: place.map.x,
+  y: place.map.y,
+}));
 
 /**
  * Nearest marker to a tap, or null if nothing is close enough.
@@ -129,6 +290,14 @@ export function findNearestBuilding(
  * exactly only on a screen shaped to match it.
  */
 export const MAP_ASPECT_RATIO = 4663 / 4800;
+
+/**
+ * Which way true north points on `LUJustMap.jpg`, in degrees clockwise from the
+ * top of the image: north is about 10 degrees to the left of straight up, as the
+ * compass drawn on the map shows. Measured by fitting each place's `map` position
+ * to its `geo`; the tests repeat the fit, so this can't drift from the data.
+ */
+export const MAP_NORTH_DEG = -10.4;
 
 /**
  * The largest box of `aspectRatio` that fits inside a `width` x `height` area
