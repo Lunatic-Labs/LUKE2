@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { CREDITS_PAGES } from "./credits";
+import { wrapIndex } from "@/features/kiosk/wrapIndex";
 
 /**
  * L.U.K.E. Credits, ported from DirectoryCredits.pde (CreditsDisplayScene).
@@ -34,7 +35,7 @@ export function CreditsView({ onBack, onActivity }: CreditsViewProps) {
 
   function shiftPage(step: number) {
     onActivity();
-    setPageIndex((i) => (i + step + pageCount) % pageCount);
+    setPageIndex((i) => wrapIndex(i, step, pageCount));
   }
 
   // Scroll the names from just below the viewport until the last one leaves the top, then loop.
