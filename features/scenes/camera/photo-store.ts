@@ -13,6 +13,8 @@ import path from "node:path";
 
 /** Matches `CameraDir=data\\camera-pics` in the Processing build's `options.txt`. */
 export const DEFAULT_CAMERA_DIR = "data/camera-pics";
+const PENDING_SUBDIR = "pending";
+const APPROVED_SUBDIR = "approved";
 
 /** A webcam JPEG is a few hundred KB; anything near this is not a photo. */
 export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
@@ -22,7 +24,15 @@ export function cameraDir(): string {
   // The folder is chosen at runtime, so there is nothing for the build to
   // trace; without the hint Turbopack copies the whole repo (photos and
   // `.env.local` included) into the standalone output.
-  return path.resolve(/* turbopackIgnore: true */ process.env.CAMERA_DIR || DEFAULT_CAMERA_DIR);
+  return path.resolve(/* turbopackIgnore: true */ process.env.CAMERA_DIR?.trim() || DEFAULT_CAMERA_DIR);
+}
+
+export function pendingDir(): string {
+  return path.join(cameraDir(), PENDING_SUBDIR);
+}
+
+export function approvedDir(): string {
+  return path.join(cameraDir(), APPROVED_SUBDIR);
 }
 
 /**
