@@ -189,6 +189,20 @@ function wordsNearlyMatch(term: IndexTerm, queryWords: string[]): boolean {
 
 const withoutSpaces = (text: string) => text.replace(/ /g, "");
 
+/**
+ * Words that say what kind of place it is rather than which one. Dropped from a
+ * query when matching word by word, as long as other words are left, so
+ * "psychology department" finds Ezell and "ezell hall" finds the Ezell Center.
+ * A query of only these ("hall") keeps them, to list every hall.
+ */
+export const FILLER_WORDS = new Set(["the", "hall", "center", "building", "department"]);
+
+/** The query's words to match one by one: the meaningful ones, when there are any. */
+export function significantWords(queryWords: string[]): string[] {
+  const meaningful = queryWords.filter((word) => !FILLER_WORDS.has(word));
+  return meaningful.length > 0 ? meaningful : queryWords;
+}
+
 /** The best tier a term reaches for this query, or null if it doesn't match. */
 function tierFor(term: IndexTerm, query: string, queryWords: string[]): RankTier | null {
   const nameOrAlias = term.source === "name" || term.source === "alias";
@@ -213,7 +227,9 @@ const sourceRank = (term: IndexTerm) => TERM_SOURCES.indexOf(term.source);
 export function searchPlaces(query: string, index: IndexedPlace[] = PLACE_INDEX): SearchResult[] {
   const normalized = normalize(query);
   if (!normalized) return [];
-  const queryWords = normalized.split(" ");
+  // Exact and prefix matching use the whole query; word-by-word matching
+  // skips filler words like "hall".
+  const queryWords = significantWords(normalized.split(" "));
 
   const results: SearchResult[] = [];
   for (const { place, terms } of index) {

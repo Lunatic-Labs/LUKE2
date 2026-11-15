@@ -8,6 +8,7 @@ import {
   PLACE_INDEX,
   RANK_TIERS,
   searchPlaces,
+  significantWords,
 } from "./search";
 
 describe("normalize", () => {
@@ -281,5 +282,46 @@ describe("searchPlaces typo tier", () => {
       ["ward-hall", "exact"],
       ["harding-hall", "typo"],
     ]);
+  });
+});
+
+describe("significantWords", () => {
+  it.each([
+    [["psychology", "department"], ["psychology"]],
+    [["the", "ezell", "hall"], ["ezell"]],
+    [["fields", "building"], ["fields"]],
+    [["hall"], ["hall"]],
+    [["the", "center"], ["the", "center"]],
+  ])("keeps %j as %j", (words, expected) => {
+    expect(significantWords(words)).toEqual(expected);
+  });
+});
+
+describe("searchPlaces filler words", () => {
+  const first = (query: string) => searchPlaces(query)[0];
+
+  it("finds a department named with the word department", () => {
+    expect(first("psychology department")).toMatchObject({
+      tier: "department",
+      place: { id: "ezell-center" },
+    });
+  });
+
+  it("finds a place called the wrong kind of building", () => {
+    expect(first("ezell hall")?.place.id).toBe("ezell-center");
+    expect(first("fields building")?.place.id).toBe("fields-engineering-center");
+  });
+
+  it("lists every hall for a query of only filler", () => {
+    const halls = CAMPUS_PLACES.filter((place) => normalize(place.name).split(" ").includes("hall"));
+    expect(searchPlaces("hall").map((result) => result.place.id).sort()).toEqual(
+      halls.map((place) => place.id).sort(),
+    );
+  });
+
+  it("still matches a whole query that includes filler", () => {
+    expect(first("the caf")).toMatchObject({ tier: "exact", place: { id: "bennett-campus-center" } });
+    expect(first("johnson hall")).toMatchObject({ tier: "exact", place: { id: "johnson-hall" } });
+    expect(first("the village")).toMatchObject({ tier: "exact", place: { id: "the-village" } });
   });
 });
