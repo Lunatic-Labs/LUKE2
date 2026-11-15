@@ -48,6 +48,8 @@ export interface IndexTerm {
 export interface IndexedPlace {
   place: CampusPlace;
   terms: IndexTerm[];
+  /** For an office inside another place, that place. */
+  within?: CampusPlace;
 }
 
 /** Words an acronym skips: "Bison Hall and Bison Inn" is "bhbi", not "bhabi". */
@@ -93,7 +95,10 @@ export function buildIndex(places: CampusPlace[]): IndexedPlace[] {
       seen.add(text);
       terms.push({ text, words: text.split(" "), source, original });
     }
-    return { place, terms };
+    const within = place.withinBuildingId
+      ? places.find((other) => other.id === place.withinBuildingId)
+      : undefined;
+    return within ? { place, terms, within } : { place, terms };
   });
 }
 
@@ -121,6 +126,11 @@ export interface SearchResult {
   /** The term it matched, for showing why it's in the results. */
   matched: IndexTerm;
   tier: RankTier;
+  /**
+   * For an office, the building it's inside: what the Find screen shows as
+   * "inside X", and what the map highlights.
+   */
+  within?: CampusPlace;
 }
 
 /** Whether every query word starts some word of the term. */
@@ -232,7 +242,7 @@ export function searchPlaces(query: string, index: IndexedPlace[] = PLACE_INDEX)
   const queryWords = significantWords(normalized.split(" "));
 
   const results: SearchResult[] = [];
-  for (const { place, terms } of index) {
+  for (const { place, terms, within } of index) {
     let best: SearchResult | null = null;
     for (const term of terms) {
       const tier = tierFor(term, normalized, queryWords);
@@ -241,7 +251,7 @@ export function searchPlaces(query: string, index: IndexedPlace[] = PLACE_INDEX)
         !best ||
         tierRank(tier) < tierRank(best.tier) ||
         (tier === best.tier && sourceRank(term) < sourceRank(best.matched));
-      if (better) best = { place, matched: term, tier };
+      if (better) best = within ? { place, matched: term, tier, within } : { place, matched: term, tier };
     }
     if (best) results.push(best);
   }

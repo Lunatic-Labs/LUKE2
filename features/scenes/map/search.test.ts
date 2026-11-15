@@ -325,3 +325,39 @@ describe("searchPlaces filler words", () => {
     expect(first("the village")).toMatchObject({ tier: "exact", place: { id: "the-village" } });
   });
 });
+
+describe("searchPlaces offices", () => {
+  const place = (overrides: Partial<CampusPlace>): CampusPlace => ({
+    id: "test",
+    name: "Test",
+    kind: "building",
+    category: "admin",
+    aliases: [],
+    map: { x: 0.5, y: 0.5 },
+    geo: { lat: 36.105, lng: -86.798 },
+    ...overrides,
+  });
+  const index = buildIndex([
+    place({ id: "crisman", name: "Crisman Administration Building" }),
+    place({ id: "registrar", name: "Registrar", kind: "office", withinBuildingId: "crisman", aliases: ["transcripts"] }),
+    place({ id: "lost", name: "Lost Office", kind: "office", withinBuildingId: "nowhere" }),
+  ]);
+
+  it("returns an office with the building it's inside", () => {
+    const [registrar] = searchPlaces("transcripts", index);
+    expect(registrar).toMatchObject({ place: { id: "registrar" }, within: { id: "crisman" } });
+  });
+
+  it("gives buildings no within", () => {
+    const [crisman] = searchPlaces("crisman", index);
+    expect(crisman.place.id).toBe("crisman");
+    expect(crisman).not.toHaveProperty("within");
+  });
+
+  it("leaves within out when the building can't be found", () => {
+    // validatePlaces rejects this in places.json; search shouldn't crash on it.
+    const [lost] = searchPlaces("lost office", index);
+    expect(lost.place.id).toBe("lost");
+    expect(lost).not.toHaveProperty("within");
+  });
+});
