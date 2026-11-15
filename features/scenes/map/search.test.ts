@@ -4,6 +4,7 @@ import {
   allowedTypos,
   buildIndex,
   editDistance,
+  matchHint,
   normalize,
   PLACE_INDEX,
   RANK_TIERS,
@@ -359,5 +360,32 @@ describe("searchPlaces offices", () => {
     const [lost] = searchPlaces("lost office", index);
     expect(lost.place.id).toBe("lost");
     expect(lost).not.toHaveProperty("within");
+  });
+});
+
+describe("match hints", () => {
+  const hint = (query: string) => searchPlaces(query)[0]?.hint;
+
+  it("gives no hint for a match by name, even with a typo", () => {
+    expect(hint("beaman library")).toBeNull();
+    expect(hint("beeman")).toBeNull();
+  });
+
+  it("shows the alias that matched", () => {
+    expect(hint("the caf")).toBe("the caf");
+  });
+
+  it("shows a department as written", () => {
+    expect(hint("history")).toBe("History, Politics, and Philosophy");
+  });
+
+  it("shows an acronym in capitals", () => {
+    expect(hint("bcc")).toBe("BCC");
+  });
+
+  it("is what matchHint gives for the matched term", () => {
+    for (const result of searchPlaces("music")) {
+      expect(result.hint).toBe(matchHint(result.matched));
+    }
   });
 });

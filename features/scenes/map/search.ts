@@ -131,6 +131,12 @@ export interface SearchResult {
    * "inside X", and what the map highlights.
    */
   within?: CampusPlace;
+  /**
+   * Why a place is in the results when its name doesn't say so: the alias,
+   * department or acronym it matched, ready to show ("the caf",
+   * "History, Politics, and Philosophy", "BCC"). Null when it matched by name.
+   */
+  hint: string | null;
 }
 
 /** Whether every query word starts some word of the term. */
@@ -228,6 +234,18 @@ function tierFor(term: IndexTerm, query: string, queryWords: string[]): RankTier
 const tierRank = (tier: RankTier) => RANK_TIERS.indexOf(tier);
 const sourceRank = (term: IndexTerm) => TERM_SOURCES.indexOf(term.source);
 
+/** What to show beside a result to explain the match, or null for a name match. */
+export function matchHint(term: IndexTerm): string | null {
+  switch (term.source) {
+    case "name":
+      return null;
+    case "acronym":
+      return term.original.toUpperCase();
+    default:
+      return term.original;
+  }
+}
+
 /**
  * Places matching what a visitor typed, best first: by tier, then by where the
  * match came from (a name before an alias, before a department, before an
@@ -251,7 +269,10 @@ export function searchPlaces(query: string, index: IndexedPlace[] = PLACE_INDEX)
         !best ||
         tierRank(tier) < tierRank(best.tier) ||
         (tier === best.tier && sourceRank(term) < sourceRank(best.matched));
-      if (better) best = within ? { place, matched: term, tier, within } : { place, matched: term, tier };
+      if (better) {
+        const result: SearchResult = { place, matched: term, tier, hint: matchHint(term) };
+        best = within ? { ...result, within } : result;
+      }
     }
     if (best) results.push(best);
   }
