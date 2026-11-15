@@ -284,3 +284,80 @@ export function searchPlaces(query: string, index: IndexedPlace[] = PLACE_INDEX)
       a.place.name.localeCompare(b.place.name),
   );
 }
+
+/** Edits a query word may be off by when suggesting: one more than search allows. */
+export function allowedSuggestionTypos(word: string): number {
+  return word.length >= 3 ? allowedTypos(word) + 1 : 0;
+}
+
+/**
+ * Added to a near miss against only the start of a word. A query is more
+ * likely a misspelling of a whole word ("gim" for "gym") than of the start of
+ * a longer one ("gim" for "gir", as in "girls dorm").
+ */
+const PARTIAL_WORD_PENALTY = 0.5;
+
+/**
+ * How far the query words are from one term, each word compared with whichever
+ * term word it's closest to; null if any word is too far off.
+ */
+function suggestionDistance(term: IndexTerm, queryWords: string[]): number | null {
+  let total = 0;
+  for (const queryWord of queryWords) {
+    const max = allowedSuggestionTypos(queryWord);
+    let closest = Infinity;
+    for (const word of term.words) {
+      if (word.startsWith(queryWord)) {
+        closest = 0;
+        break;
+      }
+      const whole = editDistance(queryWord, word, max);
+      const partial = editDistance(queryWord, word.slice(0, queryWord.length), max);
+      if (whole <= max) closest = Math.min(closest, whole);
+      if (partial <= max) closest = Math.min(closest, partial + PARTIAL_WORD_PENALTY);
+    }
+    if (closest === Infinity) return null;
+    total += closest;
+  }
+  return total;
+}
+
+/** How many suggestions to offer: they're guesses, so only the likeliest few. */
+export const MAX_SUGGESTIONS = 3;
+
+/**
+ * Close guesses for when `searchPlaces` finds nothing, so a visitor is never
+ * left at a dead end: the same typo matching with one more edit allowed per
+ * word, closest first, then by where the match came from, then alphabetically.
+ */
+export function suggestPlaces(query: string, index: IndexedPlace[] = PLACE_INDEX): SearchResult[] {
+  const normalized = normalize(query);
+  if (!normalized) return [];
+  const queryWords = significantWords(normalized.split(" "));
+
+  const scored: { result: SearchResult; distance: number }[] = [];
+  for (const { place, terms, within } of index) {
+    let best: { result: SearchResult; distance: number } | null = null;
+    for (const term of terms) {
+      const distance = suggestionDistance(term, queryWords);
+      if (distance === null) continue;
+      const better =
+        !best || distance < best.distance || (distance === best.distance && sourceRank(term) < sourceRank(best.result.matched));
+      if (better) {
+        const result: SearchResult = { place, matched: term, tier: "typo", hint: matchHint(term) };
+        best = { result: within ? { ...result, within } : result, distance };
+      }
+    }
+    if (best) scored.push(best);
+  }
+
+  return scored
+    .sort(
+      (a, b) =>
+        a.distance - b.distance ||
+        sourceRank(a.result.matched) - sourceRank(b.result.matched) ||
+        a.result.place.name.localeCompare(b.result.place.name),
+    )
+    .slice(0, MAX_SUGGESTIONS)
+    .map(({ result }) => result);
+}

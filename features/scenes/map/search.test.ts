@@ -4,12 +4,14 @@ import {
   allowedTypos,
   buildIndex,
   editDistance,
+  MAX_SUGGESTIONS,
   matchHint,
   normalize,
   PLACE_INDEX,
   RANK_TIERS,
   searchPlaces,
   significantWords,
+  suggestPlaces,
 } from "./search";
 
 describe("normalize", () => {
@@ -387,5 +389,51 @@ describe("match hints", () => {
     for (const result of searchPlaces("music")) {
       expect(result.hint).toBe(matchHint(result.matched));
     }
+  });
+});
+
+describe("suggestPlaces", () => {
+  const ids = (query: string) => suggestPlaces(query).map((result) => result.place.id);
+
+  it("suggests close matches that search alone misses", () => {
+    // "bemen" is two edits from "beaman"; search allows one for a 5-letter word.
+    expect(searchPlaces("bemen")).toEqual([]);
+    expect(ids("bemen")[0]).toBe("beaman-library");
+  });
+
+  it("allows a typo in a three-letter word", () => {
+    expect(searchPlaces("gim")).toEqual([]);
+    // Whole-word near misses ("gym") come before ones against the start of a
+    // longer word ("gymnasium", or "girls" in Elam's "girls dorm").
+    expect(ids("gim")).toEqual(["mcquiddy-gym", "student-activities-center", "gymnasium"]);
+  });
+
+  it("returns suggestions shaped like search results", () => {
+    const [suggestion] = suggestPlaces("bemen");
+    expect(suggestion).toMatchObject({ tier: "typo", hint: null, matched: { source: "name" } });
+  });
+
+  it("offers at most a few", () => {
+    expect(suggestPlaces("hal").length).toBeLessThanOrEqual(MAX_SUGGESTIONS);
+  });
+
+  it("suggests nothing for nonsense or an empty query", () => {
+    expect(suggestPlaces("zzzzzz")).toEqual([]);
+    expect(suggestPlaces("")).toEqual([]);
+  });
+
+  it("puts the closest first", () => {
+    const place = (id: string, name: string): CampusPlace => ({
+      id,
+      name,
+      kind: "building",
+      category: "academics",
+      aliases: [],
+      map: { x: 0.5, y: 0.5 },
+      geo: { lat: 36.105, lng: -86.798 },
+    });
+    // "brimley" is one edit from "bromley" and two from "bremlay".
+    const index = buildIndex([place("two", "Bremlay Hall"), place("one", "Bromley Hall")]);
+    expect(suggestPlaces("brimley", index).map((result) => result.place.id)).toEqual(["one", "two"]);
   });
 });
