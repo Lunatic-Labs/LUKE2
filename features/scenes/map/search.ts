@@ -109,7 +109,9 @@ export const PLACE_INDEX = buildIndex(CAMPUS_PLACES);
  * - `department`: each query word starts a word of a department ("history")
  * - `word-prefix`: each query word starts a word of one name, alias or acronym
  *   ("bison inn", "bcc")
- * - `typo`: close spelling; not matched yet
+ * - `typo`: each query word is within a few letters of a word of one name,
+ *   alias, department or acronym ("beeman"), or the query matches once spaces
+ *   are ignored ("checkin" for "check in")
  */
 export const RANK_TIERS = ["exact", "prefix", "department", "word-prefix", "typo"] as const;
 export type RankTier = (typeof RANK_TIERS)[number];
@@ -126,13 +128,77 @@ function wordsStartWith(term: IndexTerm, queryWords: string[]): boolean {
   return queryWords.every((queryWord) => term.words.some((word) => word.startsWith(queryWord)));
 }
 
+/**
+ * Edits a query word of this length may be off by: none for short words, where
+ * one wrong letter is usually a different word, more for long ones.
+ */
+export function allowedTypos(word: string): number {
+  if (word.length >= 8) return 2;
+  if (word.length >= 4) return 1;
+  return 0;
+}
+
+/**
+ * Edit distance between two words, counting a swap of neighbouring letters as
+ * one edit ("baemna" is one from "beaman"). Gives up and returns `max + 1` once
+ * the words can't be within `max` of each other.
+ */
+export function editDistance(a: string, b: string, max: number): number {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  // Rows of the distance table: two back, one back and the one being filled.
+  let older: number[] = [];
+  let previous = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const current = [i];
+    let rowBest = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      let value = Math.min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        value = Math.min(value, older[j - 2] + 1);
+      }
+      current.push(value);
+      rowBest = Math.min(rowBest, value);
+    }
+    if (rowBest > max) return max + 1;
+    older = previous;
+    previous = current;
+  }
+  return previous[b.length];
+}
+
+/**
+ * Whether a query word is a near miss for a term word: close to the whole
+ * word, or to as much of it as has been typed ("mcfr" while typing "mcfarland").
+ */
+function nearMiss(queryWord: string, word: string): boolean {
+  const max = allowedTypos(queryWord);
+  if (max === 0) return false;
+  return (
+    editDistance(queryWord, word, max) <= max ||
+    editDistance(queryWord, word.slice(0, queryWord.length), max) <= max
+  );
+}
+
+/** Whether every query word starts, or nearly matches, some word of the term. */
+function wordsNearlyMatch(term: IndexTerm, queryWords: string[]): boolean {
+  return queryWords.every((queryWord) =>
+    term.words.some((word) => word.startsWith(queryWord) || nearMiss(queryWord, word)),
+  );
+}
+
+const withoutSpaces = (text: string) => text.replace(/ /g, "");
+
 /** The best tier a term reaches for this query, or null if it doesn't match. */
 function tierFor(term: IndexTerm, query: string, queryWords: string[]): RankTier | null {
   const nameOrAlias = term.source === "name" || term.source === "alias";
   if (nameOrAlias && term.text === query) return "exact";
   if (nameOrAlias && term.text.startsWith(query)) return "prefix";
-  if (!wordsStartWith(term, queryWords)) return null;
-  return term.source === "department" ? "department" : "word-prefix";
+  if (wordsStartWith(term, queryWords)) return term.source === "department" ? "department" : "word-prefix";
+  // A missing or extra space ("checkin", "bell tower" as "belltower").
+  if (withoutSpaces(term.text).startsWith(withoutSpaces(query))) return "typo";
+  if (wordsNearlyMatch(term, queryWords)) return "typo";
+  return null;
 }
 
 const tierRank = (tier: RankTier) => RANK_TIERS.indexOf(tier);

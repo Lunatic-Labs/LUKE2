@@ -1,5 +1,14 @@
 import { CAMPUS_PLACES, type CampusPlace } from "./buildings";
-import { acronym, buildIndex, normalize, PLACE_INDEX, RANK_TIERS, searchPlaces } from "./search";
+import {
+  acronym,
+  allowedTypos,
+  buildIndex,
+  editDistance,
+  normalize,
+  PLACE_INDEX,
+  RANK_TIERS,
+  searchPlaces,
+} from "./search";
 
 describe("normalize", () => {
   it.each([
@@ -209,6 +218,68 @@ describe("searchPlaces", () => {
       "rose-annex",
       "rose-hall",
       "by-alias",
+    ]);
+  });
+});
+
+describe("allowedTypos", () => {
+  it.each([
+    ["gym", 0],
+    ["caf", 0],
+    ["bison", 1],
+    ["shamblin", 2],
+  ])("allows %s %i edits", (word, expected) => {
+    expect(allowedTypos(word)).toBe(expected);
+  });
+});
+
+describe("editDistance", () => {
+  it.each([
+    ["beaman", "beaman", 0],
+    ["beeman", "beaman", 1],
+    ["beman", "beaman", 1],
+    ["beamman", "beaman", 1],
+    ["baeman", "beaman", 1],
+    ["mcfralnd", "mcfarland", 2],
+  ])("puts %s at %i from %s", (a, b, expected) => {
+    expect(editDistance(a, b, 3)).toBe(expected);
+  });
+
+  it("gives up past the limit", () => {
+    expect(editDistance("beaman", "shamblin", 1)).toBe(2);
+    expect(editDistance("a", "abcdef", 2)).toBe(3);
+  });
+});
+
+describe("searchPlaces typo tier", () => {
+  const first = (query: string) => searchPlaces(query)[0];
+
+  it.each([
+    ["beeman", "beaman-library"],
+    ["baeman library", "beaman-library"],
+    ["mcfralnd", "mcfarland-science-center"],
+    ["shamblim", "shamblin-theatre"],
+  ])("finds %s despite the typo", (query, id) => {
+    expect(first(query)).toMatchObject({ tier: "typo", place: { id } });
+  });
+
+  it("allows a typo in a word that's only partly typed", () => {
+    expect(first("mcfr")).toMatchObject({ tier: "typo", place: { id: "mcfarland-science-center" } });
+  });
+
+  it("finds a phrase typed without its space", () => {
+    expect(first("checkin")).toMatchObject({ tier: "typo", place: { id: "george-shinn-center" } });
+  });
+
+  it("allows no typos in short words", () => {
+    expect(searchPlaces("gim")).toEqual([]);
+  });
+
+  it("ranks typo matches after real ones", () => {
+    // "ward" is Ward Hall's alias, and one edit from "hard", the start of Harding.
+    expect(searchPlaces("ward").map((result) => [result.place.id, result.tier])).toEqual([
+      ["ward-hall", "exact"],
+      ["harding-hall", "typo"],
     ]);
   });
 });
