@@ -107,7 +107,7 @@ describe("KioskShell", () => {
 
     expect(menu.getAllByRole("button").map((button) => button.textContent)).toEqual([
       "Home",
-      "Faculty",
+      "Directory",
       "Video",
       "Map",
       "Camera",
