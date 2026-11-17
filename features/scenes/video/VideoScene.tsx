@@ -174,7 +174,6 @@ function VideoPlayer({ videos, handle }: VideoPlayerProps) {
               }}
               className="h-full w-full object-contain"
             />
-            <VideoProgress key={'progress-${current.file}'} videoRef={videoRef} />
           </>
           )}
 
