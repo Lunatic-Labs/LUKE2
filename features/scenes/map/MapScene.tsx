@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { OnScreenKeyboard } from "@/components/OnScreenKeyboard";
 import { SceneFrame } from "@/components/SceneFrame";
+import { OnScreenSearchKeyboard } from "@/components/OnScreenSearchKeyboard";
 import { useKioskOptions } from "@/features/kiosk/options-context";
 import type { SceneComponentProps } from "@/features/kiosk/types";
 import {
@@ -208,54 +208,15 @@ export function MapScene({ handle }: SceneComponentProps) {
             )}
           </div>
 
-          <div className="shrink-0 space-y-2 border-t border-zinc-200 bg-white p-3">
-            <div className="mx-auto flex w-full max-w-3xl gap-2">
-              <input
-                type="search"
-                aria-label="Search campus locations"
-                aria-controls="map-search-keyboard"
-                placeholder="Search campus locations"
-                value={searchQuery}
-                readOnly
-                onClick={() => {
-                  handle.reportActivity();
-                  setKeyboardOpen(true);
-                }}
-                className="min-w-0 flex-1 rounded-md border border-zinc-300 px-3 py-2 text-zinc-900 placeholder:text-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--luke-purple)]"
-              />
-              <button
-                type="button"
-                aria-label={keyboardOpen ? "Hide keyboard" : "Show keyboard"}
-                aria-controls="map-search-keyboard"
-                aria-expanded={keyboardOpen}
-                onClick={() => {
-                  handle.reportActivity();
-                  setKeyboardOpen((open) => !open);
-                }}
-                className="rounded-md border border-[var(--luke-purple)] px-4 font-medium text-[var(--luke-purple)]"
-              >
-                {keyboardOpen ? "Hide" : "Search"}
-              </button>
-            </div>
-            <div id="map-search-keyboard" hidden={!keyboardOpen}>
-              {keyboardOpen && (
-                <OnScreenKeyboard
-                  onKey={(key) => {
-                    handle.reportActivity();
-                    setSearchQuery((query) => query + key);
-                  }}
-                  onBackspace={() => {
-                    handle.reportActivity();
-                    setSearchQuery((query) => query.slice(0, -1));
-                  }}
-                  onClear={() => {
-                    handle.reportActivity();
-                    setSearchQuery("");
-                  }}
-                />
-              )}
-            </div>
-          </div>
+          <OnScreenSearchKeyboard
+            value={searchQuery}
+            onChange={setSearchQuery}
+            open={keyboardOpen}
+            onOpenChange={setKeyboardOpen}
+            onActivity={handle.reportActivity}
+            label="Search campus locations"
+            placeholder="Search campus locations"
+          />
         </>
       )}
     </SceneFrame>
