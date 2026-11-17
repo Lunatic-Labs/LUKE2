@@ -8,3 +8,5 @@ Nothing here knows about a specific scene.
 - `SceneFrame.tsx` — layout wrapper giving a scene its drawing area.
 - `ScenePlaceholder.tsx` — stand-in panel for a scene that is registered but
   not yet built.
+- `OnScreenKeyboard.tsx` — touch-friendly QWERTY keyboard with key, backspace
+  and clear callbacks.
