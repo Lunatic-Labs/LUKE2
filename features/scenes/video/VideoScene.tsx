@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { SceneFrame } from "@/components/SceneFrame";
 import type { SceneComponentProps } from "@/features/kiosk/types";
 import { toKioskVideo, type KioskVideo } from "./videos";
+import { VideoProgress } from "./VideoProgress";
 import { wrapIndex } from "@/features/kiosk/wrapIndex";
 
 /**
@@ -158,6 +159,7 @@ function VideoPlayer({ videos, handle }: VideoPlayerProps) {
             </span>
           ) : (
             // The key remounts the element on change, so each video starts from the beginning.
+          <>
             <video
               key={current.file}
               ref={videoRef}
@@ -173,6 +175,7 @@ function VideoPlayer({ videos, handle }: VideoPlayerProps) {
               }}
               className="h-full w-full object-contain"
             />
+          </>
           )}
 
           {!playing && !failed ? (
@@ -182,6 +185,17 @@ function VideoPlayer({ videos, handle }: VideoPlayerProps) {
             </span>
           ) : null}
         </button>
+
+          {!failed ? (
+          <VideoProgress
+            key={`progress-${current.file}`}
+            videoRef={videoRef}
+            onSeek={() => {
+              handle.reportActivity();
+              setAutoplaying(false);
+            }}
+          />
+        ) : null}
 
         <ThumbnailButton label="Next" video={next} direction="down" onClick={() => changeVideo(1)} />
       </div>
