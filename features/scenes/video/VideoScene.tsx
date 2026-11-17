@@ -5,6 +5,7 @@ import { SceneFrame } from "@/components/SceneFrame";
 import type { SceneComponentProps } from "@/features/kiosk/types";
 import { toKioskVideo, type KioskVideo } from "./videos";
 import { VideoProgress } from "./VideoProgress";
+import { wrapIndex } from "@/features/kiosk/wrapIndex";
 
 /**
  * L.U.K.E. Video Player
@@ -81,8 +82,8 @@ function VideoPlayer({ videos, handle }: VideoPlayerProps) {
 
   const count = videos.length;
   const current = videos[index];
-  const previous = videos[(index - 1 + count) % count];
-  const next = videos[(index + 1) % count];
+  const previous = videos[wrapIndex(index, -1, count)];
+  const next = videos[wrapIndex(index, 1, count)];
   const failed = failedFile === current.file;
 
   // Keep the kiosk awake while a visitor watches a video they chose.
@@ -101,7 +102,7 @@ function VideoPlayer({ videos, handle }: VideoPlayerProps) {
         video.play()?.catch(() => setPlaying(false));
       }
     } else {
-      setIndex((i) => (i + step + count) % count);
+      setIndex((i) => wrapIndex(i, step, count));
     }
   }
 

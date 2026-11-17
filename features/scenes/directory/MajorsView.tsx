@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MAJORS } from "./majors";
+import { wrapIndex } from "@/features/kiosk/wrapIndex";
 
 /**
  * L.U.K.E. Majors, ported from DirectoryMajors.pde (MajorsDisplayScene).
@@ -27,7 +28,7 @@ export function MajorsView({ onBack, onActivity }: MajorsViewProps) {
 
   function shiftMajor(step: number) {
     onActivity();
-    setIndex((i) => (i + step + count) % count);
+    setIndex((i) => wrapIndex(i, step, count));
   }
 
   return (
