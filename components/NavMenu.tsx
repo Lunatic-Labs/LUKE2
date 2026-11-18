@@ -3,18 +3,19 @@
 import { useEffect, useState, type CSSProperties } from "react";
 
 /**
- * Drop-down scene menu, opened by the hamburger button under the header's shield.
+ * Drop-down scene menu, opened by the hamburger button in the header's
+ * bottom-right corner.
  *
  * Not in the Processing build, which only had the bottom bar's previous/next
- * arrows. It hangs from the top-left of the scene area as an off-white panel
- * with a purple edge, over whatever scene is showing, and lists one pill
- * button per page.
+ * arrows. It hangs from the top-right of the scene area, under the button, as
+ * an off-white panel with a purple edge, over whatever scene is showing, and
+ * lists one pill button per page.
  *
  * It stays mounted while closed so it can animate both ways: opening grows the
  * panel down from the header, closing shrinks it back up. Its height is what
  * animates, so the purple bottom edge and rounded corner stay drawn the whole
  * way and the buttons are uncovered behind them. Meanwhile the buttons slide
- * in from the left edge of the screen in a wave, top first, so each arrives as
+ * in from the right edge of the screen in a wave, top first, so each arrives as
  * the panel's edge reaches it; closing reverses the wave, bottom first.
  *
  * The buttons ignore taps until the opening animation has finished. While
@@ -76,7 +77,7 @@ export function NavMenu({ open, items, currentId, onSelect }: NavMenuProps) {
       // content's natural height. `visibility` is in the transition so a
       // closing menu stays visible until it has shrunk, then drops out of
       // hit-testing.
-      className={`absolute top-0 left-0 z-20 grid w-[48%] rounded-br-2xl border-r-2 border-b-2 border-[var(--luke-purple)] bg-[var(--luke-off-white)] px-[4%] select-none transition-[grid-template-rows,visibility] ease-out motion-reduce:transition-none ${
+      className={`absolute top-0 right-0 z-20 grid w-[48%] rounded-bl-2xl border-b-[length:clamp(3px,0.7vw,6px)] border-l-[length:clamp(3px,0.7vw,6px)] border-[var(--luke-purple)] bg-[var(--luke-off-white)] px-[4%] select-none transition-[grid-template-rows,visibility] ease-out motion-reduce:transition-none ${
         open ? "visible grid-rows-[1fr]" : "invisible grid-rows-[0fr]"
       }`}
       style={{ transitionDuration: `${NAV_MENU_ANIMATION_MS}ms` }}
@@ -103,8 +104,8 @@ export function NavMenu({ open, items, currentId, onSelect }: NavMenuProps) {
                   "--wave-duration": `${BUTTON_SLIDE_MS}ms`,
                 } as CSSProperties
               }
-              className={`w-full rounded-full border-2 border-[var(--luke-purple)] bg-[var(--luke-lavender)] py-[clamp(0.125rem,0.6dvh,0.5rem)] shadow-[0_4px_4px_rgb(0_0_0/0.25)] text-[clamp(0.875rem,4.3vw,2rem)] leading-tight font-bold text-[var(--luke-purple)] transition-[translate,filter] ease-out [transition-delay:var(--wave-delay),0s] [transition-duration:var(--wave-duration),150ms] motion-reduce:transition-none active:brightness-90 ${
-                open ? "translate-x-0" : "-translate-x-[150%]"
+              className={`w-full rounded-full border-[length:clamp(3px,0.7vw,6px)] border-[var(--luke-purple)] bg-[var(--luke-lavender)] py-[clamp(0.125rem,0.6dvh,0.5rem)] shadow-[0_4px_4px_rgb(0_0_0/0.25)] text-[clamp(0.875rem,4.3vw,2rem)] leading-tight font-bold text-[var(--luke-purple)] transition-[translate,filter] ease-out [transition-delay:var(--wave-delay),0s] [transition-duration:var(--wave-duration),150ms] motion-reduce:transition-none active:brightness-90 ${
+                open ? "translate-x-0" : "translate-x-[150%]"
               }`}
             >
               {item.label}
