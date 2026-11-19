@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { SceneFrame } from "@/components/SceneFrame";
+import { OnScreenSearchKeyboard } from "@/components/OnScreenSearchKeyboard";
 import { useKioskOptions } from "@/features/kiosk/options-context";
 import type { SceneComponentProps } from "@/features/kiosk/types";
 import {
@@ -37,8 +38,16 @@ export function MapScene({ handle }: SceneComponentProps) {
   const kiosk = useMemo(() => kioskLocation(kioskId), [kioskId]);
   const [selected, setSelected] = useState<CampusBuilding | null>(null);
   const [showKey, setShowKey] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [mapBox, setMapBox] = useState({ width: 0, height: 0 });
+  const searchResults = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return query
+      ? CAMPUS_BUILDINGS.filter((building) => building.name.toLowerCase().includes(query))
+      : [];
+  }, [searchQuery]);
 
   // The map's own rendered rectangle within the (possibly differently-shaped)
   // scene area — letterboxed to MAP_ASPECT_RATIO rather than stretched.
@@ -79,6 +88,13 @@ export function MapScene({ handle }: SceneComponentProps) {
     setShowKey(false);
   }
 
+  function selectFromSearch(building: CampusBuilding) {
+    handle.reportActivity();
+    setSelected(building);
+    setSearchQuery(building.name);
+    setKeyboardOpen(false);
+  }
+
   return (
     <SceneFrame>
       <div className="flex items-center justify-between gap-2 px-4 py-2">
@@ -90,6 +106,7 @@ export function MapScene({ handle }: SceneComponentProps) {
           onClick={() => {
             handle.reportActivity();
             setShowKey((current) => !current);
+            setKeyboardOpen(false);
           }}
           className="rounded-full border border-[var(--luke-purple)] px-4 py-1 text-sm font-medium text-[var(--luke-purple)]"
         >
@@ -112,58 +129,95 @@ export function MapScene({ handle }: SceneComponentProps) {
           ))}
         </ul>
       ) : (
-        <div ref={containerRef} className="relative flex-1 overflow-hidden bg-zinc-50">
-          {mapBox.width > 0 && (
-            <div
-              onClick={handleMapClick}
-              role="presentation"
-              className="relative mx-auto"
-              style={{ width: mapBox.width, height: mapBox.height }}
-            >
-              <Image
-                src="/map/LUJustMap.jpg"
-                alt="Lipscomb University campus map"
-                fill
-                sizes="100vw"
-                priority
-              />
-
-              <Image
-                src="/map/markerTransparent.png"
-                alt="You are here"
-                width={30}
-                height={30}
-                style={{ left: `${kiosk.x * 100}%`, top: `${kiosk.y * 100}%` }}
-                className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
-              />
-
-              {selected && (
-                <span
-                  aria-hidden="true"
-                  // fill(205, 0, 205) in display_map() — the magenta selection dot.
-                  style={{
-                    left: `${selected.x * 100}%`,
-                    top: `${selected.y * 100}%`,
-                    background: "rgb(205, 0, 205)",
-                  }}
-                  className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow"
+        <>
+          <div ref={containerRef} className="relative min-h-0 flex-1 overflow-hidden bg-zinc-50">
+            {mapBox.width > 0 && (
+              <div
+                onClick={handleMapClick}
+                role="presentation"
+                className="relative mx-auto"
+                style={{ width: mapBox.width, height: mapBox.height }}
+              >
+                <Image
+                  src="/map/LUJustMap.jpg"
+                  alt="Lipscomb University campus map"
+                  fill
+                  sizes="100vw"
+                  priority
                 />
-              )}
-            </div>
-          )}
 
-          <div className="absolute inset-x-3 bottom-3 rounded-lg bg-[var(--luke-purple)]/95 p-3 text-center text-white shadow-lg">
-            {selected ? (
-              <p className="font-semibold text-[var(--luke-gold)]">
-                Currently displaying:
-                <br />
-                {selected.name}
-              </p>
-            ) : (
-              <p className="text-sm">Touch a building to display</p>
+                <Image
+                  src="/map/markerTransparent.png"
+                  alt="You are here"
+                  width={30}
+                  height={30}
+                  style={{ left: `${kiosk.x * 100}%`, top: `${kiosk.y * 100}%` }}
+                  className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2"
+                />
+
+                {selected && (
+                  <span
+                    aria-hidden="true"
+                    // fill(205, 0, 205) in display_map() — the magenta selection dot.
+                    style={{
+                      left: `${selected.x * 100}%`,
+                      top: `${selected.y * 100}%`,
+                      background: "rgb(205, 0, 205)",
+                    }}
+                    className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow"
+                  />
+                )}
+              </div>
+            )}
+
+            {keyboardOpen && searchQuery.trim() && (
+              <div className="absolute inset-x-3 bottom-3 max-h-40 overflow-y-auto rounded-lg bg-white shadow-lg">
+                {searchResults.length ? (
+                  <ul aria-label="Search results">
+                    {searchResults.map((building) => (
+                      <li key={building.id}>
+                        <button
+                          type="button"
+                          onClick={() => selectFromSearch(building)}
+                          className="w-full border-b border-zinc-100 px-4 py-2 text-left font-medium text-[var(--luke-purple)] last:border-b-0"
+                        >
+                          {building.name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="p-3 text-center text-sm text-zinc-600">No locations found</p>
+                )}
+              </div>
+            )}
+
+            {selected && !(keyboardOpen && searchQuery.trim()) && (
+              <div className="absolute inset-x-3 bottom-3 rounded-lg bg-[var(--luke-purple)]/95 p-3 text-center text-white shadow-lg">
+                <p className="font-semibold text-[var(--luke-gold)]">
+                  Currently displaying:
+                  <br />
+                  {selected.name}
+                </p>
+              </div>
+            )}
+            {!selected && !(keyboardOpen && searchQuery.trim()) && (
+              <div className="absolute inset-x-3 bottom-3 rounded-lg bg-[var(--luke-purple)]/95 p-3 text-center text-white shadow-lg">
+                <p className="text-sm">Touch a building to display</p>
+              </div>
             )}
           </div>
-        </div>
+
+          <OnScreenSearchKeyboard
+            value={searchQuery}
+            onChange={setSearchQuery}
+            open={keyboardOpen}
+            onOpenChange={setKeyboardOpen}
+            onActivity={handle.reportActivity}
+            label="Search campus locations"
+            placeholder="Search campus locations"
+          />
+        </>
       )}
     </SceneFrame>
   );

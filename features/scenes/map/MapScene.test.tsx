@@ -67,6 +67,51 @@ describe("MapScene", () => {
     expect(selectionBanner()).not.toBeInTheDocument();
   });
 
+  it("opens the QWERTY keyboard under search and selects a matching location", () => {
+    renderScene();
+    const search = screen.getByRole("searchbox", { name: "Search campus locations" });
+
+    expect(screen.queryByRole("group", { name: "On-screen keyboard" })).not.toBeInTheDocument();
+    fireEvent.click(search);
+
+    const keyboard = screen.getByRole("group", { name: "On-screen keyboard" });
+    expect(search.compareDocumentPosition(keyboard) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    for (const key of "allen arena") {
+      fireEvent.click(
+        within(keyboard).getByRole("button", {
+          name: key === " " ? "Space" : key.toUpperCase(),
+        }),
+      );
+    }
+
+    const arena = building("allen-arena");
+    fireEvent.click(screen.getByRole("button", { name: arena.name }));
+
+    expect(search).toHaveValue(arena.name);
+    expect(screen.queryByRole("group", { name: "On-screen keyboard" })).not.toBeInTheDocument();
+    expect(selectionBanner()).toHaveTextContent(arena.name);
+  });
+
+  it("toggles the on-screen keyboard without clearing the search", () => {
+    const handle = renderScene();
+    const search = screen.getByRole("searchbox", { name: "Search campus locations" });
+
+    fireEvent.click(search);
+    const keyboard = screen.getByRole("group", { name: "On-screen keyboard" });
+    fireEvent.click(within(keyboard).getByRole("button", { name: "A" }));
+    fireEvent.click(screen.getByRole("button", { name: "Hide keyboard" }));
+
+    expect(search).toHaveValue("a");
+    expect(screen.queryByRole("group", { name: "On-screen keyboard" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show keyboard" }));
+
+    expect(screen.getByRole("group", { name: "On-screen keyboard" })).toBeInTheDocument();
+    expect(search).toHaveValue("a");
+    expect(handle.reportActivity).toHaveBeenCalledTimes(4);
+  });
+
   /** The "You are here" pin's position, as CSS percentages of the map. */
   function pinPosition() {
     const { left, top } = screen.getByAltText("You are here").style;
