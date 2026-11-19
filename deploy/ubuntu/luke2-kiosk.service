@@ -1,0 +1,37 @@
+[Unit]
+Description=L.U.K.E. 2 kiosk session (cage compositor running ~/kiosk.sh)
+Wants=luke2-web.service
+After=luke2-web.service
+
+[Service]
+# Run cage as a full boot session on tty5 — the text console reachable with
+# Ctrl+Alt+F5. cage takes over that VT and turns it into the kiosk display.
+# PAMName=login gives lukeuser a logind seat, so cage gets access to the
+# graphics device (DRM) without GDM or a desktop environment.
+User=lukeuser
+PAMName=login
+Environment=HOME=/home/lukeuser
+WorkingDirectory=/home/lukeuser
+TTYPath=/dev/tty5
+StandardInput=tty
+StandardOutput=journal
+StandardError=journal
+UtmpIdentifier=tty5
+
+# Wait until the web service answers, so the browser never lands on a
+# connection error right after boot (up to ~60s).
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 60); do curl -sf http://127.0.0.1:3000/ >/dev/null && exit 0; sleep 1; done; echo "luke2 web service did not come up" >&2; exit 1'
+
+# kiosk.sh rotates the display (wlr-randr) and execs Chrome in kiosk mode.
+# -d: do NOT close cage when someone presses Escape — the only way out is
+# killing the service as root.
+ExecStart=/usr/bin/cage -d -- /home/lukeuser/kiosk.sh
+
+# If cage or Chrome dies for any reason, bring the whole session back.
+Restart=always
+RestartSec=5
+TTYReset=yes
+TTYVTDisallocate=yes
+
+[Install]
+WantedBy=multi-user.target

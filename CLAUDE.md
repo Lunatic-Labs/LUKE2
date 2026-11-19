@@ -15,7 +15,11 @@ npx jest path/to/file.test.ts     # single file
 npx jest -t "test name substring" # single test by name
 docker compose -f docker-compose.dev.yml up     # dev in a container, hot reload via bind mount
 docker compose up --build                       # production image
+sudo ./deploy/ubuntu/setup.sh          # Ubuntu kiosk appliance: build + install systemd services (run on the kiosk machine)
+sudo ./deploy/ubuntu/setup.sh refresh  # rebuild + redeploy an existing kiosk install
 ```
+
+For the Ubuntu boot-to-kiosk setup (systemd services, the cage Wayland kiosk compositor, no desktop/GDM), see [deploy/ubuntu/README.md](deploy/ubuntu/README.md).
 
 `RAPIDAPI_KEY` is expected in `.env.local` (see `.env.local.example`) for any feature that calls the RapidAPI news endpoints — not currently wired into any route in this boilerplate state.
 

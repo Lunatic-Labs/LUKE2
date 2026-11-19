@@ -1,0 +1,31 @@
+[Unit]
+Description=L.U.K.E. 2 web app (Next.js standalone server)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=lukeuser
+# The repo's standalone build (public/ and .next/static are copied into it
+# by setup.sh). Hardcoded home-based path so nothing depends on cwd.
+WorkingDirectory=/home/lukeuser/Desktop/L.U.K.E./L.U.K.E/LUKE2/.next/standalone
+Environment=NODE_ENV=production
+Environment=PORT=3000
+Environment=HOSTNAME=127.0.0.1
+# Camera-scene photos and trivia scores live outside the repo so rebuilds
+# keep them (same treatment as the camera-pics / trivia-scores volumes in
+# docker-compose.yml)
+Environment=CAMERA_DIR=/home/lukeuser/luke2-data/camera-pics
+Environment=TRIVIA_SCORES_DIR=/home/lukeuser/luke2-data/trivia-scores
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=3
+
+# Hardening: app source is read-only to the service; only the data dirs are
+# writable. ProtectHome must stay off "true" because the app lives in /home.
+NoNewPrivileges=true
+ProtectHome=read-only
+ReadWritePaths=/home/lukeuser/luke2-data/camera-pics /home/lukeuser/luke2-data/trivia-scores
+
+[Install]
+WantedBy=multi-user.target
