@@ -275,12 +275,17 @@ photo shows up without a rebuild or restart.
 ### [features/scenes/gallery/GalleryScene.tsx](../gallery/GalleryScene.tsx)
 
 The gallery scene. It loads the list once each time it appears, shuffles it,
-and shows a 3-column grid; tapping a picture enlarges it. It doesn't treat
-camera photos differently from the built-in pictures. They're just URLs that
-point at `/api/photos/…`.
+and shows a grid (3 per row in portrait, 5 in landscape); tapping a picture
+enlarges it in a purple box that the X or a tap outside the box closes. It
+doesn't treat camera photos differently from the built-in pictures. They're
+just URLs that point at `/api/photos/…`. The enlarged view loads the same URL
+as the tapped cell, at a larger size.
 
 A photo taken while the gallery is already open won't appear until the
-visitor leaves and returns to it.
+visitor leaves and returns to it. A photo that fails to load (a corrupt file,
+or one deleted after the list was fetched) is dropped from the grid, and the
+enlarged view closes if it was showing it. If the list itself can't be
+fetched, the scene says so instead of claiming there are no photos.
 
 ### [features/kiosk/registry.ts](../../kiosk/registry.ts)
 
@@ -421,13 +426,23 @@ and that other files (`notes.txt`, `../package.json`) are never served.
 ### [app/api/gallery/route.test.ts](../../../app/api/gallery/route.test.ts)
 
 Checks that the list includes the built-in `public/gallery` pictures and,
-after a photo is saved, that photo's `/api/photos/…` URL.
+after a photo is saved, that photo's `/api/photos/…` URL. Also that only
+image files are listed from `public/gallery` (URL-encoded, sorted), that only
+files named like camera photos are listed from `CAMERA_DIR`, that camera
+photos come oldest first after the built-in pictures, that a missing camera
+folder still lists the built-in pictures, and that a deleted photo leaves the
+next list.
 
 ### [GalleryScene.test.tsx](../gallery/GalleryScene.test.tsx)
 
-Covers the gallery side: the loading message, one grid cell per picture once
-the list arrives, and enlarging a picture on tap and closing it on a second
-tap.
+Covers the gallery side: the loading message; one grid cell per picture once
+the list arrives; an empty list; a list that can't be fetched, answers with an
+error status or is malformed; the shuffle (every picture exactly once); the
+URLs and `sizes` the grid and the enlarged view request; pictures that fail
+to load; the grid and enlarged-box styling; opening a picture, and closing it
+with the X or a tap outside the box but not a tap on the photo or its border;
+and leaving and returning to the scene, which picks up added and deleted
+photos.
 
 ## Who can reach the photo routes
 
@@ -456,6 +471,10 @@ Trade-offs in the current design, and what hasn't been checked:
 - **Uploads without a snapshot key are still saved every time.** This keeps
   older clients working, but anything that skips the headers (such as
   `curl`) can still create copies.
+- **Uploads are only checked for a JPEG header.** `POST /api/photos` accepts
+  any body that starts with `FF D8 FF`, so a truncated or otherwise corrupt
+  JPEG is saved and listed. The gallery hides a photo that fails to load, but
+  the file stays on disk.
 - **Only the same snapshot is recognised as a duplicate.** Two snapshots of
   the same picture are saved twice; the server doesn't compare image data.
 - **A repeat upload with different image data is ignored.** The first copy

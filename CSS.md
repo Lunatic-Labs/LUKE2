@@ -10,7 +10,7 @@ This restyle brings the kiosk in line with the design mockup: a purple branded h
 | `--luke-lavender`  | `#C9C3D5` | Content background, navigation buttons             |
 | `--luke-lilac`     | `#8F7EB3` | Header subtitle and menu button, welcome-screen tint |
 | `--luke-gold`      | `#F4AA00` | Header "L.U.K.E." title, shield, map highlights   |
-| `--luke-grey`      | `#D9D9D9` | unused                                            |
+| `--luke-grey`      | `#D9D9D9` | Gallery background                                |
 
 The welcome screen's gradients also use `#3E364D`, a dark purple-grey. It appears only in that one gradient, so it is written inline rather than added as a token.
 
@@ -106,6 +106,25 @@ Restyled to match the camera mockup, and given new controls from it: a filters b
 - The preview card sits inside the live preview rather than over the whole screen, so the capture and snapshot buttons stay usable while it is open.
 - Equal grid columns keep the capture button exactly centred, whether or not the thumbnail holds a photo, so nothing shifts when the first picture is taken.
 
+### `features/scenes/gallery/GalleryScene.tsx`
+
+Restyled to match the gallery mockup, and given a new enlarged view.
+
+- **Background:** the scene is `bg-[var(--luke-grey)]`. It is opaque, so it covers the shell's skyline on this page.
+- **Grid:** square cells, 3 per row in portrait and 5 in landscape (`landscape:` variant). The gap between cells, and around the grid's edge, is a `--gap` custom property of `clamp(0.5rem, 3vw, 2rem)`; each cell's width is `calc((100% - 2*var(--gap)) / 3)` (or `4*` and `/5` in landscape), so the gaps are taken out before the row is divided. It is still a flex-wrap, not a CSS grid, for the reason given in the code: grid rows were sizing off the leftover height and squashing the square cells.
+- **Cells:** rounded corners (`clamp(0.5rem, 2.5vw, 1.5rem)`), a purple border (`--luke-purple`, `clamp(2px, 0.6vw, 5px)` thick), a white fill behind the photo, a soft drop shadow, and `active:brightness-90` while pressed, like the bottom bar's arrows. The photo is `object-cover`.
+- **Enlarged view:** tapping a cell opens the photo in a purple card over the grid, following the mockup. The grid behind it is dimmed by `bg-black/50`, which is also a tap-to-close area. The card has fixed 5:6 proportions (`aspect-[5/6]`) in either orientation and is as large as fits in 85% of the scene's width and height (the dimmed layer is a size container, so the card's width is `min(85cqw, calc(85cqh*5/6))`). The card is itself a container, and its border, corners, footer and X are sized in `cqw`, so they scale with it. The photo fills the card above a footer (`object-cover`, white behind it, smaller rounded corners); the footer holds a lavender X at the bottom right that darkens while pressed. Only the X and the dimmed area close it; taps on the photo or the purple border are ignored. It replaced an enlarged view with a gold border and a white mat.
+- **Messages:** the loading, empty and error messages are centred `text-zinc-600` at `clamp(1rem, 3vw, 1.75rem)`, so they scale with the screen too.
+
+**Why:**
+- The grey background and purple-bordered cells follow the mockup; the photos are the only colourful part of the page.
+- Every size is a `clamp()` of the viewport (or of the card, in the enlarged view), so one layout works from a phone-sized kiosk up to a large display, with a floor and a ceiling so borders never vanish or get chunky.
+- Three squares across a landscape screen would each be most of the screen's height, so landscape shows five.
+- Fixed proportions keep the enlarged card the same shape whichever way the screen is turned; sizing it from the scene rather than the viewport keeps it clear of the header and bottom bar.
+- The dimmed layer and the card stop at the scene's edges (`absolute`, not `fixed`), so the header and bottom bar stay undimmed and usable, as in the mockup.
+
+**Known limitation:** `object-cover` crops any photo that isn't 5:6 to fill the enlarged card. Most of the shipped pictures in `public/gallery` are wide (around 3:2), so their sides are cut off, and the logos and the feedback QR code lose part of their edges. Many are also small (275×183 and similar), so the enlarged view scales them up and they look soft on large screens. `object-contain` would show whole pictures, with empty bands around those of other shapes.
+
 ### `features/scenes/board/BoardScene.tsx`
 
 Partly restyled to the drawing mockup. Full details are in the scene's [README](features/scenes/board/README.md).
@@ -192,6 +211,12 @@ Partly restyled to the drawing mockup. Full details are in the scene's [README](
 | Drawing  | `board`     | Draw                 |
 | Quizzes  | `trivia`    | Test Your Knowledge  |
 | Feedback | `feedback`  | Leave Some Feedback? |
+
+### `features/scenes/gallery/GalleryScene.test.tsx`
+
+- The single "enlarges a photo on tap and dismisses it on a second tap" test was split into separate tests for opening, closing with the X, closing with a tap outside the box, and staying open on a tap on the photo or its purple border.
+- **Added** tests for the solid background, the cell styling (spacing, rounded corners, border, three per row) and the enlarged box's 5:6 proportions. jsdom does no layout, so these check the classes; the look itself has not yet been checked in a browser.
+- **Added** tests for loading and failure cases (empty list, listing that can't be fetched, error status, malformed body, duplicate URLs, photos that fail to load), the shuffle, the image URLs and `sizes`, and leaving and returning to the scene. They're described in `features/scenes/camera/README.md`.
 
 ### `features/kiosk/components/KioskShell.test.tsx`
 

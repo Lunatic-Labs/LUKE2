@@ -28,20 +28,37 @@ function shuffle<T>(items: T[]): T[] {
   return shuffled;
 }
 
+/** The listing's `images`, or null if the body isn't a list of URL strings. */
+function parseListing(data: unknown): string[] | null {
+  const images = (data as { images?: unknown } | null)?.images;
+  if (!Array.isArray(images) || !images.every((src) => typeof src === "string")) return null;
+  // Duplicates would collide as React keys; the API never sends any, but a
+  // hand-placed copy shouldn't break the grid.
+  return [...new Set(images as string[])];
+}
+
 export function GalleryScene({ handle }: SceneComponentProps) {
   const [images, setImages] = useState<string[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  /** Photos whose file failed to load: corrupt, or deleted since the listing. */
+  const [broken, setBroken] = useState<ReadonlySet<string>>(() => new Set());
   const [selected, setSelected] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     fetch("/api/gallery")
-      .then((response) => response.json())
-      .then((data: { images: string[] }) => {
-        if (!cancelled) setImages(shuffle(data.images));
+      .then((response) => {
+        if (!response.ok) throw new Error(`Gallery listing failed: ${response.status}`);
+        return response.json();
+      })
+      .then((data: unknown) => {
+        const listing = parseListing(data);
+        if (!listing) throw new Error("Gallery listing is malformed");
+        if (!cancelled) setImages(shuffle(listing));
       })
       .catch(() => {
-        if (!cancelled) setImages([]);
+        if (!cancelled) setLoadFailed(true);
       });
 
     return () => {
@@ -59,14 +76,25 @@ export function GalleryScene({ handle }: SceneComponentProps) {
     setSelected(null);
   }
 
+  /** Drops a photo that won't load from the grid, and closes it if enlarged. */
+  function markBroken(src: string) {
+    setBroken((previous) => new Set(previous).add(src));
+    setSelected((current) => (current === src ? null : current));
+  }
+
+  const visible = images?.filter((src) => !broken.has(src)) ?? null;
+  const messageClass = "m-auto px-4 text-center text-[clamp(1rem,3vw,1.75rem)] text-zinc-600";
+
   return (
     // The solid background covers the shell's skyline, which sits underneath
     // every scene.
     <SceneFrame className="relative bg-[var(--luke-grey)]">
-      {images === null ? (
-        <p className="m-auto text-[clamp(1rem,3vw,1.75rem)] text-zinc-600">Loading gallery&hellip;</p>
-      ) : images.length === 0 ? (
-        <p className="m-auto text-[clamp(1rem,3vw,1.75rem)] text-zinc-600">No photos yet.</p>
+      {loadFailed ? (
+        <p className={messageClass}>The gallery couldn&rsquo;t be loaded. Please try again later.</p>
+      ) : visible === null ? (
+        <p className={messageClass}>Loading gallery&hellip;</p>
+      ) : visible.length === 0 ? (
+        <p className={messageClass}>No photos yet.</p>
       ) : (
         <div className="flex-1 overflow-y-auto p-[var(--gap)] [--gap:clamp(0.5rem,3vw,2rem)]">
           {/* A CSS grid's "auto" rows size off the container's leftover
@@ -78,7 +106,7 @@ export function GalleryScene({ handle }: SceneComponentProps) {
               relative to the viewport so the grid scales with the screen:
               3 cells per row in portrait, 5 in landscape. */}
           <div className="flex flex-wrap gap-[var(--gap)]">
-            {images.map((src, index) => (
+            {visible.map((src, index) => (
               <button
                 key={src}
                 type="button"
@@ -92,6 +120,7 @@ export function GalleryScene({ handle }: SceneComponentProps) {
                   fill
                   sizes="(orientation: landscape) 20vw, 33vw"
                   className="object-cover"
+                  onError={() => markBroken(src)}
                 />
               </button>
             ))}
@@ -120,7 +149,14 @@ export function GalleryScene({ handle }: SceneComponentProps) {
               data-testid="enlarged-photo"
               className="relative block min-h-0 flex-1 overflow-hidden rounded-[3cqw] bg-white"
             >
-              <Image src={selected} alt="" fill sizes="85vw" className="object-cover" />
+              <Image
+                src={selected}
+                alt=""
+                fill
+                sizes="85vw"
+                className="object-cover"
+                onError={() => markBroken(selected)}
+              />
             </span>
             <div className="flex h-[16cqw] shrink-0 items-center justify-end pr-[2cqw]">
               <button
