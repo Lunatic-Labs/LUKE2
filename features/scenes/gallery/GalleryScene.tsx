@@ -60,29 +60,39 @@ export function GalleryScene({ handle }: SceneComponentProps) {
   }
 
   return (
-    <SceneFrame>
+    // The solid background covers the shell's skyline, which sits underneath
+    // every scene.
+    <SceneFrame className="relative bg-[var(--luke-grey)]">
       {images === null ? (
-        <p className="m-auto text-lg text-zinc-500">Loading gallery&hellip;</p>
+        <p className="m-auto text-[clamp(1rem,3vw,1.75rem)] text-zinc-600">Loading gallery&hellip;</p>
       ) : images.length === 0 ? (
-        <p className="m-auto text-lg text-zinc-500">No photos yet.</p>
+        <p className="m-auto text-[clamp(1rem,3vw,1.75rem)] text-zinc-600">No photos yet.</p>
       ) : (
-        <div className="flex-1 overflow-y-auto p-1">
+        <div className="flex-1 overflow-y-auto p-[var(--gap)] [--gap:clamp(0.5rem,3vw,2rem)]">
           {/* A CSS grid's "auto" rows size off the container's leftover
               height here, not off the cells' own aspect ratio, so square
               cells were collapsing to slivers and their images spilled into
               the rows below. Flex-wrap sizes each row purely from its own
               items, so an `aspect-square` cell stays square regardless of
-              how many rows the gallery ends up with. */}
-          <div className="flex flex-wrap gap-1">
+              how many rows the gallery ends up with. Every size here is
+              relative to the viewport so the grid scales with the screen:
+              3 cells per row in portrait, 5 in landscape. */}
+          <div className="flex flex-wrap gap-[var(--gap)]">
             {images.map((src, index) => (
               <button
                 key={src}
                 type="button"
                 aria-label={`Enlarge gallery photo ${index + 1}`}
                 onClick={() => openImage(src)}
-                className="relative aspect-square w-[calc((100%-0.5rem)/3)] overflow-hidden"
+                className="relative aspect-square w-[calc((100%-2*var(--gap))/3)] overflow-hidden rounded-[clamp(0.5rem,2.5vw,1.5rem)] border-[clamp(2px,0.6vw,5px)] border-[var(--luke-purple)] bg-white shadow-[0_2px_6px_rgb(0_0_0/0.25)] transition-[filter] active:brightness-90 landscape:w-[calc((100%-4*var(--gap))/5)]"
               >
-                <Image src={src} alt="" fill sizes="33vw" className="object-cover" />
+                <Image
+                  src={src}
+                  alt=""
+                  fill
+                  sizes="(orientation: landscape) 20vw, 33vw"
+                  className="object-cover"
+                />
               </button>
             ))}
           </div>
@@ -90,16 +100,47 @@ export function GalleryScene({ handle }: SceneComponentProps) {
       )}
 
       {selected && (
-        <button
-          type="button"
-          aria-label="Close enlarged photo"
+        // The X or a tap on the dimmed backdrop closes the view; taps
+        // anywhere inside the box (photo or purple border) are swallowed.
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Enlarged photo"
           onClick={closeImage}
-          className="fixed inset-0 flex items-center justify-center bg-black/60"
+          className="absolute inset-0 flex items-center justify-center bg-black/50 [container-type:size]"
         >
-          <span className="relative block h-[70vh] w-[70vw] max-w-2xl rounded-lg border-8 border-[var(--luke-gold)] bg-white p-2">
-            <Image src={selected} alt="" fill sizes="70vw" className="object-contain" />
-          </span>
-        </button>
+          {/* Fixed 5:6 proportions in either orientation: as large as fits in
+              85% of the scene's width and height. Insides are sized in
+              container units of the card itself so they scale with it. */}
+          <div
+            data-testid="enlarged-photo-box"
+            onClick={(event) => event.stopPropagation()}
+            className="@container flex aspect-[5/6] w-[min(85cqw,calc(85cqh*5/6))] flex-col rounded-[4cqw] border-[1.5cqw] border-[var(--luke-purple)] bg-[var(--luke-purple)] shadow-[0_6px_18px_rgb(0_0_0/0.4)]">
+            <span
+              data-testid="enlarged-photo"
+              className="relative block min-h-0 flex-1 overflow-hidden rounded-[3cqw] bg-white"
+            >
+              <Image src={selected} alt="" fill sizes="85vw" className="object-cover" />
+            </span>
+            <div className="flex h-[16cqw] shrink-0 items-center justify-end pr-[2cqw]">
+              <button
+                type="button"
+                aria-label="Close enlarged photo"
+                onClick={closeImage}
+                className="flex aspect-square h-[11cqw] items-center justify-center text-[var(--luke-lavender)] transition-[filter] active:brightness-75"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[70%] w-[70%]">
+                  <path
+                    d="M5 5l14 14M19 5L5 19"
+                    stroke="currentColor"
+                    strokeWidth="3.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </SceneFrame>
   );
