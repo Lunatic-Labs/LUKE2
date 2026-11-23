@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import type { SceneHandle } from "@/features/kiosk/types";
 import { captureFrame, idealCaptureSize, uploadPhoto } from "./capture";
 import {
@@ -11,6 +11,7 @@ import {
   SNAPSHOT_HINT,
   THANK_YOU_TEXT,
   UPLOAD_FAILED_TEXT,
+  UPLOADED_HOLD_MS,
   UPLOADED_TEXT,
 } from "./CameraScene";
 
@@ -260,6 +261,73 @@ describe("CameraScene", () => {
     expect(uploadPhoto).not.toHaveBeenCalled();
   });
 
+  describe("closing the preview card", () => {
+    /** The purple card holding the snapshot, as opposed to the dimmed area around it. */
+    const card = () => screen.getByAltText("Your snapshot").parentElement!;
+    /** The X in the card's footer, beside the upload icon. */
+    const closeX = () => within(card()).getByRole("button", { name: "Close snapshot" });
+    /** The dimmed area around the card: the close button that isn't inside it or the thumbnail. */
+    const outside = () =>
+      screen
+        .getAllByRole("button", { name: "Close snapshot" })
+        .find((button) => !card().contains(button) && !button.hasAttribute("aria-expanded"))!;
+
+    it("closes on the X, without uploading", async () => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      await renderScene();
+      await takeSnapshot();
+      fireEvent.click(snapshotButton());
+      jest.mocked(handle.reportActivity).mockClear();
+
+      expect(closeX()).toBeEnabled();
+      fireEvent.click(closeX());
+
+      expect(handle.reportActivity).toHaveBeenCalled();
+      expect(screen.queryByAltText("Your snapshot")).not.toBeInTheDocument();
+      expect(screen.getByText("Take A Picture")).toBeInTheDocument();
+      expect(uploadPhoto).not.toHaveBeenCalled();
+      // The snapshot is still there to open again.
+      fireEvent.click(snapshotButton());
+      expect(screen.getByAltText("Your snapshot")).toBeInTheDocument();
+    });
+
+    it("closes on a tap outside the card, without uploading", async () => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      await renderScene();
+      await takeSnapshot();
+      fireEvent.click(snapshotButton());
+
+      fireEvent.click(outside());
+
+      expect(screen.queryByAltText("Your snapshot")).not.toBeInTheDocument();
+      expect(uploadPhoto).not.toHaveBeenCalled();
+    });
+
+    it("stays open on a tap on the photo itself", async () => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      await renderScene();
+      await takeSnapshot();
+      fireEvent.click(snapshotButton());
+
+      fireEvent.click(screen.getByAltText("Your snapshot"));
+
+      expect(screen.getByAltText("Your snapshot")).toBeInTheDocument();
+    });
+
+    it("can't be closed with the X mid-upload", async () => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      (uploadPhoto as jest.Mock).mockReturnValue(new Promise(() => {}));
+      await renderScene();
+      await takeSnapshot();
+      fireEvent.click(snapshotButton());
+
+      fireEvent.click(uploadButton());
+      expect(closeX()).toBeDisabled();
+      fireEvent.click(closeX());
+      expect(screen.getByAltText("Your snapshot")).toBeInTheDocument();
+    });
+  });
+
   it("can open the snapshot during the hold right after a capture", async () => {
     mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
     await renderScene();
@@ -273,7 +341,7 @@ describe("CameraScene", () => {
     expect(screen.getByAltText("Your snapshot")).toBeInTheDocument();
   });
 
-  it("stores the photo only when the card's upload button is tapped, then thanks the visitor", async () => {
+  it("stores the photo only when the card's upload button is tapped, then thanks the visitor in the card", async () => {
     mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
     await renderScene();
     await takeSnapshot();
@@ -289,15 +357,26 @@ describe("CameraScene", () => {
       id: expect.stringMatching(UUID_V4),
       takenAt: expect.stringMatching(ISO_UTC),
     });
-    expect(screen.queryByAltText("Your snapshot")).not.toBeInTheDocument();
-    expect(THANK_YOU_TEXT).toContain(screen.getByRole("status").textContent);
-    // Shown on screen too, not only announced.
-    expect(screen.getAllByText(screen.getByRole("status").textContent!)).toHaveLength(2);
 
-    await advance(COOLDOWN_MS);
+    // The card stays open, the upload button steps aside, and the thank-you
+    // line, one of THANK_YOU_TEXT, shows in the card in its place.
+    expect(screen.getByAltText("Your snapshot")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Upload photo to the gallery" })).not.toBeInTheDocument();
+    const thanks = screen.getByRole("status").textContent!;
+    expect(THANK_YOU_TEXT).toContain(thanks);
+    const onScreen = screen.getAllByText(thanks).filter((el) => el.getAttribute("role") !== "status");
+    expect(onScreen).toHaveLength(1);
+    expect(screen.getByAltText("Your snapshot").parentElement).toContainElement(onScreen[0]);
+    // Nothing else can be tapped while it shows.
+    expect(takePictureButton()).toBeDisabled();
+
+    // Briefly: then the upload button comes back, disabled as uploaded.
+    await advance(UPLOADED_HOLD_MS);
+    expect(screen.getByAltText("Your snapshot")).toBeInTheDocument();
+    expect(uploadButton()).toBeDisabled();
+    expect(screen.queryByText(thanks)).not.toBeInTheDocument();
+    expect(screen.getAllByText(UPLOADED_TEXT).length).toBeGreaterThan(0);
     expect(takePictureButton()).toBeEnabled();
-    expect(screen.getByText("Take A Picture")).toBeInTheDocument();
-    expect(screen.getByRole("status")).toBeEmptyDOMElement();
   });
 
   it("won't upload the same snapshot twice", async () => {
@@ -308,8 +387,10 @@ describe("CameraScene", () => {
     await act(async () => {
       fireEvent.click(uploadButton());
     });
-    await advance(COOLDOWN_MS);
+    await advance(UPLOADED_HOLD_MS);
 
+    // Close the card and open it again: still marked as uploaded.
+    fireEvent.click(screen.getAllByRole("button", { name: "Close snapshot" })[0]);
     fireEvent.click(snapshotButton());
     expect(uploadButton()).toBeDisabled();
     expect(screen.getAllByText(UPLOADED_TEXT).length).toBeGreaterThan(0);
@@ -392,7 +473,7 @@ describe("CameraScene", () => {
       await act(async () => {
         fireEvent.click(uploadButton());
       });
-      await advance(COOLDOWN_MS);
+      await advance(UPLOADED_HOLD_MS);
     }
 
     const [first, second] = (uploadPhoto as jest.Mock).mock.calls;

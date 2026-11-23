@@ -41,7 +41,7 @@ Photos are kept forever. Nothing deletes them automatically.
 
 The camera screen itself, the replacement for `CameraScene.pde`.
 
-The screen always shows one of eight states:
+The screen always shows one of nine states:
 
 | State         | What's on screen                                                     |
 | ------------- | -------------------------------------------------------------------- |
@@ -51,7 +51,8 @@ The screen always shows one of eight states:
 | `capturing`   | White flash while the frame is grabbed                               |
 | `review`      | The preview card, opened from the snapshot button                    |
 | `uploading`   | The preview card, locked, while the snapshot is sent                 |
-| `done`        | A line of text for 1 second: the snapshot hint, a thank-you, or an error |
+| `uploaded`    | The preview card for 2 seconds, a gold thank-you in place of the upload icon |
+| `done`        | A line of text for 1 second: the snapshot hint, or an error          |
 | `unavailable` | "Camera unavailable" with the reason                                 |
 
 It has three effects (blocks of code that run on their own timing):
@@ -62,6 +63,8 @@ It has three effects (blocks of code that run on their own timing):
   into the snapshot button.
 - **Cooldown:** after 1 second in `done`, goes back to `ready`. This is
   upstream's `delay(1000)`.
+- **Uploaded hold:** after `UPLOADED_HOLD_MS` (2 seconds) in `uploaded`, goes
+  back to `review`, with the card still open.
 
 ### The snapshot, the preview card, and when a photo is stored
 
@@ -76,7 +79,8 @@ Tapping the snapshot button (during that hold or any time after) opens the
 **preview card** over the live camera, which is dimmed behind a white 40%
 wash. The card is purple with rounded corners, inset from the sides, and
 holds the photo (cropped to fill, rounded corners) above a footer with a
-lavender **upload icon** (a tray with an up arrow) at the bottom right.
+lavender **upload icon** (a tray with an up arrow) and a lavender **X** at the
+bottom right. The X is the same one the gallery's enlarged photo uses.
 
 A photo is stored **only** when the upload icon is tapped (`handleUpload`,
 the only caller of `uploadPhoto`). Until then the JPEG exists only in browser
@@ -86,12 +90,17 @@ memory. From the card the visitor can:
   and capture are all disabled) while it uploads. Disabling the buttons waits
   for React to re-render, so `handleUpload` also sets `uploadingRef` the
   moment an upload starts; a second tap that lands before the re-render is
-  turned away by it. On success the card closes
-  and a thank-you line shows for 1 second. On failure the card stays up with
+  turned away by it. On success the card stays open: the upload icon
+  disappears and a thank-you line, picked at random from `THANK_YOU_TEXT`
+  ("That's a keeper!", "That's going in my album!", …), shows centred in gold
+  in the card's footer for 2 seconds. Then the upload icon comes back,
+  disabled, beside "In the gallery!". The card and the controls are locked
+  while the thank-you shows. On failure the card stays up with
   "Sorry, that didn't upload. Try again!" in its footer, so the visitor can
   tap upload again.
-- **Tap the dimmed area around the card, or the snapshot button again:**
-  closes the card. The snapshot stays in the button, unstored, and can be
+- **Tap the X, the dimmed area around the card, or the snapshot button
+  again:** closes the card. Tapping the photo itself does nothing. The X is
+  disabled, like the rest of the card, during an upload. The snapshot stays in the button, unstored, and can be
   opened again.
 - **Tap the capture button:** closes the card and starts a new countdown. The
   new photo replaces the snapshot. The filters button also stays usable while
@@ -146,8 +155,7 @@ The text over the preview follows the mockup's frames: heavy sans-serif with a
 thick dark purple outline. "Take A Picture" sits at the top while the camera is
 ready. The gold countdown starts just below the middle and stacks downward
 ("Ready.", then "Ready. Set.", then "Ready. Set. Pose!"). The snapshot hint
-after a capture, and the thank-you line (picked at random from
-`THANK_YOU_TEXT`) after an upload, appear lower down, around two thirds of
+after a capture appears lower down, around two thirds of
 the way down the preview.
 
 The capture button is the only way to take a picture: tapping the preview
@@ -359,11 +367,13 @@ Uses a fake webcam and fake timers to check:
 - tapping the preview doesn't take a picture
 - the countdown → capture flow puts the photo in the snapshot button with
   the hint, leaves the card shut, and uploads nothing
-- the snapshot button opens the card, and tapping the dimmed area or the
-  button again closes it, without uploading
+- the snapshot button opens the card, and tapping the X, the dimmed area or
+  the button again closes it, without uploading; tapping the photo doesn't,
+  and the X is disabled mid-upload
 - the card can be opened during the hold right after a capture
-- the upload icon is the only thing that stores a photo; after it, the
-  thank-you line shows and the scene goes back to ready
+- the upload icon is the only thing that stores a photo; after it, the card
+  stays open with the upload icon hidden and the thank-you line in the card,
+  then the icon comes back disabled
 - an uploaded snapshot can't be uploaded again, but a new picture can
 - taking another picture from the card replaces the snapshot, unuploaded,
   and frees the old object URL
@@ -516,7 +526,7 @@ Trade-offs in the current design, and what hasn't been checked:
 - The countdown shows one word per second. The original drew all three words
   at once for about a frame.
 - The thank-you lines (`thankYouText[]`) were written but disabled upstream;
-  they're shown during the 1-second hold after an upload.
+  they're shown in the preview card for 2 seconds after an upload.
 - Upstream saved every picture it took. Here a picture is stored only if the
   visitor taps upload on the preview card.
 - A capture button below the preview replaces upstream's

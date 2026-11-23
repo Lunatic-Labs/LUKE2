@@ -33,6 +33,11 @@ export const COUNTDOWN = ["Ready.", "Set.", "Pose!"];
 export const COUNTDOWN_STEP_MS = 1000;
 /** Upstream's `delay(1000)` after each capture, marked "DONT CHANGE". */
 export const COOLDOWN_MS = 1000;
+/**
+ * How long the preview card shows its thank-you line after an upload, with the
+ * upload button hidden, before the button comes back (disabled, as uploaded).
+ */
+export const UPLOADED_HOLD_MS = 2000;
 
 /**
  * What the filters button cycles through, in order. `css` is a CSS filter,
@@ -66,6 +71,11 @@ type Status =
   | "review"
   /** The snapshot is being sent to the server from the preview card. */
   | "uploading"
+  /**
+   * The snapshot just uploaded: the card stays open with a thank-you line in
+   * place of the upload button, then goes back to `review`.
+   */
+  | "uploaded"
   | "done"
   | "unavailable";
 
@@ -206,6 +216,17 @@ export function CameraScene({ handle }: SceneComponentProps) {
     return () => clearTimeout(timer);
   }, [status]);
 
+  // Show the thank-you line in the card for a moment, then bring the upload
+  // button back, disabled now that the snapshot is in the gallery.
+  useEffect(() => {
+    if (status !== "uploaded") return;
+    const timer = setTimeout(() => {
+      setMessage("");
+      setStatus("review");
+    }, UPLOADED_HOLD_MS);
+    return () => clearTimeout(timer);
+  }, [status]);
+
   function handleTakePicture() {
     handle.reportActivity();
     // Upstream's `canTakePicture` guard: one capture at a time. The button is
@@ -234,7 +255,7 @@ export function CameraScene({ handle }: SceneComponentProps) {
         if (videoRef.current !== video) return;
         setUploadedId(key.id);
         setMessage(THANK_YOU_TEXT[Math.floor(Math.random() * THANK_YOU_TEXT.length)]);
-        setStatus("done");
+        setStatus("uploaded");
       },
       (error: unknown) => {
         uploadingRef.current = false;
@@ -298,14 +319,14 @@ export function CameraScene({ handle }: SceneComponentProps) {
   // What screen readers hear. The region stays mounted so each change is
   // announced, and it sits outside the button because a button's children
   // can be treated as presentational and never read.
-  const reviewing = (status === "review" || status === "uploading") && lastPhoto !== null;
+  const reviewing = (status === "review" || status === "uploading" || status === "uploaded") && lastPhoto !== null;
   const uploaded = lastPhoto !== null && uploadedId === lastPhoto.key.id;
-  const busy = status === "countdown" || status === "capturing" || status === "uploading";
+  const busy = status === "countdown" || status === "capturing" || status === "uploading" || status === "uploaded";
   const cardNote = message || (uploaded ? UPLOADED_TEXT : "");
   const announcement =
     status === "countdown"
       ? COUNTDOWN[step]
-      : status === "done"
+      : status === "done" || status === "uploaded"
         ? message
         : status === "review"
           ? cardNote || REVIEW_PROMPT
@@ -373,9 +394,9 @@ export function CameraScene({ handle }: SceneComponentProps) {
 
         {/* Preview card, from the camera mockup, opened by the snapshot
             button: the photo in a purple card over the dimmed live camera,
-            with an upload button at the bottom right. Tapping the dimmed area
-            around the card closes it; only the upload button stores the
-            photo. */}
+            with upload and close (X) buttons at the bottom right. The X or a
+            tap on the dimmed area around the card closes it; only the upload
+            button stores the photo. */}
         {reviewing && (
           <>
             <button
@@ -393,23 +414,45 @@ export function CameraScene({ handle }: SceneComponentProps) {
                 alt="Your snapshot"
                 className="min-h-0 w-full flex-1 rounded-[clamp(0.25rem,0.8dvh,0.75rem)] object-cover"
               />
-              <div className="flex shrink-0 items-center justify-end gap-[3%]">
-                {status === "review" && cardNote && (
-                  <p className="min-w-0 flex-1 text-[clamp(0.75rem,3.5vw,1.5rem)] leading-tight font-semibold text-[var(--luke-lavender)]">
-                    {cardNote}
-                  </p>
-                )}
-                <button
-                  type="button"
-                  aria-label="Upload photo to the gallery"
-                  onClick={handleUpload}
-                  // Disabled once uploaded, so the same photo is never stored twice.
-                  disabled={status !== "review" || uploaded}
-                  className="shrink-0 text-[var(--luke-lavender)] transition-[filter,opacity] active:brightness-75 disabled:opacity-50"
+              {status === "uploaded" ? (
+                // Just uploaded: the thank-you line takes the upload button's
+                // place for a moment, centred in gold, as in the mockup.
+                <p
+                  aria-hidden="true"
+                  className="shrink-0 px-[4%] text-center text-[clamp(0.875rem,4.5vw,2rem)] leading-tight font-extrabold text-[var(--luke-gold)]"
                 >
-                  <UploadIcon />
-                </button>
-              </div>
+                  {message}
+                </p>
+              ) : (
+                <div className="flex shrink-0 items-center justify-end gap-[3%]">
+                  {status === "review" && cardNote && (
+                    <p className="min-w-0 flex-1 text-[clamp(0.75rem,3.5vw,1.5rem)] leading-tight font-semibold text-[var(--luke-lavender)]">
+                      {cardNote}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    aria-label="Upload photo to the gallery"
+                    onClick={handleUpload}
+                    // Disabled once uploaded, so the same photo is never stored twice.
+                    disabled={status !== "review" || uploaded}
+                    className="shrink-0 text-[var(--luke-lavender)] transition-[filter,opacity] active:brightness-75 disabled:opacity-50"
+                  >
+                    <UploadIcon />
+                  </button>
+                  {/* The X, as in the gallery's enlarged photo: closes the
+                      card just like a tap on the dimmed area around it. */}
+                  <button
+                    type="button"
+                    aria-label="Close snapshot"
+                    onClick={handleCloseSnapshot}
+                    disabled={status !== "review"}
+                    className="shrink-0 text-[var(--luke-lavender)] transition-[filter,opacity] active:brightness-75 disabled:opacity-50"
+                  >
+                    <CloseIcon />
+                  </button>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -460,7 +503,7 @@ export function CameraScene({ handle }: SceneComponentProps) {
         {lastPhoto ? (
           <button
             type="button"
-            aria-label={status === "review" ? "Close snapshot" : "See your snapshot"}
+            aria-label={reviewing ? "Close snapshot" : "See your snapshot"}
             aria-expanded={reviewing}
             onClick={handleSnapshot}
             // Locked during a capture or upload, like the filters button, so
@@ -520,6 +563,15 @@ function UploadIcon() {
       <path d="M12 15V3" />
       <path d="M7 8l5-5 5 5" />
       <path d="M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6" />
+    </svg>
+  );
+}
+
+/** An X, the same one the gallery's enlarged photo closes with. */
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-[clamp(1.5rem,7vw,3rem)]" aria-hidden="true">
+      <path d="M5 5l14 14M19 5L5 19" stroke="currentColor" strokeWidth={3.5} strokeLinecap="round" />
     </svg>
   );
 }
