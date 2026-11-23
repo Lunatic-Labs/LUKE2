@@ -100,7 +100,13 @@ memory. From the card the visitor can:
   tap upload again.
 - **Tap the X, the dimmed area around the card, or the snapshot button
   again:** closes the card. Tapping the photo itself does nothing. The X is
-  disabled, like the rest of the card, during an upload. The snapshot stays in the button, unstored, and can be
+  disabled, like the rest of the card, during an upload. If upload and the X
+  (or the dimmed area) are tapped in the same moment, before the screen
+  updates, whichever landed first wins: upload first and the close is ignored,
+  the card staying open and locked until the upload settles; close first and
+  the upload is ignored, so nothing is stored. Like the double-tap guard,
+  this uses refs (`uploadingRef`, `cardOpenRef`), since state doesn't change
+  until the next render. The snapshot stays in the button, unstored, and can be
   opened again.
 - **Tap the capture button:** closes the card and starts a new countdown. The
   new photo replaces the snapshot. The filters button also stays usable while
@@ -369,7 +375,9 @@ Uses a fake webcam and fake timers to check:
   the hint, leaves the card shut, and uploads nothing
 - the snapshot button opens the card, and tapping the X, the dimmed area or
   the button again closes it, without uploading; tapping the photo doesn't,
-  and the X is disabled mid-upload
+  and the X is disabled mid-upload (enabled again if it fails)
+- upload and the X tapped in the same moment: whichever lands first wins, in
+  both orders, and a tap outside the card counts the same as the X
 - the card can be opened during the hold right after a capture
 - the upload icon is the only thing that stores a photo; after it, the card
   stays open with the upload icon hidden and the thank-you line in the card,

@@ -127,6 +127,14 @@ export function CameraScene({ handle }: SceneComponentProps) {
    * never during render.
    */
   const uploadingRef = useRef(false);
+  /**
+   * Whether the preview card is open, for the same reason as `uploadingRef`:
+   * upload and the X (or the dimmed area) tapped in the same moment both see
+   * the last render's "review". Whichever runs first wins: an upload in
+   * flight turns the close away (`uploadingRef`), and a close turns the
+   * upload away (this). Set only in event handlers, never during render.
+   */
+  const cardOpenRef = useRef(false);
   const filter = FILTERS[filterIndex];
 
   // Open the camera for as long as the scene is on screen.
@@ -234,6 +242,7 @@ export function CameraScene({ handle }: SceneComponentProps) {
     // picture with the preview card open closes it, and the new photo
     // replaces the snapshot, uploaded or not.
     if (status !== "ready" && status !== "review") return;
+    cardOpenRef.current = false;
     setMessage("");
     setStep(0);
     setStatus("countdown");
@@ -242,7 +251,7 @@ export function CameraScene({ handle }: SceneComponentProps) {
   /** The only place a photo is stored: the preview card's upload button. */
   function handleUpload() {
     handle.reportActivity();
-    if (uploadingRef.current) return;
+    if (uploadingRef.current || !cardOpenRef.current) return;
     if (status !== "review" || !lastPhoto || uploadedId === lastPhoto.key.id) return;
     uploadingRef.current = true;
     const video = videoRef.current;
@@ -281,6 +290,7 @@ export function CameraScene({ handle }: SceneComponentProps) {
       return;
     }
     if (status !== "ready" && status !== "done") return;
+    cardOpenRef.current = true;
     setMessage("");
     setStatus("review");
   }
@@ -292,7 +302,10 @@ export function CameraScene({ handle }: SceneComponentProps) {
   }
 
   function closeSnapshot() {
+    // An upload that started in the same moment wins; the card stays locked.
+    if (uploadingRef.current) return;
     if (status !== "review") return;
+    cardOpenRef.current = false;
     setMessage("");
     setStatus("ready");
   }

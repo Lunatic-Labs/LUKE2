@@ -314,9 +314,14 @@ describe("CameraScene", () => {
       expect(screen.getByAltText("Your snapshot")).toBeInTheDocument();
     });
 
-    it("can't be closed with the X mid-upload", async () => {
+    it("disables the X while uploading, and enables it again if the upload fails", async () => {
       mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
-      (uploadPhoto as jest.Mock).mockReturnValue(new Promise(() => {}));
+      let failUpload!: (error: Error) => void;
+      (uploadPhoto as jest.Mock).mockReturnValue(
+        new Promise((_, reject) => {
+          failUpload = reject;
+        }),
+      );
       await renderScene();
       await takeSnapshot();
       fireEvent.click(snapshotButton());
@@ -325,6 +330,87 @@ describe("CameraScene", () => {
       expect(closeX()).toBeDisabled();
       fireEvent.click(closeX());
       expect(screen.getByAltText("Your snapshot")).toBeInTheDocument();
+
+      // Back on the card to try again, the X works once more.
+      await act(async () => failUpload(new Error("disk full")));
+      expect(closeX()).toBeEnabled();
+      fireEvent.click(closeX());
+      expect(screen.queryByAltText("Your snapshot")).not.toBeInTheDocument();
+    });
+
+    /**
+     * Two fingers on a touch screen can land on upload and the X in the same
+     * moment, before React re-renders to disable either. One act() holds the
+     * re-render until both taps have run, so the second tap still sees the
+     * card as it was before the first. Whichever lands first wins.
+     */
+    describe("when upload and the X are tapped at the same time", () => {
+      it("uploads if upload landed first: the X is ignored and the card stays open, locked", async () => {
+        mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+        let finishUpload!: () => void;
+        (uploadPhoto as jest.Mock).mockReturnValue(
+          new Promise<void>((resolve) => {
+            finishUpload = resolve;
+          }),
+        );
+        await renderScene();
+        await takeSnapshot();
+        fireEvent.click(snapshotButton());
+        const upload = uploadButton();
+        const x = closeX();
+
+        act(() => {
+          upload.click();
+          x.click();
+        });
+
+        expect(uploadPhoto).toHaveBeenCalledTimes(1);
+        expect(screen.getByAltText("Your snapshot")).toBeInTheDocument();
+        expect(uploadButton()).toBeDisabled();
+        expect(closeX()).toBeDisabled();
+
+        // The upload finishes as normal, with the thank-you in the card.
+        await act(async () => finishUpload());
+        expect(screen.getByAltText("Your snapshot")).toBeInTheDocument();
+        expect(THANK_YOU_TEXT).toContain(screen.getByRole("status").textContent);
+      });
+
+      it("closes without uploading if the X landed first: the upload is ignored", async () => {
+        mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+        await renderScene();
+        await takeSnapshot();
+        fireEvent.click(snapshotButton());
+        const upload = uploadButton();
+        const x = closeX();
+
+        act(() => {
+          x.click();
+          upload.click();
+        });
+        await act(async () => {});
+
+        expect(uploadPhoto).not.toHaveBeenCalled();
+        expect(screen.queryByAltText("Your snapshot")).not.toBeInTheDocument();
+        expect(screen.getByText("Take A Picture")).toBeInTheDocument();
+      });
+
+      it("treats a tap outside the card the same as the X", async () => {
+        mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+        (uploadPhoto as jest.Mock).mockReturnValue(new Promise(() => {}));
+        await renderScene();
+        await takeSnapshot();
+        fireEvent.click(snapshotButton());
+        const upload = uploadButton();
+        const backdrop = outside();
+
+        act(() => {
+          upload.click();
+          backdrop.click();
+        });
+
+        expect(uploadPhoto).toHaveBeenCalledTimes(1);
+        expect(screen.getByAltText("Your snapshot")).toBeInTheDocument();
+      });
     });
   });
 
