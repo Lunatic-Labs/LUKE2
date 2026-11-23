@@ -86,6 +86,46 @@ function uploadButton() {
   return screen.getByRole("button", { name: "Upload photo to the gallery" });
 }
 
+/** The purple card holding the snapshot, as opposed to the dimmed area around it. */
+function card() {
+  return screen.getByAltText("Your snapshot").parentElement!;
+}
+
+/** The X in the card's footer, beside the upload icon. */
+function closeX() {
+  return within(card()).getByRole("button", { name: "Close snapshot" });
+}
+
+/** The dimmed area around the card: the close button that isn't inside it or the thumbnail. */
+function outside() {
+  return screen
+    .getAllByRole("button", { name: "Close snapshot" })
+    .find((button) => !card().contains(button) && !button.hasAttribute("aria-expanded"))!;
+}
+
+/** The snapshot thumbnail while the card is open, when it reads "Close snapshot". */
+function openThumbnail() {
+  return screen
+    .getAllByRole("button", { name: "Close snapshot" })
+    .find((button) => button.hasAttribute("aria-expanded"))!;
+}
+
+/** The flip camera toggle in the preview's bottom right corner. */
+function flipButton() {
+  return screen.getByRole("button", { name: "Flip camera" });
+}
+
+/** A promise the test settles by hand, for an upload or capture held in flight. */
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: Error) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 /** Take a picture and wait out the hold after it, back to `ready`. */
 async function takeSnapshot() {
   fireEvent.click(takePictureButton());
@@ -262,16 +302,6 @@ describe("CameraScene", () => {
   });
 
   describe("closing the preview card", () => {
-    /** The purple card holding the snapshot, as opposed to the dimmed area around it. */
-    const card = () => screen.getByAltText("Your snapshot").parentElement!;
-    /** The X in the card's footer, beside the upload icon. */
-    const closeX = () => within(card()).getByRole("button", { name: "Close snapshot" });
-    /** The dimmed area around the card: the close button that isn't inside it or the thumbnail. */
-    const outside = () =>
-      screen
-        .getAllByRole("button", { name: "Close snapshot" })
-        .find((button) => !card().contains(button) && !button.hasAttribute("aria-expanded"))!;
-
     it("closes on the X, without uploading", async () => {
       mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
       await renderScene();
@@ -675,8 +705,6 @@ describe("CameraScene", () => {
   });
 
   describe("flip camera button", () => {
-    const flipButton = () => screen.getByRole("button", { name: "Flip camera" });
-
     it("is clickable and mirrors the preview, and flips it back on a second tap", async () => {
       mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
       const { container } = await renderScene();
@@ -730,6 +758,305 @@ describe("CameraScene", () => {
       expect(captureFrame).toHaveBeenCalledWith(expect.anything(), FILTERS[0].css, false);
 
       await advance(COOLDOWN_MS);
+      expect(flipButton()).toBeEnabled();
+    });
+  });
+
+  describe("capture timing and failures", () => {
+    it("stacks the countdown words on screen, one more each second", async () => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      await renderScene();
+
+      fireEvent.click(takePictureButton());
+      await advance(COUNTDOWN_STEP_MS, 2);
+
+      // On screen all three stack up; "Pose!" is also in the status region.
+      expect(screen.getByText("Ready.")).toBeInTheDocument();
+      expect(screen.getByText("Set.")).toBeInTheDocument();
+      expect(screen.getAllByText("Pose!")).toHaveLength(2);
+    });
+
+    it("shows a failed capture on screen, then lets the visitor try again", async () => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      (captureFrame as jest.Mock).mockRejectedValueOnce(new Error("no frame"));
+      await renderScene();
+
+      fireEvent.click(takePictureButton());
+      await advance(COUNTDOWN_STEP_MS, 3);
+      // Announced and on screen.
+      expect(screen.getAllByText(CAPTURE_FAILED_TEXT)).toHaveLength(2);
+      expect(takePictureButton()).toBeDisabled();
+
+      await advance(COOLDOWN_MS);
+      expect(takePictureButton()).toBeEnabled();
+      fireEvent.click(takePictureButton());
+      await advance(COUNTDOWN_STEP_MS, 3);
+      expect(snapshotButton().querySelector("img")).toHaveAttribute("src", "blob:last-photo");
+    });
+
+    it("keeps the earlier snapshot when a later capture fails", async () => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      await renderScene();
+      await takeSnapshot();
+      (captureFrame as jest.Mock).mockRejectedValueOnce(new Error("no frame"));
+
+      fireEvent.click(takePictureButton());
+      await advance(COUNTDOWN_STEP_MS, 3);
+
+      expect(screen.getByRole("status")).toHaveTextContent(CAPTURE_FAILED_TEXT);
+      expect(snapshotButton().querySelector("img")).toHaveAttribute("src", "blob:last-photo");
+      expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+    });
+
+    it("locks every control while the frame is being grabbed, after Pose!", async () => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      await renderScene();
+      await takeSnapshot();
+      const grab = deferred<Blob>();
+      (captureFrame as jest.Mock).mockReturnValueOnce(grab.promise);
+      (URL.createObjectURL as jest.Mock).mockReturnValue("blob:second-photo");
+
+      fireEvent.click(takePictureButton());
+      await advance(COUNTDOWN_STEP_MS, 3);
+      // captureFrame has been called but hasn't finished.
+      expect(captureFrame).toHaveBeenCalledTimes(2);
+      expect(takePictureButton()).toBeDisabled();
+      expect(snapshotButton()).toBeDisabled();
+      expect(flipButton()).toBeDisabled();
+      expect(screen.getByRole("button", { name: /^Change filter/ })).toBeDisabled();
+      // A tap on the old snapshot now opens nothing.
+      fireEvent.click(snapshotButton());
+      expect(screen.queryByAltText("Your snapshot")).not.toBeInTheDocument();
+
+      await act(async () => grab.resolve(new Blob(["second"])));
+      expect(snapshotButton().querySelector("img")).toHaveAttribute("src", "blob:second-photo");
+      expect(screen.getByRole("status")).toHaveTextContent(SNAPSHOT_HINT);
+    });
+
+    it("drops a capture that finishes after the visitor has left the scene", async () => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      const grab = deferred<Blob>();
+      (captureFrame as jest.Mock).mockReturnValueOnce(grab.promise);
+      const { unmount } = await renderScene();
+
+      fireEvent.click(takePictureButton());
+      await advance(COUNTDOWN_STEP_MS, 3);
+      unmount();
+      await act(async () => grab.resolve(new Blob(["late"])));
+
+      expect(URL.createObjectURL).not.toHaveBeenCalled();
+      expect(uploadPhoto).not.toHaveBeenCalled();
+      expect(console.error).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("upload failures and leaving", () => {
+    it("shows a failed upload's message inside the card", async () => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      (uploadPhoto as jest.Mock).mockRejectedValueOnce(new Error("disk full"));
+      await renderScene();
+      await takeSnapshot();
+      fireEvent.click(snapshotButton());
+
+      await act(async () => {
+        fireEvent.click(uploadButton());
+      });
+
+      expect(within(card()).getByText(UPLOAD_FAILED_TEXT)).toBeInTheDocument();
+      expect(within(card()).queryByText(UPLOADED_TEXT)).not.toBeInTheDocument();
+    });
+
+    it("capture → upload → fail → close before retrying → reopen and retry with the same key", async () => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      (uploadPhoto as jest.Mock).mockRejectedValueOnce(new Error("disk full"));
+      await renderScene();
+      await takeSnapshot();
+      fireEvent.click(snapshotButton());
+      await act(async () => {
+        fireEvent.click(uploadButton());
+      });
+
+      // Leave the card instead of retrying.
+      fireEvent.click(closeX());
+      expect(screen.queryByAltText("Your snapshot")).not.toBeInTheDocument();
+      expect(uploadPhoto).toHaveBeenCalledTimes(1);
+
+      // Reopened, it's a fresh card: no stale error, not marked uploaded.
+      fireEvent.click(snapshotButton());
+      expect(screen.getByRole("status")).toHaveTextContent(REVIEW_PROMPT);
+      expect(screen.queryByText(UPLOAD_FAILED_TEXT)).not.toBeInTheDocument();
+      expect(screen.queryByText(UPLOADED_TEXT)).not.toBeInTheDocument();
+      expect(uploadButton()).toBeEnabled();
+
+      await act(async () => {
+        fireEvent.click(uploadButton());
+      });
+      expect(uploadPhoto).toHaveBeenCalledTimes(2);
+      const [first, second] = (uploadPhoto as jest.Mock).mock.calls;
+      expect(second[1]).toEqual(first[1]);
+      expect(THANK_YOU_TEXT).toContain(screen.getByRole("status").textContent);
+    });
+
+    it("capture → upload → fail → leave the scene before retrying: nothing more is uploaded", async () => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      (uploadPhoto as jest.Mock).mockRejectedValueOnce(new Error("disk full"));
+      const { unmount } = await renderScene();
+      await takeSnapshot();
+      fireEvent.click(snapshotButton());
+      await act(async () => {
+        fireEvent.click(uploadButton());
+      });
+
+      unmount();
+      await advance(UPLOADED_HOLD_MS, 3);
+
+      expect(uploadPhoto).toHaveBeenCalledTimes(1);
+      expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:last-photo");
+    });
+
+    it.each([
+      ["succeeds", (send: ReturnType<typeof deferred<void>>) => send.resolve()],
+      ["fails", (send: ReturnType<typeof deferred<void>>) => send.reject(new Error("disk full"))],
+    ])("leaving the scene mid-upload: an upload that then %s is dropped quietly", async (_, settle) => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      const send = deferred<void>();
+      (uploadPhoto as jest.Mock).mockReturnValueOnce(send.promise);
+      const { unmount } = await renderScene();
+      await takeSnapshot();
+      fireEvent.click(snapshotButton());
+      fireEvent.click(uploadButton());
+
+      // The X can't close it, but leaving the scene (idle timeout, nav) can.
+      expect(closeX()).toBeDisabled();
+      unmount();
+      await act(async () => settle(send));
+
+      expect(uploadPhoto).toHaveBeenCalledTimes(1);
+      // The failure path's own log is the only error allowed; no React warnings.
+      for (const [first] of jest.mocked(console.error).mock.calls) {
+        expect(String(first)).toMatch(/^CameraScene: could not upload photo$/);
+      }
+    });
+  });
+
+  describe("taps that land in the same moment as upload", () => {
+    it("snapshot thumbnail + upload: the upload wins, the card stays open", async () => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      (uploadPhoto as jest.Mock).mockReturnValue(new Promise(() => {}));
+      await renderScene();
+      await takeSnapshot();
+      fireEvent.click(snapshotButton());
+      const upload = uploadButton();
+      const thumbnail = openThumbnail();
+
+      act(() => {
+        upload.click();
+        thumbnail.click();
+      });
+
+      expect(uploadPhoto).toHaveBeenCalledTimes(1);
+      expect(screen.getByAltText("Your snapshot")).toBeInTheDocument();
+    });
+
+    it("upload + take picture: the upload wins, no countdown starts", async () => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      (uploadPhoto as jest.Mock).mockReturnValue(new Promise(() => {}));
+      await renderScene();
+      await takeSnapshot();
+      fireEvent.click(snapshotButton());
+      const upload = uploadButton();
+      const shutter = takePictureButton();
+
+      act(() => {
+        upload.click();
+        shutter.click();
+      });
+      await advance(COUNTDOWN_STEP_MS, 3);
+
+      expect(uploadPhoto).toHaveBeenCalledTimes(1);
+      expect(screen.getByAltText("Your snapshot")).toBeInTheDocument();
+      // Only the first snapshot was ever captured.
+      expect(captureFrame).toHaveBeenCalledTimes(1);
+    });
+
+    it("take picture + upload: the new picture wins, nothing is uploaded", async () => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      await renderScene();
+      await takeSnapshot();
+      fireEvent.click(snapshotButton());
+      const upload = uploadButton();
+      const shutter = takePictureButton();
+
+      act(() => {
+        shutter.click();
+        upload.click();
+      });
+      await act(async () => {});
+
+      expect(uploadPhoto).not.toHaveBeenCalled();
+      expect(screen.queryByAltText("Your snapshot")).not.toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent(/^Ready\.$/);
+    });
+  });
+
+  describe("flip and capture together", () => {
+    it.each([
+      ["flip, then take picture", ["flip", "shutter"]],
+      ["take picture, then flip", ["shutter", "flip"]],
+    ])("%s in the same moment: the photo is saved as the preview shows it", async (_, order) => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      const { container } = await renderScene();
+      const video = container.querySelector("video")!;
+      const buttons = { flip: flipButton(), shutter: takePictureButton() };
+
+      act(() => {
+        for (const name of order) buttons[name as keyof typeof buttons].click();
+      });
+      await advance(COUNTDOWN_STEP_MS, 2);
+      const previewAtPose = video.style.transform;
+      await advance(COUNTDOWN_STEP_MS);
+
+      expect(previewAtPose).toBe("scaleX(-1)");
+      expect(captureFrame).toHaveBeenCalledWith(video, FILTERS[0].css, true);
+      // And it still uploads.
+      await advance(COOLDOWN_MS);
+      fireEvent.click(snapshotButton());
+      await act(async () => {
+        fireEvent.click(uploadButton());
+      });
+      expect(uploadPhoto).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("icons appearing and disappearing", () => {
+    it("hides the X along with the upload icon during the thank-you, then brings both back", async () => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      await renderScene();
+      await takeSnapshot();
+      fireEvent.click(snapshotButton());
+      expect(uploadButton()).toBeInTheDocument();
+      expect(closeX()).toBeInTheDocument();
+
+      await act(async () => {
+        fireEvent.click(uploadButton());
+      });
+      expect(within(card()).queryByRole("button")).not.toBeInTheDocument();
+
+      await advance(UPLOADED_HOLD_MS);
+      expect(uploadButton()).toBeDisabled();
+      expect(closeX()).toBeEnabled();
+    });
+
+    it("hides the flip button while the card is open, and shows it again after", async () => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      await renderScene();
+      await takeSnapshot();
+      expect(flipButton()).toBeInTheDocument();
+
+      fireEvent.click(snapshotButton());
+      expect(screen.queryByRole("button", { name: "Flip camera" })).not.toBeInTheDocument();
+
+      fireEvent.click(closeX());
       expect(flipButton()).toBeEnabled();
     });
   });

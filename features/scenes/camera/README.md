@@ -377,7 +377,20 @@ Uses a fake webcam and fake timers to check:
   the button again closes it, without uploading; tapping the photo doesn't,
   and the X is disabled mid-upload (enabled again if it fails)
 - upload and the X tapped in the same moment: whichever lands first wins, in
-  both orders, and a tap outside the card counts the same as the X
+  both orders, and a tap outside the card counts the same as the X; the same
+  goes for upload against the snapshot thumbnail and the capture button
+- the countdown words stack on screen; a failed capture shows on screen,
+  keeps any earlier snapshot, and can be retried; every control is locked
+  while the frame is grabbed; a capture finishing after the scene has gone is
+  dropped
+- a failed upload's message shows in the card; closing after a failure and
+  reopening gives a clean card that retries with the same key; leaving the
+  scene after a failure, or mid-upload, uploads nothing more and logs no
+  React warnings
+- flip and capture tapped in the same moment, in either order, save the photo
+  as the preview shows it at "Pose!", and it still uploads
+- the X hides with the upload icon during the thank-you; the flip button
+  hides while the card is open
 - the card can be opened during the hold right after a capture
 - the upload icon is the only thing that stores a photo; after it, the card
   stays open with the upload icon hidden and the thank-you line in the card,

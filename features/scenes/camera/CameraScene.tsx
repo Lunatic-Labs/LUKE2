@@ -242,6 +242,8 @@ export function CameraScene({ handle }: SceneComponentProps) {
     // picture with the preview card open closes it, and the new photo
     // replaces the snapshot, uploaded or not.
     if (status !== "ready" && status !== "review") return;
+    // An upload that started in the same moment wins; see `cardOpenRef`.
+    if (uploadingRef.current) return;
     cardOpenRef.current = false;
     setMessage("");
     setStep(0);
