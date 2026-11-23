@@ -499,12 +499,72 @@ describe("CameraScene", () => {
     fireEvent.click(takePictureButton());
     expect(filterButton()).toBeDisabled();
     await advance(COUNTDOWN_STEP_MS, 3);
-    expect(captureFrame).toHaveBeenCalledWith(video, FILTERS[1].css);
+    expect(captureFrame).toHaveBeenCalledWith(video, FILTERS[1].css, false);
 
     // Wraps back to the first filter after the last.
     await advance(COOLDOWN_MS);
     for (let i = 1; i < FILTERS.length; i++) fireEvent.click(filterButton());
     expect(filterButton()).toHaveAccessibleName(`Change filter, now ${FILTERS[0].name}`);
+  });
+
+  describe("flip camera button", () => {
+    const flipButton = () => screen.getByRole("button", { name: "Flip camera" });
+
+    it("is clickable and mirrors the preview, and flips it back on a second tap", async () => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      const { container } = await renderScene();
+      const video = container.querySelector("video")!;
+
+      expect(flipButton()).toBeEnabled();
+      expect(flipButton()).toHaveAttribute("aria-pressed", "false");
+      expect(video.style.transform).toBe("");
+
+      fireEvent.click(flipButton());
+      expect(handle.reportActivity).toHaveBeenCalled();
+      expect(flipButton()).toHaveAttribute("aria-pressed", "true");
+      expect(video.style.transform).toBe("scaleX(-1)");
+
+      fireEvent.click(flipButton());
+      expect(flipButton()).toHaveAttribute("aria-pressed", "false");
+      expect(video.style.transform).toBe("");
+    });
+
+    it("still takes and saves the photo after flipping, mirrored like the preview", async () => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      const { container } = await renderScene();
+      const video = container.querySelector("video")!;
+
+      fireEvent.click(flipButton());
+      await takeSnapshot();
+      expect(captureFrame).toHaveBeenCalledWith(video, FILTERS[0].css, true);
+
+      fireEvent.click(snapshotButton());
+      await act(async () => {
+        fireEvent.click(uploadButton());
+      });
+      expect(uploadPhoto).toHaveBeenCalledTimes(1);
+      expect(uploadPhoto).toHaveBeenCalledWith(await (captureFrame as jest.Mock).mock.results[0].value, {
+        id: expect.stringMatching(UUID_V4),
+        takenAt: expect.stringMatching(ISO_UTC),
+      });
+      expect(THANK_YOU_TEXT).toContain(screen.getByRole("status").textContent);
+      // The camera stays flipped for the next picture.
+      expect(video.style.transform).toBe("scaleX(-1)");
+    });
+
+    it("is locked during the countdown so the photo matches the preview at Pose!", async () => {
+      mockCamera(jest.fn().mockResolvedValue(fakeStream().stream));
+      await renderScene();
+
+      fireEvent.click(takePictureButton());
+      expect(flipButton()).toBeDisabled();
+      fireEvent.click(flipButton());
+      await advance(COUNTDOWN_STEP_MS, 3);
+      expect(captureFrame).toHaveBeenCalledWith(expect.anything(), FILTERS[0].css, false);
+
+      await advance(COOLDOWN_MS);
+      expect(flipButton()).toBeEnabled();
+    });
   });
 
   it("explains when camera access is denied", async () => {

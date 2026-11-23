@@ -93,6 +93,12 @@ export function CameraScene({ handle }: SceneComponentProps) {
   const [message, setMessage] = useState("");
   const [filterIndex, setFilterIndex] = useState(0);
   /**
+   * Whether the preview is flipped left to right, toggled by the flip camera
+   * button in the preview's bottom right corner. The photo is saved flipped
+   * the same way, so it matches what the visitor saw.
+   */
+  const [mirrored, setMirrored] = useState(false);
+  /**
    * The snapshot: the last photo taken on this visit, as the JPEG, kept in
    * memory until the visitor uploads it, and an object URL of it for the
    * snapshot button and the preview card. Taking a photo never stores it;
@@ -166,7 +172,7 @@ export function CameraScene({ handle }: SceneComponentProps) {
       if (!video) return;
       setStatus("capturing");
       setMessage("");
-      captureFrame(video, filter.css).then(
+      captureFrame(video, filter.css, mirrored).then(
         (blob) => {
           if (videoRef.current !== video) return;
           setLastPhoto({ blob, url: URL.createObjectURL(blob), key: newSnapshotKey() });
@@ -183,7 +189,7 @@ export function CameraScene({ handle }: SceneComponentProps) {
     }, COUNTDOWN_STEP_MS);
 
     return () => clearTimeout(timer);
-  }, [status, step, filter]);
+  }, [status, step, filter, mirrored]);
 
   // Free each thumbnail's object URL once a newer photo replaces it, and the
   // last one when the scene leaves the screen, so the next visitor starts
@@ -275,6 +281,11 @@ export function CameraScene({ handle }: SceneComponentProps) {
     setFilterIndex((index) => (index + 1) % FILTERS.length);
   }
 
+  function handleFlip() {
+    handle.reportActivity();
+    setMirrored((flipped) => !flipped);
+  }
+
   if (status === "unavailable") {
     return (
       <SceneFrame className="items-center justify-center gap-3 bg-zinc-950 px-8 text-center">
@@ -312,7 +323,7 @@ export function CameraScene({ handle }: SceneComponentProps) {
           muted
           playsInline
           className="absolute inset-0 h-full w-full object-cover"
-          style={{ filter: filter.css }}
+          style={{ filter: filter.css, transform: mirrored ? "scaleX(-1)" : undefined }}
         />
 
         {status === "ready" && (
@@ -341,6 +352,23 @@ export function CameraScene({ handle }: SceneComponentProps) {
             aria-hidden="true"
             className="pointer-events-none absolute inset-0 animate-[luke-flash_400ms_ease-out_forwards] bg-white"
           />
+        )}
+
+        {/* Flip camera button, from the mockup: bottom right of the preview.
+            Mirrors the preview, and the photo taken from it. Locked during a
+            capture, like the filters button, since the photo is taken as
+            shown at "Pose!". Hidden under the preview card. */}
+        {!reviewing && (
+          <button
+            type="button"
+            aria-label="Flip camera"
+            aria-pressed={mirrored}
+            onClick={handleFlip}
+            disabled={busy}
+            className="absolute right-[4%] bottom-[4%] text-[var(--luke-purple)] drop-shadow-[0_0_2px_rgb(255_255_255/0.9)] transition-[filter,opacity] active:brightness-75 disabled:opacity-50"
+          >
+            <FlipCameraIcon />
+          </button>
         )}
 
         {/* Preview card, from the camera mockup, opened by the snapshot
@@ -492,6 +520,28 @@ function UploadIcon() {
       <path d="M12 15V3" />
       <path d="M7 8l5-5 5 5" />
       <path d="M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6" />
+    </svg>
+  );
+}
+
+/** A camera body with a circling arrow on its lens, the mockup's flip camera icon. */
+function FlipCameraIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="w-[clamp(2rem,10vw,4.5rem)]"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 8a2 2 0 0 1 2-2h2.5l1.5-2h6l1.5 2H19a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+      <path d="M15.5 11.5a3.5 3.5 0 0 0-6.4-1.5" />
+      <path d="M9 8v2.2h2.2" />
+      <path d="M8.5 14.5a3.5 3.5 0 0 0 6.4 1.5" />
+      <path d="M15 18v-2.2h-2.2" />
     </svg>
   );
 }

@@ -134,6 +134,14 @@ is a row of three controls:
   scene, including at the end of a session, empties the thumbnail, so the
   next visitor never sees someone else's photo.
 
+In the preview's bottom right corner is the **flip camera button**, a dark
+purple camera icon with circling arrows. Each tap mirrors the live preview left
+to right, or back again, and `captureFrame` mirrors the saved photo the same
+way, so it matches what the visitor saw. Its accessible name is "Flip camera",
+with `aria-pressed` saying whether it is flipped. Like the filters button, it
+is disabled during the countdown, the capture and an upload, and it is hidden
+while the preview card is open. The flip lasts until the scene unmounts.
+
 The text over the preview follows the mockup's frames: heavy sans-serif with a
 thick dark purple outline. "Take A Picture" sits at the top while the camera is
 ready. The gold countdown starts just below the middle and stacks downward
@@ -158,8 +166,9 @@ or `localhost`. Opening the kiosk by IP address over plain `http` shows
 
 The two browser-side steps of taking a picture:
 
-- `captureFrame(video, filter)` draws the current video frame onto a hidden
-  canvas, with the CSS `filter` applied (default `"none"`), and turns it into
+- `captureFrame(video, filter, mirrored)` draws the current video frame onto a
+  hidden canvas, with the CSS `filter` applied (default `"none"`) and flipped
+  left to right when `mirrored` is true (default `false`), and turns it into
   a JPEG.
 - `newSnapshotKey()` makes a snapshot's key when the picture is taken: a
   random v4 UUID (`crypto.randomUUID()`) and the time, as an ISO string.
@@ -374,6 +383,9 @@ Uses a fake webcam and fake timers to check:
 - the filters button cycles through `FILTERS` and wraps round, applies the
   filter to the preview, is disabled mid-countdown, and the photo is captured
   with the filter that was on screen
+- the flip camera button is clickable, mirrors the preview and flips it back,
+  is disabled mid-countdown, and a photo taken after flipping is captured
+  mirrored and still uploads to the gallery
 - a blocked camera, or a browser with no camera support, shows
   "Camera unavailable"
 - the camera is turned off when the visitor leaves the scene
@@ -513,6 +525,8 @@ Trade-offs in the current design, and what hasn't been checked:
 - A heavy sans-serif with a purple outline replaces `ACaslonPro-Regular.otf`, a
   licensed Adobe font, following the camera mockup. The countdown words gained
   periods ("Ready.", "Set.") to match it.
-- The preview isn't mirrored, same as the original.
-- The filters button, the snapshot button and the preview card are new;
+- The preview isn't mirrored by default, same as the original; the flip
+  camera button mirrors it.
+- The filters button, the flip camera button, the snapshot button and the
+  preview card are new;
   upstream had none of them.

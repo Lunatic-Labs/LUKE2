@@ -23,9 +23,10 @@ export function idealCaptureSize(): { width: number; height: number } {
 /**
  * Draw the video's current frame, at the camera's native resolution, to a JPEG.
  * `filter` is a CSS filter string, the same one the preview shows, so the
- * saved photo looks like what the visitor saw.
+ * saved photo looks like what the visitor saw. `mirrored` flips the frame
+ * left to right, matching a preview flipped by the flip camera button.
  */
-export function captureFrame(video: HTMLVideoElement, filter = "none"): Promise<Blob> {
+export function captureFrame(video: HTMLVideoElement, filter = "none", mirrored = false): Promise<Blob> {
   const canvas = document.createElement("canvas");
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
@@ -35,6 +36,10 @@ export function captureFrame(video: HTMLVideoElement, filter = "none"): Promise<
     return Promise.reject(new Error("Camera has no frame to capture yet"));
   }
   context.filter = filter;
+  if (mirrored) {
+    context.translate(canvas.width, 0);
+    context.scale(-1, 1);
+  }
   context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
   return new Promise((resolve, reject) => {
