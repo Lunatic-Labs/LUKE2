@@ -24,8 +24,8 @@ canvas and is gone as soon as the visitor leaves the page.
 ### [BoardScene.tsx](BoardScene.tsx)
 
 The whole scene. It renders a `SceneFrame` with a white background
-(`bg-white text-black`, the same as the Directory, Feedback and Video
-pages), which covers the shell's lavender and is the whiteboard. Inside it:
+(`bg-white text-black`, the same as the Directory and Feedback pages),
+which covers the shell's lavender and is the whiteboard. Inside it:
 
 - a `<canvas>` filling the scene area, sitting on top of the white, which
   holds the ink. The canvas itself is transparent wherever nothing is

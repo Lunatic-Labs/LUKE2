@@ -19,13 +19,13 @@ The shell, ported from the L.U.K.E. Processing sketch's `DisplayManager.pde`:
 
 ## `scenes/`
 
-One folder per screen. `idle/`, `map/` and `camera/` are built; the rest are registered
-placeholders that render `<ScenePlaceholder />` and name the Processing source
-they should be ported from.
+One folder per screen. Every registered scene is built; none still renders
+`<ScenePlaceholder />`.
 
 Some scenes document themselves in a `README.md` in their folder:
-`board/`, `camera/`, `main-menu/` and `trivia/`. Each covers how the scene
-works and how it connects to the shell and the rest of the kiosk.
+`board/`, `camera/`, `main-menu/` and `trivia/`. The video scene's is
+`video/Video.md`. Each covers how the scene works and how it connects to the
+shell and the rest of the kiosk.
 
 `camera/photo-store.ts` is server-only (it writes to disk for `app/api/photos`);
 keep it out of the `camera/index.ts` barrel so client bundles never pull it in.

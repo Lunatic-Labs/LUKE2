@@ -23,6 +23,8 @@ docker compose up --build                       # production image
 
 `OPTIONS_FILE` (optional) sets where this machine's `options.txt` is read from; it defaults to `data/options.txt` relative to the working directory, which is gitignored. It's read when the page is served, so one build can run on every kiosk, and a missing file means the defaults in `features/kiosk/options.ts`.
 
+The video scene plays whatever is in `public/videos/`, listed by `app/api/videos`. The folder is gitignored and each machine keeps its own copy (about 620 MB), so a fresh clone has an empty playlist until the files are copied in. It is not yet in `.dockerignore`, so `docker compose build` bakes the videos into the image; see `features/scenes/video/Video.md`.
+
 `TRIVIA_SCORES_DIR` (optional) sets where `app/api/scores` keeps the trivia leaderboard, a `scores.csv` table of `tag,score` rows; it defaults to `data/trivia-scores` and is mounted as the `trivia-scores` volume in `docker-compose.yml`. `features/scenes/trivia/score-store.ts` is server-only, like `camera/photo-store.ts`.
 
 ## Architecture

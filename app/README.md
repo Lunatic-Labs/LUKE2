@@ -22,6 +22,12 @@
   via `@/features/scenes/trivia/score-store` to `scores.csv` in
   `TRIVIA_SCORES_DIR` (default `data/trivia-scores`), and returns the
   leaderboard. `GET` returns the leaderboard alone.
+- `api/videos/route.ts` — the video scene's playlist: the names of the video
+  files in `public/videos/` (`.mp4`, `.webm`, `.m4v`, `.mov`), sorted by
+  name, as `{ files }`. Read on every request, so adding a file needs no
+  rebuild; a missing folder gives an empty list. The files themselves are
+  served from `public/` at `/videos/<name>`. See
+  `features/scenes/video/Video.md`.
 
 Business logic does not belong here. When scenes need data from disk (video
 playlists, gallery contents, professor records), add route handlers under this

@@ -10,7 +10,7 @@ This restyle brings the kiosk in line with the design mockup: a purple branded h
 | `--luke-lavender`  | `#C9C3D5` | Content background, navigation buttons             |
 | `--luke-lilac`     | `#8F7EB3` | Header title and menu button, welcome-screen tint  |
 | `--luke-gold`      | `#F4AA00` | Unchanged; the shield and map highlights use it   |
-| `--luke-grey`      | `#D9D9D9` | unused                                            |
+| `--luke-grey`      | `#D9D9D9` | Video scene background, under its camera pattern  |
 
 The welcome screen's gradients also use `#3E364D`, a dark purple-grey. It appears only in that one gradient, so it is written inline rather than added as a token.
 
@@ -110,7 +110,7 @@ Restyled to match the camera mockup, and given two new controls from it: a filte
 
 Partly restyled to the drawing mockup. Full details are in the scene's [README](features/scenes/board/README.md).
 
-- **Background:** the `SceneFrame` is `bg-white text-black`, like the Directory, Feedback and Video scenes, covering the shell's lavender. The canvas sits on top and is transparent where nothing is drawn.
+- **Background:** the `SceneFrame` is `bg-white text-black`, like the Directory and Feedback scenes, covering the shell's lavender. The canvas sits on top and is transparent where nothing is drawn.
 - **Toolbar:** upstream's "Erase/Draw" and "Clear" buttons (purple rectangles with gold text and border, placed with inline styles in the bottom-left corner) are replaced by a row of round icon buttons along the top, inset 3%: colour, pen and eraser on the left, a trash can on the right. Each is lavender (`--luke-lavender`) with a purple (`--luke-purple`) outline (`clamp(2px, 0.6vw, 4px)`) and a purple icon at 60% of the button, `clamp(2.5rem, 12vw, 4.5rem)` across, with `clamp(0.25rem, 1.5vw, 0.75rem)` gaps. The selected tool gets a thicker outline, `clamp(3.5px, 1.1vw, 7px)`, with the same colours (it was first shown inverted, purple with a lavender icon). Pressed buttons darken slightly (`active:brightness-90`).
 - **Icons:** the pen and eraser are the supplied icons, `public/images/board/pen.png` and `eraser.png`, applied as CSS masks (`mask-image`, `mask-size: contain`) over `bg-current`, so they take the button's `--luke-purple` text colour instead of the PNGs' own purple. The trash can is an inline SVG; the colour button and size options are plain circles.
 - **Colour menu:** the colour button shows a dot of the current ink. Tapped, it grows from a circle into a pill (`rounded-full`, same outline and fill, height animating from `var(--tool)` to `var(--tool) × 3.56` over 300ms, ease-out). The current ink stays on top at 55% of the button's width; the others, in the order red `#E04C46`, yellow `#F0CD48`, green `#71C467`, blue `#5588F6`, purple `rgb(51, 30, 84)` (the default), are listed below at 45%, each row 0.64 of a button tall (`COLOUR_SLOT`), pulled 0.17 of a button up under the top button (`COLOUR_LIFT`, a negative top margin on the first colour) so red's centre is 1.15 buttons from the pill's top and the same 0.17 margin is left below blue. Measured from the colour menu reference image; before that the colours sat below a full-height top button and looked too low. Each colour fades in and slides down over 150ms, staggered 50ms apart so it appears as the pill reaches it; closing runs the stagger in reverse. Colours were sampled from the mockup. `motion-reduce` makes it instant.
@@ -133,7 +133,7 @@ Partly restyled to the drawing mockup. Full details are in the scene's [README](
   - In landscape, the height limits `--u`, so the same layout is scaled down until it fits. All screens sit in a centred column `calc(var(--u)*100)` wide (the full width in portrait), so percentage widths like the pills' 60% keep their portrait proportions instead of stretching across a wide screen. The column scrolls only as a last resort, for example if a very long question wraps onto more lines than usual.
   - **Reading the sizes below:** they're listed as originally designed in `vw` and `dvh`. In the code, each `N vw` is written `calc(var(--u)*N)` and each `N dvh` is `calc(var(--v)*N)`, with the same upper limits, e.g. `clamp(1.25rem, 6.5vw, 3.25rem)` became `min(3.25rem, calc(var(--u)*6.5))`. The `rem` lower limits were dropped, since none applied at 360×640 and they stopped short landscape screens from fitting. Borders and the letter boxes' inner padding keep their small `px` minimums so they never vanish. `text-[…]` and `border-[…]` values carry a `length:` hint, because Tailwind can't tell a `var()` size from a colour.
   - Checked by screenshot at 360×640 and 768×1024 portrait, and at 1280×720, 1024×600 and 640×360 landscape: every button on every screen (start, initials, question, result, "Don't ghost the quiz!", end, leader board) is fully visible. Before, landscape cut off the lower buttons on most screens, and a 768×1024 tablet cut off the initials screen's "Back".
-- **Background:** the scene's `SceneFrame` now has the trivia mockup's question-mark pattern: `bg-[url('/images/trivia-pattern.svg')]`, repeated, over a white fallback (`bg-white`). `bg-[length:40%_auto]` sizes each tile to 40% of the scene's width. A tile holds two columns of marks, so there are always five columns across, matching the mockup at any screen width. The page was first a `#d9d9d9` grey, as in the mockup; it is now white (`#ffffff`), the same shade as the Directory, Feedback and Video scenes (`bg-white`), so it matches the rest of the kiosk. The SVG tile changed with it, since its own square paints over the fallback.
+- **Background:** the scene's `SceneFrame` now has the trivia mockup's question-mark pattern: `bg-[url('/images/trivia-pattern.svg')]`, repeated, over a white fallback (`bg-white`). `bg-[length:40%_auto]` sizes each tile to 40% of the scene's width. A tile holds two columns of marks, so there are always five columns across, matching the mockup at any screen width. The page was first a `#d9d9d9` grey, as in the mockup; it is now white (`#ffffff`), the same shade as the Directory and Feedback scenes (`bg-white`), so it matches the rest of the kiosk. The SVG tile changed with it, since its own square paints over the fallback.
 - **Start screen:** a new `StartScreen` component replaces the old shared `PromptScreen` on the opening screen, following the start-screen mockup:
   - **Heading:** "Think you got what it takes to ace this Lipscomb Trivia?", bold, centred and in `--luke-purple`, sized `clamp(1.25rem, 6.5vw, 3.25rem)`. It sits in the upper part of the scene (`pt-[clamp(2rem,10dvh,7rem)]`) rather than centred vertically, with `px-[12%]` so it wraps onto three lines as in the mockup.
   - **Buttons:** "Let's go!" followed by a right-arrow icon (inline SVG sized `1em`), then "Score Board", stacked with even gaps (`clamp(0.75rem, 2.5dvh, 2rem)`) a large gap below the heading (`clamp(2rem, 7dvh, 5rem)`). Each is a `rounded-full` purple pill, 60% of the scene's width, with bold gold text (`clamp(1.125rem, 5.5vw, 2.75rem)`). They brighten slightly while pressed (`active:brightness-125`), because darkening barely shows on dark purple. "Let's go!" replaced the old "Game on!" here, which moved to the initials screen.
@@ -175,6 +175,31 @@ Partly restyled to the drawing mockup. Full details are in the scene's [README](
 - The background is opaque, so it also covers the shell's skyline on this page, as in the mockup.
 - Upstream jumped straight to the result screen on a tap, so a highlight would never have been seen. The short hold (0.4 seconds) makes it visible. The clock is paused during it and the answer is scored at the tap, so the hold doesn't cost the visitor any points.
 - The grey is written inline rather than as a token, like the welcome screen's `#3E364D`, because only this page uses it.
+
+### `features/scenes/video/VideoScene.tsx`
+
+Rebuilt from the video player mockups (portrait and landscape). Full details, including the playlist route and how swiping works, are in the scene's [Video.md](features/scenes/video/Video.md).
+
+- **Layout:** upstream's stack (previous video's thumbnail on top, current in the middle, next at the bottom) is replaced by a row: a still of the previous video on the left, the current video in a card in the middle, the next on the right. Above the card is the counter ("1 / 13"); below it, the title, then "next: …" and "previous: …". The old header strip ("Video Player" label, title and a grey counter pill) is gone.
+- **Sizing (portrait and landscape):** every size is a multiple of one variable, `--c`, the card's width. The `SceneFrame` is a size container (`[container-type:size]`) and sets `--c` to `min(68cqw, 60cqh)`: 68% of the scene's width, as in the portrait mockup, unless the scene is too short, when it's 60% of the height so the counter and three lines of text still fit. Sizes are written `calc(var(--c)*N)`, and `text-[…]`/`border-[…]` values carry a `length:` hint, as on the trivia page.
+- **Video card:** `--c` wide at 11 : 10 (`aspect-[11/10]`), corners `0.08`, a `0.018` `--luke-purple` border and a light lavender fill (`#d6d1e4`). The video is `object-contain` inside it.
+- **Previews:** squares `0.77` wide, `0.07` from the card, with a `0.012` `--luke-lilac` border over `--luke-lavender`. The still (the frame at 0.5s, `#t=0.5`) is at 45% opacity, so the purple arrow (`0.22` × `0.11`, an inline SVG) reads clearly on dark frames. The arrow sits `0.025` from the edge nearest the card.
+- **Cropping:** the row is centred (`justify-center`) in a `minmax(0,1fr)` grid column, so when it's wider than the screen it overflows equally on both sides and the scene's `overflow: hidden` crops it. A narrow portrait screen shows a sliver of each preview; a wide landscape one shows them whole.
+- **The video doesn't move:** the player is a grid of three rows, `minmax(0,1fr)` / `auto` / `minmax(0,2.5fr)`: counter, videos, text. The outer rows split the leftover height by a fixed ratio, and their `0` minimum stops their text from pushing on them, so a title wrapping onto a second line, or a longer next/previous name, moves only that text.
+- **Text:** the counter is bold `--luke-purple` at `0.075`, with no border or background. The title is bold `--luke-purple` at `0.1`, at most `1.3` wide, `text-balance` so two lines split evenly. "next:" and "previous:" are semibold `--luke-lilac` at `0.058`.
+- **Pause icon:** while paused, upstream's two gold bars (`#AD8C45`), now `0.25` × `0.075`, `0.06` apart, so they scale with the card. A purple play-in-a-circle icon was tried in between and removed.
+- **Background:** `--luke-grey` under `public/images/video-pattern.png`, repeated at `min(80%, 18rem)`, which matches the mockup's camera spacing. It replaces `bg-white`.
+- **Swipe area:** the row of videos has `touch-pan-y` (sideways drags reach the page instead of scrolling) and `select-none`.
+
+**Why:**
+- One variable keeps the mockup's proportions at any size, and in landscape the card is limited by height, as in the landscape mockup.
+- The grey and the pattern come from the mockup. The background is opaque, so it covers the shell's skyline here.
+- The previews are sized against the card, not the screen, so the screen's shape decides how much of them shows, which is what the two mockups differ in.
+
+### `features/scenes/video/VideoScene.test.tsx`
+
+- Updated for the new layout: the title is below the card, the previews are labelled "Previous video: …" and "Next video: …", and the counter is visible.
+- **Added** tests for the next/previous titles, swiping left and right, ignoring short or mostly vertical drags, and a swipe that ends on an arrow switching only once. jsdom has no `PointerEvent`, so the file defines a `MouseEvent`-based stand-in to keep `clientX`/`clientY`.
 
 ### `features/kiosk/registry.ts`
 
@@ -267,6 +292,12 @@ The trivia scene's component tests, run against a fixed round with fake timers. 
 One repeating tile of the trivia background, 114×57: a white `#FFFFFF` square (originally the mockup's `#D9D9D9` grey, changed to match the other scenes' `bg-white`) with two bold question marks in lavender-grey `#C4C0D6`, tilted 15°. The second mark sits half a row higher, so neighbouring columns are staggered when the tile repeats.
 
 **Why an SVG rather than the mockup image:** the exported mockup image has a pink line down its left edge, and its edges don't line up, so it would show seams when tiled. A redrawn tile repeats seamlessly and stays sharp at any resolution. The marks use the system's bold Arial, because an SVG used as a CSS background can't load web fonts.
+
+### `public/images/video-pattern.png`
+
+One repeating tile of the video scene's background, 188×188: purple-grey camera outlines on the mockup's `#D9D9D9` grey, four across and two staggered rows down.
+
+**Why this size:** it was cropped from the mockup image, which has a pink frame around it. A plain crop of the area inside the frame (225×225) didn't line up with the pattern, so half-drawn cameras showed at every tile edge. Measuring the pattern gave a repeat of 47px across and 94px down, and a 188×188 crop (4 × 47 by 2 × 94) tiles with no seams. Unlike `trivia-pattern.svg` it is a PNG, since the mockup's own image was supplied for it; it may look soft on large, high-DPI screens.
 
 ### `public/images/lipscomb-entrance.png`
 
