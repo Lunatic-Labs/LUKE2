@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from "react";
 import { SceneFrame } from "@/components/SceneFrame";
 import type { SceneComponentProps } from "@/features/kiosk/types";
 import { toKioskVideo, type KioskVideo } from "./videos";
@@ -11,10 +12,20 @@ import { wrapIndex } from "@/features/kiosk/wrapIndex";
  *
  * Ported from `src/luke_java/VideoScene.pde` (VideoPlayerScene.pde was an
  * unused stub). The playlist comes from /api/videos, which lists the files in
- * public/videos/, replacing upstream's readDir.pde. Keeps upstream's behaviour:
- * - previous video's thumbnail on top, current video in the middle, next on the bottom
- * - tap a thumbnail to switch videos (wrapping at the ends)
- * - tap the video to pause or play; a gold pause icon shows while paused
+ * public/videos/, replacing upstream's readDir.pde.
+ *
+ * Laid out from the video player mockup rather than upstream's stacked
+ * thumbnails:
+ * - the current video in a card in the middle, "3 / 13" above it, and below
+ *   it its title and the titles of the next and previous videos
+ * - still previews of the previous and next videos either side, cropped by
+ *   the screen's edges as it needs; tap one (or its arrow) to switch,
+ *   wrapping at the ends
+ * - everything scales with the scene, and the video keeps its place when the
+ *   text around it changes length
+ * - swipe left or right on the videos to switch too; it jumps straight to the
+ *   next video, with no slide animation yet
+ * - tap the video to pause or play; upstream's gold pause bars show while paused
  * - when a video ends, the next one starts on its own
  *
  * Upstream counted idle time only while paused or autoplaying, so a visitor who
@@ -28,6 +39,9 @@ const PLAYLIST_URL = "/api/videos";
 
 /** How often to tell the kiosk someone is watching, in milliseconds. */
 const KEEP_AWAKE_MS = 5000;
+
+/** How far a finger has to travel sideways, in pixels, to count as a swipe. */
+export const SWIPE_MIN_PX = 40;
 
 type Handle = SceneComponentProps["handle"];
 
@@ -51,11 +65,21 @@ export function VideoScene({ handle }: SceneComponentProps) {
   }, []);
 
   return (
-    <SceneFrame className="bg-white text-black">
+    // Tiled camera pattern from the mockup, over the mockup's grey. Opaque, so
+    // it also covers the shell's skyline here. The tile is exactly one repeat
+    // of the pattern (4 cameras across, 2 staggered rows down), so it has no
+    // seams; 80% of the width matches the mockup's camera spacing.
+    //
+    // `--c` is the video card's width, and every size in the player is a
+    // fraction of it, so the whole layout scales with the screen. It is 68% of
+    // the scene's width (the portrait mockup), unless the scene is too short
+    // for that: then 60% of its height, which leaves room for the counter
+    // above and, below, a two-line title plus the next and previous titles.
+    <SceneFrame className="bg-[var(--luke-grey)] bg-[url('/images/video-pattern.png')] bg-[length:min(80%,18rem)_auto] bg-repeat [container-type:size] [--c:min(68cqw,60cqh)]">
       {videos && videos.length > 0 ? (
         <VideoPlayer videos={videos} handle={handle} />
       ) : (
-        <div className="flex flex-1 items-center justify-center p-8 text-center text-lg text-[#2B0A54]">
+        <div className="flex flex-1 items-center justify-center p-8 text-center text-lg font-semibold text-[var(--luke-purple)]">
           {videos === null ? "Loading videos…" : "No videos found. Add video files to public/videos."}
         </div>
       )}
@@ -78,6 +102,10 @@ function VideoPlayer({ videos, handle }: VideoPlayerProps) {
   const [autoplaying, setAutoplaying] = useState(true);
   const [failedFile, setFailedFile] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  // Where the current swipe started, and whether the last one switched videos
+  // (so the tap that ends a swipe doesn't also pause or switch again).
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
+  const justSwiped = useRef(false);
 
   const count = videos.length;
   const current = videos[index];
@@ -131,29 +159,67 @@ function VideoPlayer({ videos, handle }: VideoPlayerProps) {
     }
   }
 
-  return (
-    <>
-      <div className="flex items-center justify-between border-b border-black/15 px-5 py-3">
-        <div>
-          <p className="text-xs uppercase tracking-[0.2em] text-black">Video Player</p>
-          <h1 className="text-2xl font-semibold text-black">{current.title}</h1>
-        </div>
-        <span className="rounded-full bg-[#F3F3F3] px-3 py-2 text-sm font-medium text-black">
-          {index + 1} / {count}
-        </span>
-      </div>
+  function handlePointerDown(event: ReactPointerEvent) {
+    swipeStart.current = { x: event.clientX, y: event.clientY };
+    justSwiped.current = false;
+  }
 
-      <div className="flex min-h-0 flex-1 flex-col">
-        <ThumbnailButton label="Previous" video={previous} direction="up" onClick={() => changeVideo(-1)} />
+  function handlePointerUp(event: ReactPointerEvent) {
+    const start = swipeStart.current;
+    swipeStart.current = null;
+    if (!start) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    // Mostly sideways and far enough: swiping left brings in the next video.
+    if (Math.abs(dx) >= SWIPE_MIN_PX && Math.abs(dx) > Math.abs(dy)) {
+      justSwiped.current = true;
+      changeVideo(dx < 0 ? 1 : -1);
+    }
+  }
+
+  function swallowClickAfterSwipe(event: ReactMouseEvent) {
+    if (!justSwiped.current) return;
+    justSwiped.current = false;
+    event.stopPropagation();
+    event.preventDefault();
+  }
+
+  return (
+    // Three rows: the counter, the videos, then the titles. The outer rows
+    // split the space left over by a fixed ratio and their text can't push on
+    // them, so the video stays put when a title wraps onto another line; only
+    // the text's own row changes. The bottom row gets more because it holds
+    // three lines of titles to the counter's one.
+    <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(0,1fr)_auto_minmax(0,2.5fr)]">
+      <p className="row-start-1 self-end justify-self-center mb-[calc(var(--c)*0.04)] text-[length:calc(var(--c)*0.075)] leading-snug font-bold text-[var(--luke-purple)]">
+        {index + 1} / {count}
+      </p>
+
+      {/* The swipe area: the video centred, a preview either side at a fixed
+          size and gap. The screen's edges crop the previews, so a narrow
+          portrait screen shows a sliver of each and a wide one shows them
+          whole. `touch-action: pan-y` keeps the browser from claiming
+          sideways drags. */}
+      <div
+        data-testid="video-swipe-area"
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={() => {
+          swipeStart.current = null;
+        }}
+        onClickCapture={swallowClickAfterSwipe}
+        className="row-start-2 flex min-w-0 touch-pan-y items-center justify-center gap-[calc(var(--c)*0.07)] select-none"
+      >
+        <PreviewButton label="Previous" video={previous} onClick={() => changeVideo(-1)} />
 
         <button
           type="button"
           aria-label={playing ? "Pause video" : "Play video"}
           onClick={togglePlay}
-          className="relative min-h-0 flex-1 border-y-2 border-[#AD8C45] bg-black focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#AD8C45]"
+          className="relative aspect-[11/10] w-[var(--c)] shrink-0 overflow-hidden rounded-[calc(var(--c)*0.08)] border-[length:calc(var(--c)*0.018)] border-[var(--luke-purple)] bg-[#d6d1e4] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--luke-gold)]"
         >
           {failed ? (
-            <span className="flex h-full items-center justify-center px-6 text-center text-white/80">
+            <span className="flex h-full items-center justify-center px-[calc(var(--c)*0.06)] text-center text-[length:calc(var(--c)*0.06)] text-[var(--luke-purple)]">
               This video can&apos;t be played on this machine ({current.file}).
             </span>
           ) : (
@@ -171,57 +237,93 @@ function VideoPlayer({ videos, handle }: VideoPlayerProps) {
                 setPlaying(false);
                 setFailedFile(current.file);
               }}
-              className="h-full w-full object-contain"
+              className="pointer-events-none h-full w-full object-contain"
             />
           )}
 
+          {/* Upstream's pause icon: two gold bars while the video is paused. */}
           {!playing && !failed ? (
-            <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center gap-4">
-              <span className="h-20 w-6 rounded-sm bg-[#AD8C45]" />
-              <span className="h-20 w-6 rounded-sm bg-[#AD8C45]" />
+            <span
+              aria-hidden="true"
+              className="absolute inset-0 flex items-center justify-center gap-[calc(var(--c)*0.06)]"
+            >
+              <span className="h-[calc(var(--c)*0.25)] w-[calc(var(--c)*0.075)] rounded-sm bg-[#AD8C45]" />
+              <span className="h-[calc(var(--c)*0.25)] w-[calc(var(--c)*0.075)] rounded-sm bg-[#AD8C45]" />
             </span>
           ) : null}
         </button>
 
-        <ThumbnailButton label="Next" video={next} direction="down" onClick={() => changeVideo(1)} />
+        <PreviewButton label="Next" video={next} onClick={() => changeVideo(1)} />
       </div>
-    </>
+
+      <div className="row-start-3 flex flex-col items-center self-start px-[calc(var(--c)*0.06)] pt-[calc(var(--c)*0.04)] text-center text-balance">
+        <h1 className="max-w-[calc(var(--c)*1.3)] text-[length:calc(var(--c)*0.1)] leading-tight font-bold text-[var(--luke-purple)]">
+          {current.title}
+        </h1>
+        {/* Which video each arrow leads to: next is on the right, previous on the left. */}
+        <p className="mt-[calc(var(--c)*0.015)] text-[length:calc(var(--c)*0.058)] leading-snug font-semibold text-[var(--luke-lilac)]">
+          next: {next.title}
+        </p>
+        <p className="text-[length:calc(var(--c)*0.058)] leading-snug font-semibold text-[var(--luke-lilac)]">
+          previous: {previous.title}
+        </p>
+      </div>
+    </div>
   );
 }
 
-type ThumbnailButtonProps = {
+type PreviewButtonProps = {
   label: "Previous" | "Next";
   video: KioskVideo;
-  direction: "up" | "down";
   onClick: () => void;
 };
 
-/** A strip showing a frame from another video; tapping it switches to that video. */
-function ThumbnailButton({ label, video, direction, onClick }: ThumbnailButtonProps) {
+/**
+ * A still of the previous or next video beside the current one; tapping it
+ * switches to that video. The screen's edge may crop it, so the arrow sits at
+ * the edge nearest the middle, which is always on screen.
+ */
+function PreviewButton({ label, video, onClick }: PreviewButtonProps) {
+  const isNext = label === "Next";
   return (
     <button
       type="button"
       aria-label={`${label} video: ${video.title}`}
       onClick={onClick}
-      className="relative h-[22%] flex-none overflow-hidden bg-[#2B0A54] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#AD8C45]"
+      className="relative aspect-square w-[calc(var(--c)*0.77)] shrink-0 overflow-hidden rounded-[calc(var(--c)*0.07)] border-[length:calc(var(--c)*0.012)] border-[var(--luke-lilac)] bg-[var(--luke-lavender)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[var(--luke-gold)]"
     >
       {/* "#t=0.5" shows the frame at half a second, like upstream's SetThumbnails(). */}
       <video
+        key={video.file}
         src={`${videoSrc(video)}#t=0.5`}
         preload="metadata"
         muted
         playsInline
         aria-hidden="true"
-        className="absolute inset-0 h-full w-full object-cover opacity-40"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-45"
       />
-      <span className="relative flex h-full flex-col items-center justify-center gap-2 px-4 text-white">
-        <span
-          aria-hidden="true"
-          className={`h-4 w-4 border-l-4 border-t-4 border-[#AD8C45] ${direction === "up" ? "rotate-45" : "-rotate-[135deg]"}`}
-        />
-        <span className="text-sm text-white/80">{label}</span>
-        <span className="text-lg font-semibold">{video.title}</span>
+      <span
+        aria-hidden="true"
+        className={`absolute inset-y-0 flex items-center ${isNext ? "left-[calc(var(--c)*0.025)]" : "right-[calc(var(--c)*0.025)]"}`}
+      >
+        <Chevron direction={isNext ? "right" : "left"} />
       </span>
     </button>
+  );
+}
+
+function Chevron({ direction }: { direction: "left" | "right" }) {
+  return (
+    <svg
+      viewBox="0 0 24 48"
+      className="h-[calc(var(--c)*0.22)] w-[calc(var(--c)*0.11)] text-[var(--luke-purple)]"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d={direction === "left" ? "M18 6 L6 24 L18 42" : "M6 6 L18 24 L6 42"} />
+    </svg>
   );
 }

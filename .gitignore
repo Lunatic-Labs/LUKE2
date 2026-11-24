@@ -42,3 +42,6 @@ next-env.d.ts
 
 # kiosk photos written by /api/photos
 /data/
+
+# kiosk videos: each machine keeps its own copy (see app/api/videos/route.ts)
+/public/videos/
