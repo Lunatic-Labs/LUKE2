@@ -24,6 +24,21 @@ jest.mock("node:fs/promises", () => {
   return { ...actual, writeFile: jest.fn(actual.writeFile) };
 });
 
+const actualFs = jest.requireActual<typeof import("node:fs/promises")>("node:fs/promises");
+
+/**
+ * Makes the next writeFile behave like a disk filling up mid-write: the file
+ * is created and gets the first few bytes, then the write fails.
+ */
+function failNextWriteHalfway(): Error {
+  const diskFull = Object.assign(new Error("no space left on device"), { code: "ENOSPC" });
+  jest.mocked(writeFile).mockImplementationOnce(async (file, data, options) => {
+    await actualFs.writeFile(file, (data as Uint8Array).subarray(0, 3), options);
+    throw diskFull;
+  });
+  return diskFull;
+}
+
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
 const ID = "6f1c2b9e-3d4a-4f5b-8c6d-7e8f9a0b1c2d";
 const TAKEN_AT = "2026-11-12T15:30:05.123Z";
@@ -84,8 +99,15 @@ describe("photo-store", () => {
     const takenAt = new Date();
     await savePhoto(JPEG, dir, takenAt, "abc");
 
-    await expect(savePhoto(JPEG, dir, takenAt, "abc")).rejects.toThrow();
+    await expect(savePhoto(JPEG, dir, takenAt, "abc")).rejects.toMatchObject({ code: "EEXIST" });
     expect(await readdir(dir)).toHaveLength(1);
+  });
+
+  it("leaves nothing behind when a write fails partway", async () => {
+    const diskFull = failNextWriteHalfway();
+
+    await expect(savePhoto(JPEG, dir)).rejects.toBe(diskFull);
+    expect(await readdir(dir)).toEqual([]);
   });
 
   it("accepts only names photoFileName produces", () => {
@@ -169,6 +191,21 @@ describe("photo-store", () => {
 
       await expect(saveSnapshotOnce(JPEG, parseSnapshotKey(ID, TAKEN_AT)!, dir)).rejects.toBe(diskFull);
       expect(await readdir(dir)).toEqual([]);
+    });
+
+    it("saves a retry in full after a write that failed partway", async () => {
+      const key = parseSnapshotKey(ID, TAKEN_AT)!;
+      const diskFull = failNextWriteHalfway();
+
+      await expect(saveSnapshotOnce(JPEG, key, dir)).rejects.toBe(diskFull);
+      // The partial bytes never appear under the photo's name.
+      expect(await readdir(dir)).toEqual([]);
+
+      const retry = await saveSnapshotOnce(JPEG, key, dir);
+
+      expect(retry).toEqual({ fileName: photoFileName(key.takenAt, ID), created: true });
+      expect(await readdir(dir)).toEqual([retry.fileName]);
+      expect(new Uint8Array(await readFile(path.join(dir, retry.fileName)))).toEqual(JPEG);
     });
   });
 

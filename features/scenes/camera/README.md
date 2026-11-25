@@ -198,9 +198,16 @@ file so the tests can swap them out, since a test has no real camera.
 Each snapshot gets its key once, when it's taken, and every upload of it
 sends the same key. The server builds the file name from the key alone
 (`screen-<taken at>-<id>.jpg`), so a repeat upload of a snapshot lands on the
-name already saved. The write uses the `wx` flag, which refuses to overwrite,
-so the repeat is recognised as a duplicate and nothing new is written. The
-check is atomic, so it holds even if two copies arrive at the same moment.
+name already saved. A photo only gets its name once it's fully written (see
+`savePhoto()` below), and that last step refuses to overwrite, so the repeat
+is recognised as a duplicate and nothing new is written. The check is atomic,
+so it holds even if two copies arrive at the same moment.
+
+Because a name only appears once the whole photo is on disk, "already exists"
+always means "already saved in full". If a save fails partway, for example
+because the disk filled up, nothing is left under the photo's name. The
+visitor's retry then saves it normally, instead of being told a broken file
+was a successful upload.
 
 This covers the case the card's own checks can't: an upload that reached
 the server but whose response was lost, so the scene shows "didn't upload"
@@ -224,7 +231,14 @@ Writes photos to disk. **Server-only.**
 - `isJpeg()` checks the first 3 bytes of the file (`FF D8 FF`), which every
   JPEG starts with.
 - `savePhoto()` creates the folder if needed and writes the file. It refuses to
-  overwrite an existing file.
+  overwrite an existing file. The bytes go to a temporary file first
+  (`.screen-….jpg.<uuid>.tmp` in the same folder), which is then hard-linked
+  to the real name and removed. So a photo never appears half-written: if the
+  write fails, the temp file is removed and the real name was never created.
+  The hard link fails if the name is taken, which is what prevents overwrites
+  (`rename` would silently replace the file on Linux). Temp names don't pass
+  `isPhotoFileName()`, so one left behind by a crash never shows in the
+  gallery.
 - `parseSnapshotKey(id, takenAt)` checks a client's snapshot key: the id must
   be a lowercase v4 UUID, and the time an exact `toISOString()` string whose
   file name `isPhotoFileName()` accepts (so a year past 9999 can't make a
@@ -232,8 +246,10 @@ Writes photos to disk. **Server-only.**
 - `saveSnapshotOnce(bytes, key)` saves a snapshot under the name its key
   gives it, at most once. A repeat returns `created: false` with the existing
   name and leaves that file untouched. Only "file already exists" counts as a
-  repeat. Other errors, including a `CAMERA_DIR` that turns out to be a file,
-  are thrown, so a photo is never silently dropped.
+  repeat. Other errors, including a `CAMERA_DIR` that turns out to be a file
+  or a full disk, are thrown, so a photo is never silently dropped. It writes
+  the same way as `savePhoto()`, so the existing file is always a complete
+  upload.
 - `isPhotoFileName()` accepts only names that `photoFileName()` could have
   made. It also accepts older photos saved before the UUID was added. Anything
   else, like `../package.json` or `notes.txt`, is rejected. This is what keeps
@@ -434,6 +450,10 @@ that overwriting is refused. For snapshot keys it checks:
   once
 - different snapshots taken at the same moment are both saved
 - errors other than "already exists" are thrown, not treated as duplicates
+- a write that fails partway (a simulated full disk that writes some bytes
+  and then fails) leaves no file behind, and a retry of the same snapshot
+  saves the full photo with `created: true` instead of passing as a
+  duplicate
 
 It uses a temporary folder, so it never touches real photos.
 
@@ -518,6 +538,14 @@ Trade-offs in the current design, and what hasn't been checked:
   any body that starts with `FF D8 FF`, so a truncated or otherwise corrupt
   JPEG is saved and listed. The gallery hides a photo that fails to load, but
   the file stays on disk.
+- **Saving needs hard links in `CAMERA_DIR`.** NTFS, ext4 and the Docker
+  `camera-pics` volume all support them. A folder on a filesystem that
+  doesn't (FAT/exFAT, some network shares) would make every upload fail
+  with an error, never pass silently. This hasn't been checked on
+  `docker-compose.dev.yml`'s bind mount of the Windows repo.
+- **A crash mid-save can leave a temp file.** A `.screen-….tmp` file is
+  removed whenever a save fails normally, but a power cut or killed process
+  can leave one. It's never listed or served; delete it by hand if wanted.
 - **Only the same snapshot is recognised as a duplicate.** Two snapshots of
   the same picture are saved twice; the server doesn't compare image data.
 - **A repeat upload with different image data is ignored.** The first copy
