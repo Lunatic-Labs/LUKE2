@@ -8,7 +8,7 @@ the photo ends up in the gallery scene.
 ## A photo's trip, start to finish
 
 ```
-CameraScene ──captureFrame──▶ JPEG ──uploadPhoto──▶ POST /api/photos
+CameraScene ──captureFrame──▶ JPEG ──(upload tapped)──uploadPhoto──▶ POST /api/photos
                                                          │
                                                   photo-store.savePhoto
                                                          │
@@ -21,11 +21,17 @@ GalleryScene ◀── <Image src="/api/photos/screen-….jpg"> ◀── GET /a
 ```
 
 1. The visitor taps the capture button, the countdown runs, and
-   `CameraScene` grabs a frame.
-2. The frame is sent to `POST /api/photos`, which saves it in `CAMERA_DIR`.
-3. The next time anyone opens the gallery scene, it asks `GET /api/gallery`
+   `CameraScene` grabs a frame. The frame becomes the **snapshot**: it shows
+   in the snapshot button (the round thumbnail) and is kept in browser memory
+   only. Nothing has been stored yet.
+2. The visitor taps the snapshot button to see the photo in the preview card.
+3. Only if they tap the card's upload button is the photo sent to
+   `POST /api/photos`, which saves it in `CAMERA_DIR`. A snapshot that is
+   never uploaded is thrown away when another picture is taken or the
+   visitor leaves the scene.
+4. The next time anyone opens the gallery scene, it asks `GET /api/gallery`
    for its picture list. That list now includes the new photo.
-4. The gallery loads the photo from `GET /api/photos/<file name>`.
+5. The gallery loads the photo from `GET /api/photos/<file name>`.
 
 Photos are kept forever. Nothing deletes them automatically.
 
@@ -35,24 +41,83 @@ Photos are kept forever. Nothing deletes them automatically.
 
 The camera screen itself, the replacement for `CameraScene.pde`.
 
-The screen always shows one of six states:
+The screen always shows one of nine states:
 
-| State         | What's on screen                                          |
-| ------------- | --------------------------------------------------------- |
-| `starting`    | Waiting for the webcam; capture button dimmed             |
-| `ready`       | Live preview with "Take A Picture"; capture button active |
-| `countdown`   | Gold "Ready.", "Set.", "Pose!" stacking, one per second   |
-| `saving`      | White flash while the photo is captured and sent          |
-| `done`        | A thank-you line (or an error message) for 1 second       |
-| `unavailable` | "Camera unavailable" with the reason                      |
+| State         | What's on screen                                                     |
+| ------------- | -------------------------------------------------------------------- |
+| `starting`    | Waiting for the webcam; capture button dimmed                        |
+| `ready`       | Live preview with "Take A Picture"; capture button active            |
+| `countdown`   | Gold "Ready.", "Set.", "Pose!" stacking, one per second              |
+| `capturing`   | White flash while the frame is grabbed                               |
+| `review`      | The preview card, opened from the snapshot button                    |
+| `uploading`   | The preview card, locked, while the snapshot is sent                 |
+| `uploaded`    | The preview card for 2 seconds, a gold thank-you in place of the upload icon |
+| `done`        | A line of text for 1 second: the snapshot hint, or an error          |
+| `unavailable` | "Camera unavailable" with the reason                                 |
 
 It has three effects (blocks of code that run on their own timing):
 
 - **Camera on/off:** opens the webcam when the scene appears and stops it when
   the visitor leaves. This is upstream's `video.start()` / `video.stop()`.
-- **Countdown:** moves through Ready./Set./Pose! and then takes the picture.
+- **Countdown:** moves through Ready./Set./Pose! and then grabs the frame
+  into the snapshot button.
 - **Cooldown:** after 1 second in `done`, goes back to `ready`. This is
   upstream's `delay(1000)`.
+- **Uploaded hold:** after `UPLOADED_HOLD_MS` (2 seconds) in `uploaded`, goes
+  back to `review`, with the card still open.
+
+### The snapshot, the preview card, and when a photo is stored
+
+The flow is: **take a picture → it becomes the snapshot → tap the snapshot
+button → see it in the preview card → upload it, or don't.**
+
+After "Pose!" the flash plays and the photo goes into the snapshot button.
+For the 1-second hold that follows, "Tap your snapshot to see it!"
+(`SNAPSHOT_HINT`) shows over the preview, pointing the visitor at it.
+
+Tapping the snapshot button (during that hold or any time after) opens the
+**preview card** over the live camera, which is dimmed behind a white 40%
+wash. The card is purple with rounded corners, inset from the sides, and
+holds the photo (cropped to fill, rounded corners) above a footer with a
+lavender **upload icon** (a tray with an up arrow) and a lavender **X** at the
+bottom right. The X is the same one the gallery's enlarged photo uses.
+
+A photo is stored **only** when the upload icon is tapped (`handleUpload`,
+the only caller of `uploadPhoto`). Until then the JPEG exists only in browser
+memory. From the card the visitor can:
+
+- **Tap the upload icon:** the card locks (upload, close, the snapshot button
+  and capture are all disabled) while it uploads. Disabling the buttons waits
+  for React to re-render, so `handleUpload` also sets `uploadingRef` the
+  moment an upload starts; a second tap that lands before the re-render is
+  turned away by it. On success the card stays open: the upload icon
+  disappears and a thank-you line, picked at random from `THANK_YOU_TEXT`
+  ("That's a keeper!", "That's going in my album!", …), shows centred in gold
+  in the card's footer for 2 seconds. Then the upload icon comes back,
+  disabled, beside "In the gallery!". The card and the controls are locked
+  while the thank-you shows. On failure the card stays up with
+  "Sorry, that didn't upload. Try again!" in its footer, so the visitor can
+  tap upload again.
+- **Tap the X, the dimmed area around the card, or the snapshot button
+  again:** closes the card. Tapping the photo itself does nothing. The X is
+  disabled, like the rest of the card, during an upload. If upload and the X
+  (or the dimmed area) are tapped in the same moment, before the screen
+  updates, whichever landed first wins: upload first and the close is ignored,
+  the card staying open and locked until the upload settles; close first and
+  the upload is ignored, so nothing is stored. Like the double-tap guard,
+  this uses refs (`uploadingRef`, `cardOpenRef`), since state doesn't change
+  until the next render. The snapshot stays in the button, unstored, and can be
+  opened again.
+- **Tap the capture button:** closes the card and starts a new countdown. The
+  new photo replaces the snapshot. The filters button also stays usable while
+  the card is up.
+
+Once a snapshot is uploaded, reopening it shows "In the gallery!"
+(`UPLOADED_TEXT`) in the footer, and its upload icon is disabled, so the same
+photo is never stored twice. A new picture can be uploaded as normal.
+
+Leaving the scene, including when a session times out, throws away a
+snapshot that was never uploaded.
 
 The layout follows the camera mockup. The scene is purple, continuing the
 header and bottom bar, and the live preview fills most of it as a card with
@@ -64,39 +129,48 @@ is a row of three controls:
   vivid, cool), wrapping round after the last. The filter is a CSS filter on
   the live preview, and `captureFrame` draws the same filter into the saved
   photo, so the photo matches what the visitor saw. The button is disabled
-  during the countdown and while saving, because the photo uses the filter on
-  screen at "Pose!". Its accessible name says which filter is on, e.g.
+  during the countdown, the capture and an upload, because the photo uses the
+  filter on screen at "Pose!". Its accessible name says which filter is on, e.g.
   "Change filter, now Sepia".
 - **Capture button** (centre): a camera-app style shutter, drawn as a lavender
   ring around a lavender disc with a purple gap between them. The disc shrinks
   slightly while pressed. Its accessible name is "Take picture".
-- **Last photo** (right): a round thumbnail of the last photo saved on this
-  visit to the scene. Before the first one it is a placeholder: a lilac
-  circle with a lavender ring and a purple person icon, which does nothing
-  when tapped. Only photos that saved successfully appear. Tapping the
-  thumbnail opens the photo enlarged, using the same view as the gallery
-  scene: the photo in a gold frame over a dimmed screen, closed by tapping
-  anywhere. The thumbnail is disabled during the countdown and while saving,
-  so the enlarged view can't cover a picture in progress. The thumbnail uses an object URL for
-  the JPEG already in memory, so it costs no extra request. The URL is freed
+- **Snapshot button** (right): a round thumbnail of the snapshot, the last
+  photo taken on this visit to the scene, whether or not it was uploaded.
+  Before the first one it is a placeholder: a lilac circle with a lavender
+  ring and a purple person icon, which does nothing when tapped. A failed
+  capture never appears. Tapping it opens the preview card (see above), and
+  tapping it again closes the card; its accessible name switches between
+  "See your snapshot" and "Close snapshot", with `aria-expanded`. It is
+  disabled during the countdown, the capture and an upload. The button and
+  the card use an object URL for the JPEG already in memory, so they cost no
+  extra request. The URL is freed
   when a newer photo replaces it and when the scene unmounts. Leaving the
   scene, including at the end of a session, empties the thumbnail, so the
   next visitor never sees someone else's photo.
 
+In the preview's bottom right corner is the **flip camera button**, a dark
+purple camera icon with circling arrows. Each tap mirrors the live preview left
+to right, or back again, and `captureFrame` mirrors the saved photo the same
+way, so it matches what the visitor saw. Its accessible name is "Flip camera",
+with `aria-pressed` saying whether it is flipped. Like the filters button, it
+is disabled during the countdown, the capture and an upload, and it is hidden
+while the preview card is open. The flip lasts until the scene unmounts.
+
 The text over the preview follows the mockup's frames: heavy sans-serif with a
 thick dark purple outline. "Take A Picture" sits at the top while the camera is
 ready. The gold countdown starts just below the middle and stacks downward
-("Ready.", then "Ready. Set.", then "Ready. Set. Pose!"). The thank-you line,
-picked at random from `THANK_YOU_TEXT`, appears lower down, around two thirds
-of the way down the preview.
+("Ready.", then "Ready. Set.", then "Ready. Set. Pose!"). The snapshot hint
+after a capture appears lower down, around two thirds of
+the way down the preview.
 
 The capture button is the only way to take a picture: tapping the preview
 does nothing, so a visitor touching the screen for another reason can't set
 off the camera. The button stays on screen at all times but is disabled and
-dimmed outside `ready`, so it never jumps around.
+dimmed outside `ready` and `review`, so it never jumps around.
 
-`handleTakePicture()` starts the countdown, but only from `ready`. That's the
-job the old `canTakePicture` flag did.
+`handleTakePicture()` starts the countdown, but only from `ready` or
+`review` (with the card open). That's the job the old `canTakePicture` flag did.
 
 The camera uses `getUserMedia`, which browsers only allow on `https://` pages
 or `localhost`. Opening the kiosk by IP address over plain `http` shows
@@ -106,13 +180,42 @@ or `localhost`. Opening the kiosk by IP address over plain `http` shows
 
 The two browser-side steps of taking a picture:
 
-- `captureFrame(video, filter)` draws the current video frame onto a hidden
-  canvas, with the CSS `filter` applied (default `"none"`), and turns it into
+- `captureFrame(video, filter, mirrored)` draws the current video frame onto a
+  hidden canvas, with the CSS `filter` applied (default `"none"`) and flipped
+  left to right when `mirrored` is true (default `false`), and turns it into
   a JPEG.
-- `uploadPhoto(blob)` sends that JPEG to `/api/photos`.
+- `newSnapshotKey()` makes a snapshot's key when the picture is taken: a
+  random v4 UUID (`crypto.randomUUID()`) and the time, as an ISO string.
+- `uploadPhoto(blob, key)` sends that JPEG to `/api/photos`, with the key in
+  the `x-photo-id` and `x-photo-taken-at` headers. It treats both 201 (saved)
+  and 200 (already saved) as success.
 
-These two together replace Processing's `saveFrame()`. They're in their own
+These together replace Processing's `saveFrame()`. They're in their own
 file so the tests can swap them out, since a test has no real camera.
+
+### No duplicate photos
+
+Each snapshot gets its key once, when it's taken, and every upload of it
+sends the same key. The server builds the file name from the key alone
+(`screen-<taken at>-<id>.jpg`), so a repeat upload of a snapshot lands on the
+name already saved. A photo only gets its name once it's fully written (see
+`savePhoto()` below), and that last step refuses to overwrite, so the repeat
+is recognised as a duplicate and nothing new is written. The check is atomic,
+so it holds even if two copies arrive at the same moment.
+
+Because a name only appears once the whole photo is on disk, "already exists"
+always means "already saved in full". If a save fails partway, for example
+because the disk filled up, nothing is left under the photo's name. The
+visitor's retry then saves it normally, instead of being told a broken file
+was a successful upload.
+
+This covers the case the card's own checks can't: an upload that reached
+the server but whose response was lost, so the scene shows "didn't upload"
+and the visitor taps upload again. The retry sends the same key and gets 200
+with the existing file name, and the scene shows the thank-you as normal.
+
+The header names live in [snapshot-headers.ts](snapshot-headers.ts), shared
+by the browser and the route, since `photo-store.ts` is server-only.
 
 ### [photo-store.ts](photo-store.ts)
 
@@ -128,7 +231,25 @@ Writes photos to disk. **Server-only.**
 - `isJpeg()` checks the first 3 bytes of the file (`FF D8 FF`), which every
   JPEG starts with.
 - `savePhoto()` creates the folder if needed and writes the file. It refuses to
-  overwrite an existing file.
+  overwrite an existing file. The bytes go to a temporary file first
+  (`.screen-….jpg.<uuid>.tmp` in the same folder), which is then hard-linked
+  to the real name and removed. So a photo never appears half-written: if the
+  write fails, the temp file is removed and the real name was never created.
+  The hard link fails if the name is taken, which is what prevents overwrites
+  (`rename` would silently replace the file on Linux). Temp names don't pass
+  `isPhotoFileName()`, so one left behind by a crash never shows in the
+  gallery.
+- `parseSnapshotKey(id, takenAt)` checks a client's snapshot key: the id must
+  be a lowercase v4 UUID, and the time an exact `toISOString()` string whose
+  file name `isPhotoFileName()` accepts (so a year past 9999 can't make a
+  photo that saves but never shows in the gallery). Returns `null` otherwise.
+- `saveSnapshotOnce(bytes, key)` saves a snapshot under the name its key
+  gives it, at most once. A repeat returns `created: false` with the existing
+  name and leaves that file untouched. Only "file already exists" counts as a
+  repeat. Other errors, including a `CAMERA_DIR` that turns out to be a file
+  or a full disk, are thrown, so a photo is never silently dropped. It writes
+  the same way as `savePhoto()`, so the existing file is always a complete
+  upload.
 - `isPhotoFileName()` accepts only names that `photoFileName()` could have
   made. It also accepts older photos saved before the UUID was added. Anything
   else, like `../package.json` or `notes.txt`, is rejected. This is what keeps
@@ -154,10 +275,17 @@ code would pull in Node's file-system code and the build would break.
 The server endpoint the photo gets sent to (`POST /api/photos`). It checks the
 upload before saving it:
 
+- only one of the snapshot headers, or a malformed one → **400**
 - too big (over 10 MB) → **413**
 - empty → **400**
 - not a JPEG → **415**
 - otherwise it saves the photo and replies **201** with the file name.
+- with snapshot headers for a snapshot that's already saved, it saves
+  nothing and replies **200** with `{ fileName, duplicate: true }`.
+
+An upload with no snapshot headers at all is saved as a new photo every
+time, as before. The camera scene always sends them, so only uploads made
+outside it (such as a `curl` command) can still create copies.
 
 The size limit is checked while the upload is still arriving, so an upload
 that doesn't say its size up front still gets cut off at 10 MB.
@@ -186,12 +314,17 @@ photo shows up without a rebuild or restart.
 ### [features/scenes/gallery/GalleryScene.tsx](../gallery/GalleryScene.tsx)
 
 The gallery scene. It loads the list once each time it appears, shuffles it,
-and shows a 3-column grid; tapping a picture enlarges it. It doesn't treat
-camera photos differently from the built-in pictures. They're just URLs that
-point at `/api/photos/…`.
+and shows a grid (3 per row in portrait, 5 in landscape); tapping a picture
+enlarges it in a purple box that the X or a tap outside the box closes. It
+doesn't treat camera photos differently from the built-in pictures. They're
+just URLs that point at `/api/photos/…`. The enlarged view loads the same URL
+as the tapped cell, at a larger size.
 
 A photo taken while the gallery is already open won't appear until the
-visitor leaves and returns to it.
+visitor leaves and returns to it. A photo that fails to load (a corrupt file,
+or one deleted after the list was fetched) is dropped from the grid, and the
+enlarged view closes if it was showing it. If the list itself can't be
+fetched, the scene says so instead of claiming there are no photos.
 
 ### [features/kiosk/registry.ts](../../kiosk/registry.ts)
 
@@ -254,17 +387,52 @@ Uses a fake webcam and fake timers to check:
 - the capture button is disabled until the camera's first frame arrives,
   then enabled
 - tapping the preview doesn't take a picture
-- the full countdown → capture → thank-you → back-to-ready flow, with the
-  button disabled until it's over
+- the countdown → capture flow puts the photo in the snapshot button with
+  the hint, leaves the card shut, and uploads nothing
+- the snapshot button opens the card, and tapping the X, the dimmed area or
+  the button again closes it, without uploading; tapping the photo doesn't,
+  and the X is disabled mid-upload (enabled again if it fails)
+- upload and the X tapped in the same moment: whichever lands first wins, in
+  both orders, and a tap outside the card counts the same as the X; the same
+  goes for upload against the snapshot thumbnail and the capture button
+- the countdown words stack on screen; a failed capture shows on screen,
+  keeps any earlier snapshot, and can be retried; every control is locked
+  while the frame is grabbed; a capture finishing after the scene has gone is
+  dropped
+- a failed upload's message shows in the card; closing after a failure and
+  reopening gives a clean card that retries with the same key; leaving the
+  scene after a failure, or mid-upload, uploads nothing more and logs no
+  React warnings
+- flip and capture tapped in the same moment, in either order, save the photo
+  as the preview shows it at "Pose!", and it still uploads
+- the X hides with the upload icon during the thank-you; the flip button
+  hides while the card is open
+- the card can be opened during the hold right after a capture
+- the upload icon is the only thing that stores a photo; after it, the card
+  stays open with the upload icon hidden and the thank-you line in the card,
+  then the icon comes back disabled
+- an uploaded snapshot can't be uploaded again, but a new picture can
+- taking another picture from the card replaces the snapshot, unuploaded,
+  and frees the old object URL
+- a failed upload keeps the card up with an error, and a retry works and
+  sends the same snapshot key as the first try
+- each new picture gets its own snapshot key
+- the card is locked while an upload is in flight
+- two taps on upload that land before React re-renders still upload once
+  (both fired inside one `act()`, so the second sees the pre-upload state;
+  only the `uploadingRef` guard in `handleUpload` stops it)
+- leaving the scene never uploads the snapshot
+- a failed capture shows an error and leaves the placeholder
 - taps are ignored mid-countdown
-- a failed save shows an error and leaves the thumbnail empty
-- a saved photo appears as the thumbnail, and its object URL is freed when
-  the scene unmounts; the empty placeholder isn't tappable
-- tapping the thumbnail opens the enlarged view and tapping again closes it
-- the thumbnail is disabled mid-countdown
+- the empty placeholder isn't tappable, and the snapshot's object URL is
+  freed when the scene unmounts
+- the snapshot button is disabled mid-countdown
 - the filters button cycles through `FILTERS` and wraps round, applies the
   filter to the preview, is disabled mid-countdown, and the photo is captured
   with the filter that was on screen
+- the flip camera button is clickable, mirrors the preview and flips it back,
+  is disabled mid-countdown, and a photo taken after flipping is captured
+  mirrored and still uploads to the gallery
 - a blocked camera, or a browser with no camera support, shows
   "Camera unavailable"
 - the camera is turned off when the visitor leaves the scene
@@ -272,8 +440,28 @@ Uses a fake webcam and fake timers to check:
 ### [photo-store.test.ts](photo-store.test.ts)
 
 Checks file naming, JPEG detection, `CAMERA_DIR` handling, folder creation, and
-that overwriting is refused. It uses a temporary folder, so it never touches
-real photos.
+that overwriting is refused. For snapshot keys it checks:
+
+- `parseSnapshotKey` accepts a v4 UUID with a `toISOString()` time, and
+  rejects missing values, non-UUIDs, uppercase or non-v4 UUIDs, paths, bad
+  or offset times, and years past 9999
+- `saveSnapshotOnce` saves once, reports a repeat without rewriting the file
+  (even with different bytes), and saves exactly one copy when five arrive at
+  once
+- different snapshots taken at the same moment are both saved
+- errors other than "already exists" are thrown, not treated as duplicates
+- a write that fails partway (a simulated full disk that writes some bytes
+  and then fails) leaves no file behind, and a retry of the same snapshot
+  saves the full photo with `created: true` instead of passing as a
+  duplicate
+
+It uses a temporary folder, so it never touches real photos.
+
+### [capture.test.ts](capture.test.ts)
+
+Checks that `newSnapshotKey` makes a v4 UUID and the exact ISO time, never
+repeating an id, and that `uploadPhoto` sends the key in its headers, treats
+200 (already saved) as success, and rejects on a server error.
 
 ### [app/api/photos/route.test.ts](../../../app/api/photos/route.test.ts)
 
@@ -283,6 +471,16 @@ without writing anything. It also checks that oversized uploads get 413, both
 when the size is sent up front and when it isn't (the route must stop reading
 an endless upload).
 
+For duplicates, it uploads with keys made by the scene's own
+`newSnapshotKey`, and checks that:
+
+- a repeat upload gets 200 with the same file name, and only one file exists
+- a repeat with different bytes leaves the first copy as it was
+- five copies sent at once give one 201, four 200s and one file
+- different snapshots are saved separately
+- only one header, a non-UUID id or a bad time gets 400, saving nothing
+- uploads with no key are still saved each time, as before
+
 ### [app/api/photos/[name]/route.test.ts](../../../app/api/photos/[name]/route.test.ts)
 
 Checks that a saved photo comes back as a JPEG, that a missing photo is a 404,
@@ -291,13 +489,23 @@ and that other files (`notes.txt`, `../package.json`) are never served.
 ### [app/api/gallery/route.test.ts](../../../app/api/gallery/route.test.ts)
 
 Checks that the list includes the built-in `public/gallery` pictures and,
-after a photo is saved, that photo's `/api/photos/…` URL.
+after a photo is saved, that photo's `/api/photos/…` URL. Also that only
+image files are listed from `public/gallery` (URL-encoded, sorted), that only
+files named like camera photos are listed from `CAMERA_DIR`, that camera
+photos come oldest first after the built-in pictures, that a missing camera
+folder still lists the built-in pictures, and that a deleted photo leaves the
+next list.
 
 ### [GalleryScene.test.tsx](../gallery/GalleryScene.test.tsx)
 
-Covers the gallery side: the loading message, one grid cell per picture once
-the list arrives, and enlarging a picture on tap and closing it on a second
-tap.
+Covers the gallery side: the loading message; one grid cell per picture once
+the list arrives; an empty list; a list that can't be fetched, answers with an
+error status or is malformed; the shuffle (every picture exactly once); the
+URLs and `sizes` the grid and the enlarged view request; pictures that fail
+to load; the grid and enlarged-box styling; opening a picture, and closing it
+with the X or a tap outside the box but not a tap on the photo or its border;
+and leaving and returning to the scene, which picks up added and deleted
+photos.
 
 ## Who can reach the photo routes
 
@@ -314,18 +522,70 @@ filled. Since photos are never deleted, keeping the server private is the only
 thing preventing that. Don't change these bindings to `0.0.0.0` or remove
 `127.0.0.1:` from a port mapping unless you add authentication first.
 
+## Known limitations
+
+Trade-offs in the current design, and what hasn't been checked:
+
+- **The server trusts the browser's clock.** The "taken at" time in a
+  snapshot key comes from the browser and goes into the file name. The
+  server only checks its format, so a wrong clock, or a hand-made request,
+  can give a photo the wrong date and sort it out of order in the gallery.
+  On the kiosk, browser and server are the same machine.
+- **Uploads without a snapshot key are still saved every time.** This keeps
+  older clients working, but anything that skips the headers (such as
+  `curl`) can still create copies.
+- **Uploads are only checked for a JPEG header.** `POST /api/photos` accepts
+  any body that starts with `FF D8 FF`, so a truncated or otherwise corrupt
+  JPEG is saved and listed. The gallery hides a photo that fails to load, but
+  the file stays on disk.
+- **Saving needs hard links in `CAMERA_DIR`.** NTFS, ext4 and the Docker
+  `camera-pics` volume all support them. A folder on a filesystem that
+  doesn't (FAT/exFAT, some network shares) would make every upload fail
+  with an error, never pass silently. This hasn't been checked on
+  `docker-compose.dev.yml`'s bind mount of the Windows repo.
+- **A crash mid-save can leave a temp file.** A `.screen-….tmp` file is
+  removed whenever a save fails normally, but a power cut or killed process
+  can leave one. It's never listed or served; delete it by hand if wanted.
+- **Only the same snapshot is recognised as a duplicate.** Two snapshots of
+  the same picture are saved twice; the server doesn't compare image data.
+- **A repeat upload with different image data is ignored.** The first copy
+  is kept, and the reply is still 200 with `duplicate: true`.
+- **The server only accepts lowercase v4 UUIDs**, the format
+  `crypto.randomUUID()` produces. A client that made ids another way would
+  need the server changed too.
+- **Only one snapshot is kept.** Taking a new picture replaces an unuploaded
+  one without a warning.
+- **An unuploaded snapshot is lost on an idle timeout or reload**, because it
+  lives only in browser memory. That includes one whose upload just failed.
+- **The same-instant double-tap test fakes a timing** (two taps in one
+  `act()`) that a real browser is unlikely to produce. It is there to prove
+  `uploadingRef` works, not because the case is common.
+- **Not checked by any automated test:** `captureFrame` itself (Jest has no
+  camera or canvas), and anything visual: the preview card's size and
+  position, colours, the flash, and the layout at kiosk resolution. These
+  need checking on the kiosk screen. The card's insets (9% / 3% / 9%), the
+  40% white wash and the upload icon were estimated from the snapshot
+  mockup.
+- **The upload flow has been checked end to end only on `npm run dev`**, by
+  posting JPEGs to a running server. It hasn't been run against the
+  production build or the Docker image, or with a real camera.
+
 ## Differences from the Processing version
 
 - The countdown shows one word per second. The original drew all three words
   at once for about a frame.
 - The thank-you lines (`thankYouText[]`) were written but disabled upstream;
-  they're shown during the 1-second hold.
+  they're shown in the preview card for 2 seconds after an upload.
+- Upstream saved every picture it took. Here a picture is stored only if the
+  visitor taps upload on the preview card.
 - A capture button below the preview replaces upstream's
   tap-anywhere-to-shoot, and the "Touch to take a picture!" prompt became
   "Take A Picture".
 - A heavy sans-serif with a purple outline replaces `ACaslonPro-Regular.otf`, a
   licensed Adobe font, following the camera mockup. The countdown words gained
   periods ("Ready.", "Set.") to match it.
-- The preview isn't mirrored, same as the original.
-- The filters button and the last-photo thumbnail are new; upstream had
-  neither.
+- The preview isn't mirrored by default, same as the original; the flip
+  camera button mirrors it.
+- The filters button, the flip camera button, the snapshot button and the
+  preview card are new;
+  upstream had none of them.

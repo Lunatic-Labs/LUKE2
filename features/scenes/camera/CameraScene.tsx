@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { SceneFrame } from "@/components/SceneFrame";
 import type { SceneComponentProps } from "@/features/kiosk/types";
-import { captureFrame, idealCaptureSize, uploadPhoto } from "./capture";
+import { captureFrame, idealCaptureSize, newSnapshotKey, uploadPhoto, type SnapshotKey } from "./capture";
 
 /**
  * Take a Picture!
@@ -11,13 +11,17 @@ import { captureFrame, idealCaptureSize, uploadPhoto } from "./capture";
  * Ported from `src/luke_java/CameraScene.pde`. Following the camera mockup, a
  * live preview with rounded corners fills most of the scene, inset on a purple
  * background, above a row of controls: a filters button, a camera-app style
- * capture button, and a thumbnail of the last photo taken on this visit, which
- * opens enlarged on a tap, as in the gallery scene.
+ * capture button, and the snapshot button: a round thumbnail of the last
+ * photo taken on this visit.
  * Upstream took a picture on a tap anywhere; a dedicated button keeps a
  * visitor who is only touching the screen from setting off the camera. The
- * button runs the gold Ready / Set / Pose! countdown, saves the frame to the
- * photo directory (which `/api/gallery` lists alongside `public/gallery`), and
- * holds for a second before the next picture.
+ * button runs the gold Ready / Set / Pose! countdown and grabs the frame into
+ * the snapshot button, keeping it in memory only. Tapping the snapshot button
+ * opens the photo in a preview card over the dimmed camera, and the card's
+ * upload button is the only thing that stores it, in the photo directory
+ * (which `/api/gallery` lists alongside `public/gallery`). Closing the card,
+ * taking another picture or leaving the scene drops a photo that was never
+ * uploaded.
  *
  * Processing's `Capture` becomes `getUserMedia`, which only works in a secure
  * context (https or localhost) and after the browser's permission prompt. The
@@ -29,6 +33,11 @@ export const COUNTDOWN = ["Ready.", "Set.", "Pose!"];
 export const COUNTDOWN_STEP_MS = 1000;
 /** Upstream's `delay(1000)` after each capture, marked "DONT CHANGE". */
 export const COOLDOWN_MS = 1000;
+/**
+ * How long the preview card shows its thank-you line after an upload, with the
+ * upload button hidden, before the button comes back (disabled, as uploaded).
+ */
+export const UPLOADED_HOLD_MS = 2000;
 
 /**
  * What the filters button cycles through, in order. `css` is a CSS filter,
@@ -52,7 +61,32 @@ export const THANK_YOU_TEXT = [
   "Lookin' good!",
 ];
 
-type Status = "starting" | "ready" | "countdown" | "saving" | "done" | "unavailable";
+type Status =
+  | "starting"
+  | "ready"
+  | "countdown"
+  /** The flash, while the frame is grabbed. */
+  | "capturing"
+  /** The snapshot is open in the preview card. */
+  | "review"
+  /** The snapshot is being sent to the server from the preview card. */
+  | "uploading"
+  /**
+   * The snapshot just uploaded: the card stays open with a thank-you line in
+   * place of the upload button, then goes back to `review`.
+   */
+  | "uploaded"
+  | "done"
+  | "unavailable";
+
+/** Shown for a second after a picture is taken, pointing at the snapshot button. */
+export const SNAPSHOT_HINT = "Tap your snapshot to see it!";
+/** Announced to screen readers when the preview card opens. */
+export const REVIEW_PROMPT = "Your snapshot. Tap upload to add it to the gallery.";
+/** Shown in the card's footer once its photo is in the gallery. */
+export const UPLOADED_TEXT = "In the gallery!";
+export const UPLOAD_FAILED_TEXT = "Sorry, that didn't upload. Try again!";
+export const CAPTURE_FAILED_TEXT = "Sorry, that one didn't work. Try again!";
 
 /**
  * Shared look of the text over the preview, from the camera mockup: heavy
@@ -68,10 +102,39 @@ export function CameraScene({ handle }: SceneComponentProps) {
   const [step, setStep] = useState(0);
   const [message, setMessage] = useState("");
   const [filterIndex, setFilterIndex] = useState(0);
-  /** Object URL of the last photo saved on this visit, for the thumbnail. */
-  const [lastPhoto, setLastPhoto] = useState<string | null>(null);
-  /** Whether the last photo is open in the enlarged view. */
-  const [enlarged, setEnlarged] = useState(false);
+  /**
+   * Whether the preview is flipped left to right, toggled by the flip camera
+   * button in the preview's bottom right corner. The photo is saved flipped
+   * the same way, so it matches what the visitor saw.
+   */
+  const [mirrored, setMirrored] = useState(false);
+  /**
+   * The snapshot: the last photo taken on this visit, as the JPEG, kept in
+   * memory until the visitor uploads it, and an object URL of it for the
+   * snapshot button and the preview card. Taking a photo never stores it;
+   * only `handleUpload` does. `key` is made once, when the picture is taken,
+   * and sent with every upload of it, so the server saves it at most once
+   * even if an upload is retried after its response was lost.
+   */
+  const [lastPhoto, setLastPhoto] = useState<{ blob: Blob; url: string; key: SnapshotKey } | null>(null);
+  /** The key of the snapshot once it has been uploaded, so the card won't offer it again. */
+  const [uploadedId, setUploadedId] = useState<string | null>(null);
+  /**
+   * True from the moment an upload starts until it settles. The state checks
+   * in `handleUpload` only see the last render, so two taps landing before
+   * React re-renders would both pass them; a ref changes at once, so the
+   * second tap is turned away. Set only in event handlers and callbacks,
+   * never during render.
+   */
+  const uploadingRef = useRef(false);
+  /**
+   * Whether the preview card is open, for the same reason as `uploadingRef`:
+   * upload and the X (or the dimmed area) tapped in the same moment both see
+   * the last render's "review". Whichever runs first wins: an upload in
+   * flight turns the close away (`uploadingRef`), and a close turns the
+   * upload away (this). Set only in event handlers, never during render.
+   */
+  const cardOpenRef = useRef(false);
   const filter = FILTERS[filterIndex];
 
   // Open the camera for as long as the scene is on screen.
@@ -125,35 +188,33 @@ export function CameraScene({ handle }: SceneComponentProps) {
 
       const video = videoRef.current;
       if (!video) return;
-      setStatus("saving");
-      captureFrame(video, filter.css)
-        .then(async (photo) => {
-          await uploadPhoto(photo);
-          return photo;
-        })
-        .then(
-          (photo) => {
-            if (videoRef.current !== video) return;
-            setLastPhoto(URL.createObjectURL(photo));
-            setMessage(THANK_YOU_TEXT[Math.floor(Math.random() * THANK_YOU_TEXT.length)]);
-          },
-          (error: unknown) => {
-            console.error("CameraScene: could not save photo", error);
-            setMessage("Sorry, that one didn't save. Try again!");
-          },
-        )
-        .finally(() => setStatus("done"));
+      setStatus("capturing");
+      setMessage("");
+      captureFrame(video, filter.css, mirrored).then(
+        (blob) => {
+          if (videoRef.current !== video) return;
+          setLastPhoto({ blob, url: URL.createObjectURL(blob), key: newSnapshotKey() });
+          setMessage(SNAPSHOT_HINT);
+          setStatus("done");
+        },
+        (error: unknown) => {
+          if (videoRef.current !== video) return;
+          console.error("CameraScene: could not capture photo", error);
+          setMessage(CAPTURE_FAILED_TEXT);
+          setStatus("done");
+        },
+      );
     }, COUNTDOWN_STEP_MS);
 
     return () => clearTimeout(timer);
-  }, [status, step, filter]);
+  }, [status, step, filter, mirrored]);
 
   // Free each thumbnail's object URL once a newer photo replaces it, and the
   // last one when the scene leaves the screen, so the next visitor starts
   // with an empty thumbnail.
   useEffect(() => {
     if (!lastPhoto) return;
-    return () => URL.revokeObjectURL(lastPhoto);
+    return () => URL.revokeObjectURL(lastPhoto.url);
   }, [lastPhoto]);
 
   // Hold on the result briefly, then allow another picture.
@@ -163,28 +224,102 @@ export function CameraScene({ handle }: SceneComponentProps) {
     return () => clearTimeout(timer);
   }, [status]);
 
+  // Show the thank-you line in the card for a moment, then bring the upload
+  // button back, disabled now that the snapshot is in the gallery.
+  useEffect(() => {
+    if (status !== "uploaded") return;
+    const timer = setTimeout(() => {
+      setMessage("");
+      setStatus("review");
+    }, UPLOADED_HOLD_MS);
+    return () => clearTimeout(timer);
+  }, [status]);
+
   function handleTakePicture() {
     handle.reportActivity();
     // Upstream's `canTakePicture` guard: one capture at a time. The button is
-    // also disabled outside `ready`; this keeps the rule in one place.
-    if (status !== "ready") return;
+    // also disabled otherwise; this keeps the rule in one place. Taking a new
+    // picture with the preview card open closes it, and the new photo
+    // replaces the snapshot, uploaded or not.
+    if (status !== "ready" && status !== "review") return;
+    // An upload that started in the same moment wins; see `cardOpenRef`.
+    if (uploadingRef.current) return;
+    cardOpenRef.current = false;
+    setMessage("");
     setStep(0);
     setStatus("countdown");
   }
 
-  function openLastPhoto() {
+  /** The only place a photo is stored: the preview card's upload button. */
+  function handleUpload() {
     handle.reportActivity();
-    setEnlarged(true);
+    if (uploadingRef.current || !cardOpenRef.current) return;
+    if (status !== "review" || !lastPhoto || uploadedId === lastPhoto.key.id) return;
+    uploadingRef.current = true;
+    const video = videoRef.current;
+    const { key } = lastPhoto;
+    setStatus("uploading");
+    setMessage("");
+    uploadPhoto(lastPhoto.blob, key).then(
+      () => {
+        uploadingRef.current = false;
+        if (videoRef.current !== video) return;
+        setUploadedId(key.id);
+        setMessage(THANK_YOU_TEXT[Math.floor(Math.random() * THANK_YOU_TEXT.length)]);
+        setStatus("uploaded");
+      },
+      (error: unknown) => {
+        uploadingRef.current = false;
+        if (videoRef.current !== video) return;
+        console.error("CameraScene: could not upload photo", error);
+        // Stay on the card so the visitor can try again.
+        setMessage(UPLOAD_FAILED_TEXT);
+        setStatus("review");
+      },
+    );
   }
 
-  function closeLastPhoto() {
+  /**
+   * The snapshot button: opens the preview card, or closes it if it is
+   * already open. Also works during the second-long hold after a capture,
+   * which is when the hint points at it.
+   */
+  function handleSnapshot() {
     handle.reportActivity();
-    setEnlarged(false);
+    if (!lastPhoto) return;
+    if (status === "review") {
+      closeSnapshot();
+      return;
+    }
+    if (status !== "ready" && status !== "done") return;
+    cardOpenRef.current = true;
+    setMessage("");
+    setStatus("review");
+  }
+
+  /** Closes the preview card. The snapshot stays in the button, unstored unless uploaded. */
+  function handleCloseSnapshot() {
+    handle.reportActivity();
+    closeSnapshot();
+  }
+
+  function closeSnapshot() {
+    // An upload that started in the same moment wins; the card stays locked.
+    if (uploadingRef.current) return;
+    if (status !== "review") return;
+    cardOpenRef.current = false;
+    setMessage("");
+    setStatus("ready");
   }
 
   function handleNextFilter() {
     handle.reportActivity();
     setFilterIndex((index) => (index + 1) % FILTERS.length);
+  }
+
+  function handleFlip() {
+    handle.reportActivity();
+    setMirrored((flipped) => !flipped);
   }
 
   if (status === "unavailable") {
@@ -199,7 +334,18 @@ export function CameraScene({ handle }: SceneComponentProps) {
   // What screen readers hear. The region stays mounted so each change is
   // announced, and it sits outside the button because a button's children
   // can be treated as presentational and never read.
-  const announcement = status === "countdown" ? COUNTDOWN[step] : status === "done" ? message : "";
+  const reviewing = (status === "review" || status === "uploading" || status === "uploaded") && lastPhoto !== null;
+  const uploaded = lastPhoto !== null && uploadedId === lastPhoto.key.id;
+  const busy = status === "countdown" || status === "capturing" || status === "uploading" || status === "uploaded";
+  const cardNote = message || (uploaded ? UPLOADED_TEXT : "");
+  const announcement =
+    status === "countdown"
+      ? COUNTDOWN[step]
+      : status === "done" || status === "uploaded"
+        ? message
+        : status === "review"
+          ? cardNote || REVIEW_PROMPT
+          : "";
 
   return (
     <SceneFrame className="bg-[var(--luke-purple)] px-[2%] pt-[2%] select-none">
@@ -213,7 +359,7 @@ export function CameraScene({ handle }: SceneComponentProps) {
           muted
           playsInline
           className="absolute inset-0 h-full w-full object-cover"
-          style={{ filter: filter.css }}
+          style={{ filter: filter.css, transform: mirrored ? "scaleX(-1)" : undefined }}
         />
 
         {status === "ready" && (
@@ -234,8 +380,96 @@ export function CameraScene({ handle }: SceneComponentProps) {
           </div>
         )}
 
-        {status === "saving" && (
-          <div aria-hidden="true" className="absolute inset-0 animate-[luke-flash_400ms_ease-out_forwards] bg-white" />
+        {/* The camera flash. Keyed on the photo so it plays again for each
+            new one; it fades to nothing and never blocks a tap. */}
+        {(status === "capturing" || lastPhoto) && (
+          <div
+            key={lastPhoto?.url ?? "capturing"}
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 animate-[luke-flash_400ms_ease-out_forwards] bg-white"
+          />
+        )}
+
+        {/* Flip camera button, from the mockup: bottom right of the preview.
+            Mirrors the preview, and the photo taken from it. Locked during a
+            capture, like the filters button, since the photo is taken as
+            shown at "Pose!". Hidden under the preview card. */}
+        {!reviewing && (
+          <button
+            type="button"
+            aria-label="Flip camera"
+            aria-pressed={mirrored}
+            onClick={handleFlip}
+            disabled={busy}
+            className="absolute right-[4%] bottom-[4%] text-[var(--luke-purple)] drop-shadow-[0_0_2px_rgb(255_255_255/0.9)] transition-[filter,opacity] active:brightness-75 disabled:opacity-50"
+          >
+            <FlipCameraIcon />
+          </button>
+        )}
+
+        {/* Preview card, from the camera mockup, opened by the snapshot
+            button: the photo in a purple card over the dimmed live camera,
+            with upload and close (X) buttons at the bottom right. The X or a
+            tap on the dimmed area around the card closes it; only the upload
+            button stores the photo. */}
+        {reviewing && (
+          <>
+            <button
+              type="button"
+              aria-label="Close snapshot"
+              onClick={handleCloseSnapshot}
+              disabled={status !== "review"}
+              className="absolute inset-0 bg-white/40"
+            />
+            <div className="absolute inset-x-[9%] top-[3%] bottom-[9%] flex flex-col gap-[clamp(0.25rem,1dvh,0.75rem)] rounded-[clamp(0.5rem,1.5dvh,1.25rem)] bg-[var(--luke-purple)] p-[clamp(0.375rem,1.2dvh,1rem)] shadow-[0_4px_12px_rgb(0_0_0/0.35)]">
+              {/* A blob URL, which next/image cannot optimise. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={lastPhoto.url}
+                alt="Your snapshot"
+                className="min-h-0 w-full flex-1 rounded-[clamp(0.25rem,0.8dvh,0.75rem)] object-cover"
+              />
+              {status === "uploaded" ? (
+                // Just uploaded: the thank-you line takes the upload button's
+                // place for a moment, centred in gold, as in the mockup.
+                <p
+                  aria-hidden="true"
+                  className="shrink-0 px-[4%] text-center text-[clamp(0.875rem,4.5vw,2rem)] leading-tight font-extrabold text-[var(--luke-gold)]"
+                >
+                  {message}
+                </p>
+              ) : (
+                <div className="flex shrink-0 items-center justify-end gap-[3%]">
+                  {status === "review" && cardNote && (
+                    <p className="min-w-0 flex-1 text-[clamp(0.75rem,3.5vw,1.5rem)] leading-tight font-semibold text-[var(--luke-lavender)]">
+                      {cardNote}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    aria-label="Upload photo to the gallery"
+                    onClick={handleUpload}
+                    // Disabled once uploaded, so the same photo is never stored twice.
+                    disabled={status !== "review" || uploaded}
+                    className="shrink-0 text-[var(--luke-lavender)] transition-[filter,opacity] active:brightness-75 disabled:opacity-50"
+                  >
+                    <UploadIcon />
+                  </button>
+                  {/* The X, as in the gallery's enlarged photo: closes the
+                      card just like a tap on the dimmed area around it. */}
+                  <button
+                    type="button"
+                    aria-label="Close snapshot"
+                    onClick={handleCloseSnapshot}
+                    disabled={status !== "review"}
+                    className="shrink-0 text-[var(--luke-lavender)] transition-[filter,opacity] active:brightness-75 disabled:opacity-50"
+                  >
+                    <CloseIcon />
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
         )}
 
         {status === "done" && (
@@ -258,7 +492,7 @@ export function CameraScene({ handle }: SceneComponentProps) {
           onClick={handleNextFilter}
           // The photo is taken with the filter on screen at "Pose!", so it
           // can't change mid-countdown.
-          disabled={status === "countdown" || status === "saving"}
+          disabled={busy}
           className="flex aspect-square w-[clamp(2.5rem,12vw,5.5rem)] items-center justify-center rounded-full bg-[var(--luke-lavender)] text-[var(--luke-purple)] transition-[filter,opacity] active:brightness-90 disabled:opacity-50"
         >
           <SparklesIcon />
@@ -272,28 +506,29 @@ export function CameraScene({ handle }: SceneComponentProps) {
           type="button"
           aria-label="Take picture"
           onClick={handleTakePicture}
-          disabled={status !== "ready"}
+          disabled={status !== "ready" && status !== "review"}
           className="group aspect-square w-[clamp(3rem,14vw,6.5rem)] rounded-full border-[clamp(2px,0.8vw,5px)] border-[var(--luke-lavender)] p-[clamp(2px,0.8vw,5px)] transition-opacity disabled:opacity-50"
         >
           <span className="block h-full w-full rounded-full bg-[var(--luke-lavender)] transition-transform duration-100 group-active:scale-90 group-disabled:scale-100" />
         </button>
 
-        {/* Last photo taken on this visit, which opens enlarged on a tap.
-            Before the first photo it is a lilac placeholder with a person
-            icon, and does nothing. */}
+        {/* Snapshot button: the last photo taken on this visit, which opens
+            the preview card on a tap. Before the first photo it is a lilac
+            placeholder with a person icon, and does nothing. */}
         {lastPhoto ? (
           <button
             type="button"
-            aria-label="Enlarge your last photo"
-            onClick={openLastPhoto}
-            // Locked during a capture, like the filters button, so the
-            // enlarged view can't hide the countdown.
-            disabled={status === "countdown" || status === "saving"}
+            aria-label={reviewing ? "Close snapshot" : "See your snapshot"}
+            aria-expanded={reviewing}
+            onClick={handleSnapshot}
+            // Locked during a capture or upload, like the filters button, so
+            // the card can't hide the countdown or close mid-upload.
+            disabled={busy}
             className="aspect-square w-[clamp(2.5rem,12vw,5.5rem)] overflow-hidden rounded-full transition-[filter,opacity] active:brightness-90 disabled:opacity-50"
           >
             {/* A blob URL, which next/image cannot optimise. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={lastPhoto} alt="Your last photo" className="h-full w-full object-cover" />
+            <img src={lastPhoto.url} alt="" className="h-full w-full object-cover" />
           </button>
         ) : (
           <div
@@ -305,21 +540,6 @@ export function CameraScene({ handle }: SceneComponentProps) {
         )}
       </div>
 
-      {/* Same enlarged view as the gallery scene: the photo in a gold frame
-          over a dimmed screen, closed by a tap anywhere. */}
-      {enlarged && lastPhoto && (
-        <button
-          type="button"
-          aria-label="Close enlarged photo"
-          onClick={closeLastPhoto}
-          className="fixed inset-0 z-30 flex items-center justify-center bg-black/60"
-        >
-          <span className="relative block h-[70vh] w-[70vw] max-w-2xl rounded-lg border-8 border-[var(--luke-gold)] bg-white p-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={lastPhoto} alt="" className="h-full w-full object-contain" />
-          </span>
-        </button>
-      )}
     </SceneFrame>
   );
 }
@@ -338,6 +558,57 @@ function PersonIcon() {
     >
       <circle cx="12" cy="8" r="4" />
       <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
+    </svg>
+  );
+}
+
+/** A tray with an arrow rising out of it, the mockup's upload icon. */
+function UploadIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="w-[clamp(1.5rem,7vw,3rem)]"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M12 15V3" />
+      <path d="M7 8l5-5 5 5" />
+      <path d="M4 13v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6" />
+    </svg>
+  );
+}
+
+/** An X, the same one the gallery's enlarged photo closes with. */
+function CloseIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-[clamp(1.5rem,7vw,3rem)]" aria-hidden="true">
+      <path d="M5 5l14 14M19 5L5 19" stroke="currentColor" strokeWidth={3.5} strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** A camera body with a circling arrow on its lens, the mockup's flip camera icon. */
+function FlipCameraIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      className="w-[clamp(2rem,10vw,4.5rem)]"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 8a2 2 0 0 1 2-2h2.5l1.5-2h6l1.5 2H19a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+      <path d="M15.5 11.5a3.5 3.5 0 0 0-6.4-1.5" />
+      <path d="M9 8v2.2h2.2" />
+      <path d="M8.5 14.5a3.5 3.5 0 0 0 6.4 1.5" />
+      <path d="M15 18v-2.2h-2.2" />
     </svg>
   );
 }

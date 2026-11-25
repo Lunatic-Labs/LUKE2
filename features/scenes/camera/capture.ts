@@ -3,6 +3,8 @@
  * to `app/api/photos`, which stands in for Processing's `saveFrame()`.
  */
 
+import { PHOTO_ID_HEADER, PHOTO_TAKEN_AT_HEADER } from "./snapshot-headers";
+
 const JPEG_QUALITY = 0.9;
 
 /**
@@ -21,9 +23,10 @@ export function idealCaptureSize(): { width: number; height: number } {
 /**
  * Draw the video's current frame, at the camera's native resolution, to a JPEG.
  * `filter` is a CSS filter string, the same one the preview shows, so the
- * saved photo looks like what the visitor saw.
+ * saved photo looks like what the visitor saw. `mirrored` flips the frame
+ * left to right, matching a preview flipped by the flip camera button.
  */
-export function captureFrame(video: HTMLVideoElement, filter = "none"): Promise<Blob> {
+export function captureFrame(video: HTMLVideoElement, filter = "none", mirrored = false): Promise<Blob> {
   const canvas = document.createElement("canvas");
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
@@ -33,6 +36,10 @@ export function captureFrame(video: HTMLVideoElement, filter = "none"): Promise<
     return Promise.reject(new Error("Camera has no frame to capture yet"));
   }
   context.filter = filter;
+  if (mirrored) {
+    context.translate(canvas.width, 0);
+    context.scale(-1, 1);
+  }
   context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
   return new Promise((resolve, reject) => {
@@ -44,10 +51,37 @@ export function captureFrame(video: HTMLVideoElement, filter = "none"): Promise<
   });
 }
 
-export async function uploadPhoto(photo: Blob): Promise<void> {
+/**
+ * Identifies one snapshot across uploads: made once when the picture is taken
+ * and sent with every upload of it, so the server saves it at most once.
+ */
+export interface SnapshotKey {
+  id: string;
+  /** ISO 8601 UTC, from `Date.toISOString()`. */
+  takenAt: string;
+}
+
+/**
+ * A new snapshot's key. `crypto.randomUUID()` needs a secure context, which
+ * the camera already requires.
+ */
+export function newSnapshotKey(takenAt: Date = new Date()): SnapshotKey {
+  return { id: crypto.randomUUID(), takenAt: takenAt.toISOString() };
+}
+
+/**
+ * Sends a snapshot to `/api/photos`. Uploading the same snapshot (same `key`)
+ * again is safe: the server answers 200 with the photo it already has
+ * instead of saving a copy, and this resolves just as it does on 201.
+ */
+export async function uploadPhoto(photo: Blob, key: SnapshotKey): Promise<void> {
   const response = await fetch("/api/photos", {
     method: "POST",
-    headers: { "Content-Type": "image/jpeg" },
+    headers: {
+      "Content-Type": "image/jpeg",
+      [PHOTO_ID_HEADER]: key.id,
+      [PHOTO_TAKEN_AT_HEADER]: key.takenAt,
+    },
     body: photo,
   });
   if (!response.ok) {

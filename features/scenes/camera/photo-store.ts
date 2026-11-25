@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { link, mkdir, readFile, readdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 /**
@@ -51,6 +51,33 @@ export function isJpeg(bytes: Uint8Array): boolean {
   return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
 }
 
+/**
+ * Puts `bytes` at `dir/fileName` only once they are all on disk, and never
+ * over an existing file (rejects with EEXIST instead).
+ *
+ * A plain `writeFile(target, bytes, { flag: "wx" })` creates the target before
+ * writing to it, so a write that fails partway (a full disk, an I/O error, the
+ * process being killed) leaves an empty or partial photo under the real name.
+ * Instead the bytes go to a temporary file in the same folder first, and
+ * `link` then gives that finished file its real name in one step. `link`
+ * fails with EEXIST if the name is taken, which keeps the no-overwrite
+ * guarantee (`rename` would silently replace it on Linux). The temporary name
+ * starts with a dot and ends in `.tmp`, so `isPhotoFileName` never lists it,
+ * even if a crash leaves one behind.
+ */
+async function writeNewFile(dir: string, fileName: string, bytes: Uint8Array): Promise<void> {
+  const temp = path.join(dir, `.${fileName}.${randomUUID()}.tmp`);
+  try {
+    await writeFile(temp, bytes, { flag: "wx" });
+    await link(temp, path.join(dir, fileName));
+  } finally {
+    // After a successful link this removes only the extra name; the photo
+    // stays. A leftover temp file is harmless, so a failed cleanup must not
+    // hide the error that matters.
+    await unlink(temp).catch(() => {});
+  }
+}
+
 /** Write a photo and return its file name. Never overwrites an existing file. */
 export async function savePhoto(
   bytes: Uint8Array,
@@ -60,8 +87,65 @@ export async function savePhoto(
 ): Promise<string> {
   await mkdir(dir, { recursive: true });
   const fileName = photoFileName(takenAt, id);
-  await writeFile(path.join(dir, fileName), bytes, { flag: "wx" });
+  await writeNewFile(dir, fileName, bytes);
   return fileName;
+}
+
+/**
+ * How the camera scene names a snapshot: a random v4 UUID it makes when the
+ * picture is taken (`crypto.randomUUID()`), plus the time it was taken. Sent
+ * with every upload of that snapshot, so a retry carries the same pair.
+ */
+export interface SnapshotKey {
+  id: string;
+  takenAt: Date;
+}
+
+const SNAPSHOT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+
+/**
+ * Checks the id and time a client sent for a snapshot. Returns null unless
+ * the id is a lowercase v4 UUID and the time is an exact ISO 8601 UTC string
+ * (what `Date.toISOString()` produces) that makes a name `isPhotoFileName`
+ * accepts. That last check rules out years outside 0000–9999, whose names
+ * would be saved but never listed in the gallery.
+ */
+export function parseSnapshotKey(id: string | null, takenAt: string | null): SnapshotKey | null {
+  if (!id || !takenAt || !SNAPSHOT_ID.test(id)) return null;
+  const date = new Date(takenAt);
+  if (Number.isNaN(date.getTime()) || date.toISOString() !== takenAt) return null;
+  if (!isPhotoFileName(photoFileName(date, id))) return null;
+  return { id, takenAt: date };
+}
+
+/**
+ * Saves a snapshot at most once. The file name comes entirely from the key,
+ * so uploading the same snapshot again lands on the same name, and
+ * `writeNewFile` refuses it atomically, even when two copies arrive at the
+ * same moment. `created` is false when the snapshot was already saved; the
+ * existing file is left as it is.
+ *
+ * Because `writeNewFile` only gives a photo its real name once every byte is
+ * written, a file under that name is always a complete upload. So "already
+ * exists" really does mean "already saved": a write that failed earlier left
+ * nothing under the name, and the retry saves the photo normally.
+ */
+export async function saveSnapshotOnce(
+  bytes: Uint8Array,
+  key: SnapshotKey,
+  dir: string = cameraDir(),
+): Promise<{ fileName: string; created: boolean }> {
+  // Outside the try: `mkdir` also fails with EEXIST when `dir` is a file, and
+  // that must surface as an error, not pass for "already saved".
+  await mkdir(dir, { recursive: true });
+  const fileName = photoFileName(key.takenAt, key.id);
+  try {
+    await writeNewFile(dir, fileName, bytes);
+    return { fileName, created: true };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    return { fileName, created: false };
+  }
 }
 
 /**

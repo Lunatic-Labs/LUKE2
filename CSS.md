@@ -8,9 +8,9 @@ This restyle brings the kiosk in line with the design mockup: a purple branded h
 | ------------------ | --------- | ------------------------------------------------- |
 | `--luke-purple`    | `#302052` | Header, bottom bar, skyline, text on lavender      |
 | `--luke-lavender`  | `#C9C3D5` | Content background, navigation buttons             |
-| `--luke-lilac`     | `#8F7EB3` | Header title and menu button, welcome-screen tint  |
-| `--luke-gold`      | `#F4AA00` | Unchanged; the shield and map highlights use it   |
-| `--luke-grey`      | `#D9D9D9` | unused                                            |
+| `--luke-lilac`     | `#8F7EB3` | Header subtitle and menu button, welcome-screen tint |
+| `--luke-gold`      | `#F4AA00` | Header "L.U.K.E." title, shield, map highlights   |
+| `--luke-grey`      | `#D9D9D9` | Gallery background                                |
 
 The welcome screen's gradients also use `#3E364D`, a dark purple-grey. It appears only in that one gradient, so it is written inline rather than added as a token.
 
@@ -89,22 +89,41 @@ The old "Hi, I'm L.U.K.E.!" text and its floating animation are gone, since the 
 
 ### `features/scenes/camera/CameraScene.tsx`
 
-Restyled to match the camera mockup, and given two new controls from it: a filters button and a thumbnail of the last photo. The capture button is still the only way to take a picture, and the overlay text, countdown and thank-you line are as before. How the filters and thumbnail work is covered in `features/scenes/camera/README.md`.
+Restyled to match the camera mockup, and given new controls from it: a filters button, a snapshot button (a thumbnail of the last photo), and a preview card the snapshot button opens. The capture button is still the only way to take a picture, and the overlay text and countdown are as before. How they behave, including that only the card's upload icon stores a photo, is covered in `features/scenes/camera/README.md`.
 
 - **Background:** the scene is `bg-[var(--luke-purple)]` instead of lavender, with `px-[2%] pt-[2%]` padding.
 - **Preview:** a card with rounded corners on all four sides (`rounded-[clamp(0.5rem,1.5dvh,1.25rem)]`). The purple border and bottom-only rounding are gone, since the purple padding now frames it.
 - **Capture button:** the colours are swapped. It is now a lavender ring around a lavender disc (`--luke-lavender`), with the purple background showing through the gap between them. Size, the press-to-shrink effect and the dimmed disabled state are unchanged.
 - **Controls row:** the capture button now sits in the middle of a three-column grid (`grid-cols-3`, items centred), with two new controls either side, each `clamp(2.5rem, 12vw, 5.5rem)` across, a little smaller than the capture button:
   - **Filters button** (left): a solid lavender circle with a purple three-star sparkles icon (inline SVG, 60% of the button). It dims to 50% opacity while disabled, like the capture button, and darkens slightly while pressed (`active:brightness-90`), like the bottom bar's arrows. The chosen filter is applied to the preview as an inline `style={{ filter }}`, because the value comes from a list at runtime rather than a fixed class.
-  - **Last-photo thumbnail** (right): until a photo is taken, a lilac circle (`--luke-lilac`) with a thin lavender ring (`border-[clamp(1.5px,0.5vw,3px)]`) and a purple head-and-shoulders outline icon (inline SVG, 60% of the circle). After that, the photo cropped to a circle (`rounded-full overflow-hidden`, `object-cover`) with no ring, as in the mockup. With a photo it is a button: it darkens slightly while pressed and dims to 50% while disabled, like the filters button.
-- **Enlarged photo:** tapping the thumbnail opens the gallery scene's enlarged view, copied class for class: a full-screen `bg-black/60` button holding a `70vh × 70vw` (`max-w-2xl`) white box with an 8px gold border and rounded corners, the photo inside `object-contain`. A tap anywhere closes it. It adds `z-30`, so it also covers `NavMenu` (`z-20`) if that is open.
+  - **Snapshot button** (right): until a photo is taken, a lilac circle (`--luke-lilac`) with a thin lavender ring (`border-[clamp(1.5px,0.5vw,3px)]`) and a purple head-and-shoulders outline icon (inline SVG, 60% of the circle). After that, the photo cropped to a circle (`rounded-full overflow-hidden`, `object-cover`) with no ring, as in the mockup. With a photo it is a button: it darkens slightly while pressed and dims to 50% while disabled, like the filters button.
+- **Preview card:** tapping the snapshot button opens the photo in a purple (`--luke-purple`) card over the live preview, following the snapshot mockup. It has rounded corners (`clamp(0.5rem, 1.5dvh, 1.25rem)`, the same as the live preview), is inset 9% from the sides, 3% from the top and 9% from the bottom of the preview area, and has a soft drop shadow. The photo fills the card above a footer (`object-cover`, smaller rounded corners). The footer holds a lavender upload icon at the bottom right (`clamp(1.5rem, 7vw, 3rem)` wide), which dims while disabled, and any note ("In the gallery!" or an upload error) in lavender text to its left. The live camera behind the card is dimmed by a `bg-white/40` wash, which is also the tap-to-close area. The card stays inside the preview area, so the controls row and `NavMenu` are never covered. It replaced an earlier gold-framed enlarged view copied from the gallery scene.
 
 **Why:**
 - In the mockup, the header, the scene and the bottom bar form one continuous purple surface, with the photo as the only light area. A purple scene background gives that look without changing the shell.
 - The scene background is opaque, so it covers the shell's skyline on this page. That matches the mockup, which shows no skyline here.
 - A lavender button reads clearly on purple and matches the lavender arrow buttons in the bottom bar right below it.
-- The enlarged view matches the gallery's so the two pages behave the same. It is copied rather than shared because the gallery uses `next/image` and the thumbnail is a blob URL, which `next/image` can't load. If a third page needs it, it's worth moving into `components/`.
+- The preview card sits inside the live preview rather than over the whole screen, so the capture and snapshot buttons stay usable while it is open.
 - Equal grid columns keep the capture button exactly centred, whether or not the thumbnail holds a photo, so nothing shifts when the first picture is taken.
+
+### `features/scenes/gallery/GalleryScene.tsx`
+
+Restyled to match the gallery mockup, and given a new enlarged view.
+
+- **Background:** the scene is `bg-[var(--luke-grey)]`. It is opaque, so it covers the shell's skyline on this page.
+- **Grid:** square cells, 3 per row in portrait and 5 in landscape (`landscape:` variant). The gap between cells, and around the grid's edge, is a `--gap` custom property of `clamp(0.5rem, 3vw, 2rem)`; each cell's width is `calc((100% - 2*var(--gap)) / 3)` (or `4*` and `/5` in landscape), so the gaps are taken out before the row is divided. It is still a flex-wrap, not a CSS grid, for the reason given in the code: grid rows were sizing off the leftover height and squashing the square cells.
+- **Cells:** rounded corners (`clamp(0.5rem, 2.5vw, 1.5rem)`), a purple border (`--luke-purple`, `clamp(2px, 0.6vw, 5px)` thick), a white fill behind the photo, a soft drop shadow, and `active:brightness-90` while pressed, like the bottom bar's arrows. The photo is `object-cover`.
+- **Enlarged view:** tapping a cell opens the photo in a purple card over the grid, following the mockup. The grid behind it is dimmed by `bg-black/50`, which is also a tap-to-close area. The card has fixed 5:6 proportions (`aspect-[5/6]`) in either orientation and is as large as fits in 85% of the scene's width and height (the dimmed layer is a size container, so the card's width is `min(85cqw, calc(85cqh*5/6))`). The card is itself a container, and its border, corners, footer and X are sized in `cqw`, so they scale with it. The photo fills the card above a footer (`object-cover`, white behind it, smaller rounded corners); the footer holds a lavender X at the bottom right that darkens while pressed. Only the X and the dimmed area close it; taps on the photo or the purple border are ignored. It replaced an enlarged view with a gold border and a white mat.
+- **Messages:** the loading, empty and error messages are centred `text-zinc-600` at `clamp(1rem, 3vw, 1.75rem)`, so they scale with the screen too.
+
+**Why:**
+- The grey background and purple-bordered cells follow the mockup; the photos are the only colourful part of the page.
+- Every size is a `clamp()` of the viewport (or of the card, in the enlarged view), so one layout works from a phone-sized kiosk up to a large display, with a floor and a ceiling so borders never vanish or get chunky.
+- Three squares across a landscape screen would each be most of the screen's height, so landscape shows five.
+- Fixed proportions keep the enlarged card the same shape whichever way the screen is turned; sizing it from the scene rather than the viewport keeps it clear of the header and bottom bar.
+- The dimmed layer and the card stop at the scene's edges (`absolute`, not `fixed`), so the header and bottom bar stay undimmed and usable, as in the mockup.
+
+**Known limitation:** `object-cover` crops any photo that isn't 5:6 to fill the enlarged card. Most of the shipped pictures in `public/gallery` are wide (around 3:2), so their sides are cut off, and the logos and the feedback QR code lose part of their edges. Many are also small (275×183 and similar), so the enlarged view scales them up and they look soft on large screens. `object-contain` would show whole pictures, with empty bands around those of other shapes.
 
 ### `features/scenes/board/BoardScene.tsx`
 
@@ -193,6 +212,12 @@ Partly restyled to the drawing mockup. Full details are in the scene's [README](
 | Quizzes  | `trivia`    | Test Your Knowledge  |
 | Feedback | `feedback`  | Leave Some Feedback? |
 
+### `features/scenes/gallery/GalleryScene.test.tsx`
+
+- The single "enlarges a photo on tap and dismisses it on a second tap" test was split into separate tests for opening, closing with the X, closing with a tap outside the box, and staying open on a tap on the photo or its purple border.
+- **Added** tests for the solid background, the cell styling (spacing, rounded corners, border, three per row) and the enlarged box's 5:6 proportions. jsdom does no layout, so these check the classes; the look itself has not yet been checked in a browser.
+- **Added** tests for loading and failure cases (empty list, listing that can't be fetched, error status, malformed body, duplicate URLs, photos that fail to load), the shuffle, the image URLs and `sizes`, and leaving and returning to the scene. They're described in `features/scenes/camera/README.md`.
+
 ### `features/kiosk/components/KioskShell.test.tsx`
 
 - Two assertions now look for "WELCOME!" instead of "Hi, I'm L.U.K.E.!".
@@ -215,19 +240,20 @@ Partly restyled to the drawing mockup. Full details are in the scene's [README](
 
 The purple branding bar at the top of the kiosk:
 
-- **Shield:** the Lipscomb shield via `next/image` with `priority`, because it is above the fold on first paint. Height is `clamp(2.5rem, 8dvh, 6rem)`, so it scales with the screen without getting too small or too large.
-- **Menu button:** a lilac three-line hamburger icon under the shield (`clamp(1.5625rem, 5dvh, 3.75rem)` wide). It sits in a strip with equal padding above and below that runs from the shield's bottom to the header's bottom (the header has top padding only), so the icon is centred exactly between the two. While the menu is open the icon turns cream (`--luke-cream`, `#f1e7cf`); it is lilac otherwise. It is a button that opens and closes `NavMenu`. It replaced a down-chevron that flipped while the menu was open; the hamburger stays the same open or closed, with no animation of its own. It carries `aria-expanded` and an "Open menu"/"Close menu" label. Its visibility is controlled by the `showMenuToggle` prop (default `true`). The shell shows it whenever a session is active, including on the main menu, and hides it on the welcome screen to match the mockup. It is hidden with `invisible` rather than removed, so it still takes up its space: the header stays the same height and the title stays in the same place on every screen.
-- **Title:** "Lipscomb University Kiosk Experience" in lilac. Its size is `clamp(0.875rem, 4.3vw, 2rem)`, so it fits on one line at the kiosk's width. Bottom padding lines the title up with the shield rather than the shield-plus-menu-button group.
+- **Shield:** the Lipscomb shield via `next/image` with `priority`, because it is above the fold on first paint. Height is `clamp(3.5rem, 11dvh, 8.5rem)`, so it fills most of the header's height and scales with the screen without getting too small or too large.
+- **Menu button:** a lilac three-line hamburger icon (`clamp(1.5625rem, 5dvh, 3.75rem)` wide) in the header's bottom-right corner, on the same row as the "L.U.K.E." title and aligned to its bottom. While the menu is open the icon turns cream (`--luke-cream`, `#f1e7cf`); it is lilac otherwise. It is a button that opens and closes `NavMenu`. It replaced a down-chevron that flipped while the menu was open; the hamburger stays the same open or closed, with no animation of its own. It carries `aria-expanded` and an "Open menu"/"Close menu" label. Its visibility is controlled by the `showMenuToggle` prop (default `true`). The shell shows it whenever a session is active, including on the main menu, and hides it on the welcome screen to match the mockup. It is hidden with `invisible` rather than removed, so it still takes up its space: the header stays the same height and the title stays in the same place on every screen.
+- **Subtitle:** "Lipscomb University Kiosk Experience" in lilac across the top, beside the shield. It is sized to fill the space from the shield to the vertical centre line of the hamburger icon below it. Its wrapper has right padding of half the icon's width (`clamp(0.78125rem, 2.5dvh, 1.875rem)`, which has to stay in sync with the icon's `w-` class), and the inner div is a size container (`@container`). The text is `6cqw` with `whitespace-nowrap`: in Arial the string is about 16.46em wide, so 100cqw ÷ 16.46 ≈ 6.07cqw would fill the space exactly, and 6cqw leaves about 1% of slack. The 16.46em figure was added up from Arial's published character widths, not measured from the font file or in a browser. If the kiosk renders a wider fallback font, the line will overflow rather than wrap, so check it on the kiosk screen. Changing the subtitle's wording means redoing the calculation.
+- **Title:** "L.U.K.E." in extra-bold gold (`--luke-gold`) under the subtitle, sized `clamp(2.1rem, 10.5vw, 5.25rem)`.
 
 **Why a separate component:** it is layout chrome shared by every scene, like `BottomBar`, so it belongs in `components/` rather than in a feature.
 
 ### `components/NavMenu.tsx`
 
-The drop-down scene menu, matching the navbar mockup: an off-white panel (`--luke-off-white`, `#faf9fc`) hanging from the top-left of the scene area, 48% of the width, with a purple border on its right and bottom edges and a rounded bottom-right corner. It sits above the scene (`z-20`).
+The drop-down scene menu, matching the navbar mockup: an off-white panel (`--luke-off-white`, `#faf9fc`) hanging from the top-right of the scene area, under the header's menu button, 48% of the width, with a purple border (`clamp(3px, 0.7vw, 6px)`) on its left and bottom edges and a rounded bottom-left corner. It sits above the scene (`z-20`).
 
 - **State:** `KioskShell` owns `menuOpen`, passes the toggle to the header, and renders the panel only during a session. Ending a session closes it, so the next visitor starts with it shut.
-- **Animation:** the panel stays mounted and grows down from the header when opened, and shrinks back up when closed (`grid-template-rows` 0fr ↔ 1fr, ease-out, off for reduced-motion users). Its height is what animates, so the purple bottom edge and rounded corner stay visible throughout while the buttons are uncovered behind them. At the same time the buttons slide in from the left edge of the screen in a wave, top first, each arriving as the panel's edge reaches it; closing runs the wave bottom first. The panel and the whole wave take `NAV_MENU_ANIMATION_MS` (400ms), each button 200ms of it, and the buttons ignore taps until the opening animation has finished. While closed it is `invisible`, `inert` and `aria-hidden`, so its buttons can't be tapped or focused.
-- **Buttons:** one pill per page (`rounded-full`, lavender fill, 2px purple border, bold purple text, drop shadow `0 4px 4px` black at 25%), full panel width. Text size matches the header title (`clamp(0.875rem, 4.3vw, 2rem)`), and gaps and padding scale with screen height. The panel's height comes from its buttons.
+- **Animation:** the panel stays mounted and grows down from the header when opened, and shrinks back up when closed (`grid-template-rows` 0fr ↔ 1fr, ease-out, off for reduced-motion users). Its height is what animates, so the purple bottom edge and rounded corner stay visible throughout while the buttons are uncovered behind them. At the same time the buttons slide in from the right edge of the screen in a wave, top first, each arriving as the panel's edge reaches it; closing runs the wave bottom first. The panel and the whole wave take `NAV_MENU_ANIMATION_MS` (400ms), each button 200ms of it, and the buttons ignore taps until the opening animation has finished. While closed it is `invisible`, `inert` and `aria-hidden`, so its buttons can't be tapped or focused.
+- **Buttons:** one pill per page (`rounded-full`, lavender fill, purple border as thick as the panel's, bold purple text, drop shadow `0 4px 4px` black at 25%), full panel width. Text size is `clamp(0.875rem, 4.3vw, 2rem)`, the header title's old size from before the "L.U.K.E." redesign, and gaps and padding scale with screen height. The panel's height comes from its buttons.
 - **Home:** the first button, "Home", returns to the main menu. It's added by the shell (`NAV_MENU_ITEMS` in `KioskShell.tsx`), not to `MENU_ITEMS`, because the main menu draws its grid from `MENU_ITEMS` and shouldn't show a button for itself. With nine buttons, the panel is one button taller.
 - **Order and labels:** below "Home", set by `MENU_ITEMS` in `features/kiosk/menu-items.ts` (re-exported from `registry.ts`), which follows the mockup's order rather than carousel order. The labels are short versions of the scene names, e.g. "Faculty" for the directory. The camera page was labelled "Selfie" in the navbar mockup and is now "Camera", to match the main menu. A test checks that the menu lists every scene exactly once.
 - **Choosing a page:** jumps straight to that scene, resets the idle clock, and closes the menu. The bottom bar's arrows and the end of a session also close it. The page on screen is marked with `aria-current="page"`; it has no visual highlight, since the mockup doesn't show one.
